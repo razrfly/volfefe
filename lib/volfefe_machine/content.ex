@@ -116,6 +116,22 @@ defmodule VolfefeMachine.Content do
 
   @doc """
   Gets a single content by ID.
+  Returns nil if not found.
+
+  ## Examples
+
+      iex> get_content(1)
+      %Content{}
+
+      iex> get_content(999)
+      nil
+  """
+  def get_content(id) do
+    Repo.get(Content, id)
+  end
+
+  @doc """
+  Gets a single content by ID.
   Raises if not found.
 
   ## Examples

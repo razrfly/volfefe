@@ -20,6 +20,13 @@ defmodule VolfefeMachineWeb.Router do
     get "/", PageController, :home
   end
 
+  # Admin interface
+  scope "/admin", VolfefeMachineWeb.Admin do
+    pipe_through :browser
+
+    live "/content", ContentIndexLive, :index
+  end
+
   # Other scopes may use custom stacks.
   # scope "/api", VolfefeMachineWeb do
   #   pipe_through :api

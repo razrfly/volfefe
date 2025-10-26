@@ -17,6 +17,7 @@ defmodule VolfefeMachine.Content.Content do
     field :meta, :map
 
     belongs_to :source, VolfefeMachine.Content.Source
+    has_one :classification, VolfefeMachine.Intelligence.Classification
 
     timestamps(type: :utc_datetime)
   end

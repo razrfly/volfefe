@@ -1,0 +1,801 @@
+{
+  "total_posts": 87,
+  "sentiment_distribution": {
+    "positive": 51,
+    "negative": 2,
+    "neutral": 34
+  },
+  "high_confidence_count": 81,
+  "low_confidence_count": 1,
+  "tariff_posts_count": 10,
+  "tariff_sentiments": {
+    "positive": 3,
+    "negative": 2,
+    "neutral": 5
+  },
+  "results": [
+    {
+      "id": 1,
+      "external_id": "115437112529618205",
+      "text": "I am on my way to Malaysia, where I will sign the great Peace Deal, which I proudly brokered between Cambodia and Thailand. Sadly, the Queen Mother of Thailand has just passed away. I send my condolen...",
+      "published_at": "2025-10-25T22:15:50",
+      "sentiment": "neutral",
+      "confidence": 0.9989,
+      "url": "https://truthsocial.com/@realDonaldTrump/115437112529618205"
+    },
+    {
+      "id": 2,
+      "external_id": "115436984200406691",
+      "text": "RT @realDonaldTrumpCanada was caught, red handed, putting up a fraudulent advertisement on Ronald Reagan\u2019s Speech on Tariffs. The Reagan Foundation said that they, \u201ccreated an ad campaign using select...",
+      "published_at": "2025-10-25T21:43:11",
+      "sentiment": "neutral",
+      "confidence": 0.9982,
+      "url": "https://truthsocial.com/@realDonaldTrump/115436984200406691"
+    },
+    {
+      "id": 3,
+      "external_id": "115436968622280698",
+      "text": "https://www.dailysignal.com/2025/10/22/trumps-middle-east-triumph-embarrassed-self-proclaimed-experts/",
+      "published_at": "2025-10-25T21:39:14",
+      "sentiment": "neutral",
+      "confidence": 0.9994,
+      "url": "https://truthsocial.com/@realDonaldTrump/115436968622280698"
+    },
+    {
+      "id": 4,
+      "external_id": "115436967550742005",
+      "text": "https://www.foxnews.com/opinion/new-high-tech-tool-trump-using-secure-our-border",
+      "published_at": "2025-10-25T21:38:57",
+      "sentiment": "neutral",
+      "confidence": 0.9803,
+      "url": "https://truthsocial.com/@realDonaldTrump/115436967550742005"
+    },
+    {
+      "id": 5,
+      "external_id": "115436966353094571",
+      "text": "https://www.foxnews.com/politics/scoop-trumps-memphis-crime-crackdown-locates-dozens-missing-kids-removes-109-gangbangers-from-streets",
+      "published_at": "2025-10-25T21:38:39",
+      "sentiment": "neutral",
+      "confidence": 0.9999,
+      "url": "https://truthsocial.com/@realDonaldTrump/115436966353094571"
+    },
+    {
+      "id": 6,
+      "external_id": "115436965402016084",
+      "text": "https://dailycaller.com/2025/10/22/jeff-merkley-floor-speech-government-shutdown/",
+      "published_at": "2025-10-25T21:38:25",
+      "sentiment": "neutral",
+      "confidence": 0.996,
+      "url": "https://truthsocial.com/@realDonaldTrump/115436965402016084"
+    },
+    {
+      "id": 7,
+      "external_id": "115436964513421181",
+      "text": "https://www.foxnews.com/us/new-york-city-ice-raid-nets-9-arrests-illegal-aliens-from-west-africa-4-protesters-also-arrested",
+      "published_at": "2025-10-25T21:38:11",
+      "sentiment": "neutral",
+      "confidence": 0.9999,
+      "url": "https://truthsocial.com/@realDonaldTrump/115436964513421181"
+    },
+    {
+      "id": 8,
+      "external_id": "115436964139389799",
+      "text": "https://justthenews.com/government/security/deadly-serious-trump-counterterrorism-program-kills-370-jihadists-9-months",
+      "published_at": "2025-10-25T21:38:05",
+      "sentiment": "neutral",
+      "confidence": 0.9932,
+      "url": "https://truthsocial.com/@realDonaldTrump/115436964139389799"
+    },
+    {
+      "id": 9,
+      "external_id": "115436697060819133",
+      "text": "Canada was caught, red handed, putting up a fraudulent advertisement on Ronald Reagan\u2019s Speech on Tariffs. The Reagan Foundation said that they, \u201ccreated an ad campaign using selective audio and video...",
+      "published_at": "2025-10-25T20:30:10",
+      "sentiment": "neutral",
+      "confidence": 0.9966,
+      "url": "https://truthsocial.com/@realDonaldTrump/115436697060819133"
+    },
+    {
+      "id": 10,
+      "external_id": "115436558661444946",
+      "text": "We have a very strong PEACE in the Middle East, and I believe it has a good chance of being EVERLASTING. Hamas is going to have to start returning the bodies of the deceased hostages, including two Am...",
+      "published_at": "2025-10-25T19:54:58",
+      "sentiment": "neutral",
+      "confidence": 0.9623,
+      "url": "https://truthsocial.com/@realDonaldTrump/115436558661444946"
+    },
+    {
+      "id": 11,
+      "external_id": "115436250208272425",
+      "text": "https://www.cnbc.com/2025/10/23/stock-market-today-live-updates.html",
+      "published_at": "2025-10-25T18:36:32",
+      "sentiment": "neutral",
+      "confidence": 0.9977,
+      "url": "https://truthsocial.com/@realDonaldTrump/115436250208272425"
+    },
+    {
+      "id": 12,
+      "external_id": "115436151669143136",
+      "text": "Congressman Jimmy Patronis is a MAGA Warrior who is doing a fantastic job representing Florida\u2019s 1st Congressional District!\u00a0A Fourth Generation Floridian from the beautiful Panhandle, and owner of an...",
+      "published_at": "2025-10-25T18:11:28",
+      "sentiment": "positive",
+      "confidence": 1.0,
+      "url": "https://truthsocial.com/@realDonaldTrump/115436151669143136"
+    },
+    {
+      "id": 13,
+      "external_id": "115435567269756205",
+      "text": "Richard Hudson is a Great Man, and TREMENDOUS Congressman, who is doing an outstanding job representing the wonderful people of North Carolina\u2019s 9th Congressional District.\u00a0As Chairman of the National...",
+      "published_at": "2025-10-25T15:42:51",
+      "sentiment": "positive",
+      "confidence": 1.0,
+      "url": "https://truthsocial.com/@realDonaldTrump/115435567269756205"
+    },
+    {
+      "id": 14,
+      "external_id": "115435565975811522",
+      "text": "Congressman David Rouzer is a terrific Representative for the incredible people of North Carolina\u2019s 7th Congressional District!\u00a0A Proven Leader, David served as a Highly Respected State Senator and Sm...",
+      "published_at": "2025-10-25T15:42:31",
+      "sentiment": "positive",
+      "confidence": 0.9999,
+      "url": "https://truthsocial.com/@realDonaldTrump/115435565975811522"
+    },
+    {
+      "id": 15,
+      "external_id": "115435565492870939",
+      "text": "Congressman Addison McDowell is an America First Patriot, who is doing a fantastic job representing North Carolina\u2019s 6th Congressional District!\u00a0A MAGA Warrior, Addison previously worked for Senator T...",
+      "published_at": "2025-10-25T15:42:24",
+      "sentiment": "positive",
+      "confidence": 1.0,
+      "url": "https://truthsocial.com/@realDonaldTrump/115435565492870939"
+    },
+    {
+      "id": 16,
+      "external_id": "115435125397678740",
+      "text": "Congresswoman Nicole Malliotakis is a Tremendous Champion for New York\u2019s 11th Congressional District!\u00a0As a Member of the POWERFUL Ways & Means Committee, Nicole knows the America First Policies requir...",
+      "published_at": "2025-10-25T13:50:28",
+      "sentiment": "positive",
+      "confidence": 1.0,
+      "url": "https://truthsocial.com/@realDonaldTrump/115435125397678740"
+    },
+    {
+      "id": 17,
+      "external_id": "115434906751111005",
+      "text": "Congressman Jack Bergman is a Tremendous Champion for the Great People of Michigan's 1st Congressional District!\u00a0A retired Lieutenant General of the U.S. Marine Corps, Jack bravely served our Nation i...",
+      "published_at": "2025-10-25T12:54:52",
+      "sentiment": "positive",
+      "confidence": 1.0,
+      "url": "https://truthsocial.com/@realDonaldTrump/115434906751111005"
+    },
+    {
+      "id": 18,
+      "external_id": "115434876884564053",
+      "text": "Congresswoman Lisa McClain is a Fantastic Advocate for the Great People of Michigan\u2019s 9th Congressional District!\u00a0As the Chair of the House Republican Conference, Lisa is doing a truly fantastic job a...",
+      "published_at": "2025-10-25T12:47:16",
+      "sentiment": "positive",
+      "confidence": 1.0,
+      "url": "https://truthsocial.com/@realDonaldTrump/115434876884564053"
+    },
+    {
+      "id": 19,
+      "external_id": "115434875694997684",
+      "text": "Greg Steube is a tremendous Representative for the Great People of Florida\u2019s 17th Congressional District!\u00a0A Former Captain of the U.S. Army JAG Corps, Greg knows the Wisdom and Courage that is require...",
+      "published_at": "2025-10-25T12:46:58",
+      "sentiment": "positive",
+      "confidence": 0.9981,
+      "url": "https://truthsocial.com/@realDonaldTrump/115434875694997684"
+    },
+    {
+      "id": 20,
+      "external_id": "115434874266267478",
+      "text": "Congressman Mike Haridopolos is an America First Patriot who is doing a fantastic job representing Florida\u2019s 8th Congressional District!\u00a0A former Teacher, successful Businessman, and now, as U.S. Cong...",
+      "published_at": "2025-10-25T12:46:36",
+      "sentiment": "positive",
+      "confidence": 1.0,
+      "url": "https://truthsocial.com/@realDonaldTrump/115434874266267478"
+    },
+    {
+      "id": 21,
+      "external_id": "115434873038322093",
+      "text": "Congressman Randy Fine is a MAGA Warrior who is doing a fantastic job representing Florida\u2019s 6th Congressional District!\u00a0A Harvard Educated and Successful Businessman, Randy was a Highly Respected Sta...",
+      "published_at": "2025-10-25T12:46:18",
+      "sentiment": "positive",
+      "confidence": 1.0,
+      "url": "https://truthsocial.com/@realDonaldTrump/115434873038322093"
+    },
+    {
+      "id": 22,
+      "external_id": "115434869707731740",
+      "text": "Congressman Jeff Hurd is an incredible Representative for the Great People of Colorado\u2019s 3rd Congressional District!\u00a0Jeff has a strong Record of SUCCESS, and resounding support from his Community. In ...",
+      "published_at": "2025-10-25T12:45:27",
+      "sentiment": "positive",
+      "confidence": 1.0,
+      "url": "https://truthsocial.com/@realDonaldTrump/115434869707731740"
+    },
+    {
+      "id": 23,
+      "external_id": "115434868395866889",
+      "text": "Congressman Andy Ogles is doing a fantastic job representing the incredible people of Tennessee\u2019s 5th Congressional District!\u00a0Andy is a Conservative Warrior who has strong support from his Community. ...",
+      "published_at": "2025-10-25T12:45:07",
+      "sentiment": "positive",
+      "confidence": 1.0,
+      "url": "https://truthsocial.com/@realDonaldTrump/115434868395866889"
+    },
+    {
+      "id": 24,
+      "external_id": "115434867478490056",
+      "text": "Congressman Marlin Stutzman is an America First Patriot, who is doing an incredible job representing the wonderful people of Indiana\u2019s 3rd Congressional District!\u00a0A Fourth Generation Farmer, Marlin is...",
+      "published_at": "2025-10-25T12:44:53",
+      "sentiment": "positive",
+      "confidence": 1.0,
+      "url": "https://truthsocial.com/@realDonaldTrump/115434867478490056"
+    },
+    {
+      "id": 25,
+      "external_id": "115434866506983325",
+      "text": "Congressman Darin LaHood is a Tremendous Champion for Illinois\u2019 16th Congressional District!\u00a0As a Member of the POWERFUL House Ways & Means Committee, Darin understands the America First Policies requ...",
+      "published_at": "2025-10-25T12:44:38",
+      "sentiment": "positive",
+      "confidence": 1.0,
+      "url": "https://truthsocial.com/@realDonaldTrump/115434866506983325"
+    },
+    {
+      "id": 26,
+      "external_id": "115434864876564194",
+      "text": "Congressman Mike Ezell is a fantastic Representative for the wonderful People of Mississippi\u2019s 4th Congressional District!\u00a0As the former Sheriff of Jackson County, and now, Highly Respected U.S. Congr...",
+      "published_at": "2025-10-25T12:44:13",
+      "sentiment": "positive",
+      "confidence": 0.9999,
+      "url": "https://truthsocial.com/@realDonaldTrump/115434864876564194"
+    },
+    {
+      "id": 27,
+      "external_id": "115434864384907731",
+      "text": "Congressman Brad Knott is a terrific Representative for the incredible people of North Carolina\u2019s 13th Congressional District!\u00a0As a former Criminal Prosecutor, Brad knows the Wisdom and Courage necess...",
+      "published_at": "2025-10-25T12:44:06",
+      "sentiment": "positive",
+      "confidence": 0.9988,
+      "url": "https://truthsocial.com/@realDonaldTrump/115434864384907731"
+    },
+    {
+      "id": 28,
+      "external_id": "115434862488071211",
+      "text": "Congressman Chuck Edwards is a MAGA Warrior who is doing a fantastic job representing North Carolina\u2019s 11th Congressional District!\u00a0A proud Businessman, Civic Leader, and Highly Respected State Senato...",
+      "published_at": "2025-10-25T12:43:37",
+      "sentiment": "positive",
+      "confidence": 1.0,
+      "url": "https://truthsocial.com/@realDonaldTrump/115434862488071211"
+    },
+    {
+      "id": 29,
+      "external_id": "115434861975122052",
+      "text": "Congressman Greg Murphy, M.D., is a Tremendous Champion for the incredible people of North Carolina\u2019s 3rd Congressional District!\u00a0A distinguished Surgeon and Member of the House Veterans' Affairs Comm...",
+      "published_at": "2025-10-25T12:43:29",
+      "sentiment": "positive",
+      "confidence": 1.0,
+      "url": "https://truthsocial.com/@realDonaldTrump/115434861975122052"
+    },
+    {
+      "id": 30,
+      "external_id": "115433013824981623",
+      "text": "Congressman Brian Babin, D.D.S, is an incredible Representative of Texas\u2019 36th Congressional District!\u00a0As the Highly Respected Chairman of the House Science Committee, Brian is fighting hard to Grow o...",
+      "published_at": "2025-10-25T04:53:28",
+      "sentiment": "positive",
+      "confidence": 0.9999,
+      "url": "https://truthsocial.com/@realDonaldTrump/115433013824981623"
+    },
+    {
+      "id": 31,
+      "external_id": "115433013192840304",
+      "text": "Congressman \u201cDoc\u201d Ronny Jackson is an America First Patriot, who is doing a fantastic job representing Texas\u2019 13th Congressional District!\u00a0A distinguished Medical Doctor and U.S. Navy Veteran, \u201cDoc\u201d R...",
+      "published_at": "2025-10-25T04:53:19",
+      "sentiment": "positive",
+      "confidence": 1.0,
+      "url": "https://truthsocial.com/@realDonaldTrump/115433013192840304"
+    },
+    {
+      "id": 32,
+      "external_id": "115433011980643529",
+      "text": "Congressman August Pfluger is a Tremendous Champion for Texas\u2019 11th Congressional District!\u00a0As the Chairman of the Republican Study Committee, August is doing an incredible job advancing our America F...",
+      "published_at": "2025-10-25T04:53:00",
+      "sentiment": "positive",
+      "confidence": 1.0,
+      "url": "https://truthsocial.com/@realDonaldTrump/115433011980643529"
+    },
+    {
+      "id": 33,
+      "external_id": "115433011374281959",
+      "text": "Congressman Jake Ellzey is an America First Patriot who is doing an incredible job representing Texas\u2019 6th Congressional District!\u00a0A former Navy fighter pilot and Combat Veteran, Jake knows the Wisdom...",
+      "published_at": "2025-10-25T04:52:51",
+      "sentiment": "positive",
+      "confidence": 0.9999,
+      "url": "https://truthsocial.com/@realDonaldTrump/115433011374281959"
+    },
+    {
+      "id": 34,
+      "external_id": "115433010735171759",
+      "text": "Congressman Lance Gooden is an America First Patriot, who is doing a fantastic job representing Texas\u2019 5th Congressional District!\u00a0A MAGA Warrior, who has been with us from the very beginning, Lance i...",
+      "published_at": "2025-10-25T04:52:41",
+      "sentiment": "positive",
+      "confidence": 1.0,
+      "url": "https://truthsocial.com/@realDonaldTrump/115433010735171759"
+    },
+    {
+      "id": 35,
+      "external_id": "115433010108866479",
+      "text": "Congressman Troy Nehls is doing a truly fantastic job representing the incredible People of Texas\u2019 22nd Congressional District!\u00a0As former Sheriff of Fort Bend County, and brave U.S. Army Veteran, Troy...",
+      "published_at": "2025-10-25T04:52:32",
+      "sentiment": "positive",
+      "confidence": 1.0,
+      "url": "https://truthsocial.com/@realDonaldTrump/115433010108866479"
+    },
+    {
+      "id": 36,
+      "external_id": "115433009519508016",
+      "text": "Congressman Keith Self is a Tremendous Advocate for the Great People of Texas\u2019 3rd Congressional District!\u00a0A West Point Graduate and retired Army Ranger, Keith knows the Wisdom and Courage required to...",
+      "published_at": "2025-10-25T04:52:23",
+      "sentiment": "positive",
+      "confidence": 0.9989,
+      "url": "https://truthsocial.com/@realDonaldTrump/115433009519508016"
+    },
+    {
+      "id": 37,
+      "external_id": "115433008735462318",
+      "text": "Congressman Claudia Tenney is a Fantastic Advocate for the Wonderful People of New York\u2019s 24th Congressional District!\u00a0As the Chairwoman of the House Election Integrity Caucus, Claudia is an America F...",
+      "published_at": "2025-10-25T04:52:11",
+      "sentiment": "positive",
+      "confidence": 1.0,
+      "url": "https://truthsocial.com/@realDonaldTrump/115433008735462318"
+    },
+    {
+      "id": 38,
+      "external_id": "115433008069468996",
+      "text": "Congressman Nick Langworthy is an America First Patriot, who is doing a fantastic job representing New York\u2019s 23rd Congressional District!\u00a0Nick served as the powerful Chairman of the New York Republic...",
+      "published_at": "2025-10-25T04:52:00",
+      "sentiment": "positive",
+      "confidence": 1.0,
+      "url": "https://truthsocial.com/@realDonaldTrump/115433008069468996"
+    },
+    {
+      "id": 39,
+      "external_id": "115433006793180195",
+      "text": "Congressman Eli Crane is an America First Patriot who is doing an incredible job representing Arizona\u2019s 2nd Congressional District!\u00a0A retired Navy SEAL, Eli bravely served our Nation in combat, and is...",
+      "published_at": "2025-10-25T04:51:41",
+      "sentiment": "positive",
+      "confidence": 1.0,
+      "url": "https://truthsocial.com/@realDonaldTrump/115433006793180195"
+    },
+    {
+      "id": 40,
+      "external_id": "115432378654253078",
+      "text": "Just in: Documents show conclusively that Christopher Wray, Deranged Jack Smith, Merrick Garland, Lisa Monaco, and other crooked lowlifes from the failed Biden Administration, signed off on Operation ...",
+      "published_at": "2025-10-25T02:11:56",
+      "sentiment": "neutral",
+      "confidence": 0.9996,
+      "url": "https://truthsocial.com/@realDonaldTrump/115432378654253078"
+    },
+    {
+      "id": 41,
+      "external_id": "115431695569678615",
+      "text": "Congressman Andrew Clyde is doing a truly fantastic job representing the Great People of Georgia\u2019s 9th Congressional District!A Brave U.S. Navy Veteran, Andrew knows the Wisdom and Courage required to...",
+      "published_at": "2025-10-24T23:18:13",
+      "sentiment": "positive",
+      "confidence": 1.0,
+      "url": "https://truthsocial.com/@realDonaldTrump/115431695569678615"
+    },
+    {
+      "id": 42,
+      "external_id": "115428915165145135",
+      "text": "THE STOCK MARKET IS STRONGER THAN EVER BEFORE BECAUSE OF TARIFFS!",
+      "published_at": "2025-10-24T11:31:08",
+      "sentiment": "positive",
+      "confidence": 1.0,
+      "url": "https://truthsocial.com/@realDonaldTrump/115428915165145135"
+    },
+    {
+      "id": 43,
+      "external_id": "115428907096790566",
+      "text": "THE UNITED STATES IS WEALTHY, POWERFUL, AND NATIONALLY SECURE AGAIN, ALL BECAUSE OF TARIFFS! THE MOST IMPORTANT CASE EVER IS IN THE UNITED STATES SUPREME COURT. GOD BLESS AMERICA!!!",
+      "published_at": "2025-10-24T11:29:05",
+      "sentiment": "positive",
+      "confidence": 0.9991,
+      "url": "https://truthsocial.com/@realDonaldTrump/115428907096790566"
+    },
+    {
+      "id": 44,
+      "external_id": "115428874684902595",
+      "text": "CANADA CHEATED AND GOT CAUGHT!!!They fraudulently took a big buy ad saying that Ronald Reagan did not like Tariffs, when actually he LOVED TARIFFS FOR OUR COUNTRY, AND ITS NATIONAL SECURITY. Canada is...",
+      "published_at": "2025-10-24T11:20:50",
+      "sentiment": "negative",
+      "confidence": 0.7517,
+      "url": "https://truthsocial.com/@realDonaldTrump/115428874684902595"
+    },
+    {
+      "id": 45,
+      "external_id": "115428798659352209",
+      "text": "Ford and General Motors UP BIG on Tariffs placed on Big and Midsized Trucks coming from other countries. Thank you President Trump!",
+      "published_at": "2025-10-24T11:01:30",
+      "sentiment": "neutral",
+      "confidence": 0.9393,
+      "url": "https://truthsocial.com/@realDonaldTrump/115428798659352209"
+    },
+    {
+      "id": 46,
+      "external_id": "115426967566430347",
+      "text": "The Ronald Reagan Foundation has just announced that Canada has fraudulently used an advertisement, which is FAKE, featuring Ronald Reagan speaking negatively about Tariffs. The ad was for $75,000,000...",
+      "published_at": "2025-10-24T03:15:50",
+      "sentiment": "neutral",
+      "confidence": 0.9942,
+      "url": "https://truthsocial.com/@realDonaldTrump/115426967566430347"
+    },
+    {
+      "id": 47,
+      "external_id": "115426826573945929",
+      "text": "MAKE AMERICA GREAT AGAIN!!!",
+      "published_at": "2025-10-24T02:39:58",
+      "sentiment": "positive",
+      "confidence": 0.9998,
+      "url": "https://truthsocial.com/@realDonaldTrump/115426826573945929"
+    },
+    {
+      "id": 48,
+      "external_id": "115426751072031251",
+      "text": "https://truthsocial.com/users/GodWins4EVA/statuses/115420248521563639",
+      "published_at": "2025-10-24T02:20:46",
+      "sentiment": "neutral",
+      "confidence": 0.9989,
+      "url": "https://truthsocial.com/@realDonaldTrump/115426751072031251"
+    },
+    {
+      "id": 49,
+      "external_id": "115426749827825488",
+      "text": "https://truthsocial.com/users/mazurikl/statuses/115420273959997726",
+      "published_at": "2025-10-24T02:20:27",
+      "sentiment": "neutral",
+      "confidence": 0.9981,
+      "url": "https://truthsocial.com/@realDonaldTrump/115426749827825488"
+    },
+    {
+      "id": 50,
+      "external_id": "115426108534331008",
+      "text": "https://nypost.com/2025/10/22/opinion/trump-is-rebuilding-our-nations-pride-with-historic-white-house-renovations/",
+      "published_at": "2025-10-23T23:37:22",
+      "sentiment": "neutral",
+      "confidence": 0.8384,
+      "url": "https://truthsocial.com/@realDonaldTrump/115426108534331008"
+    },
+    {
+      "id": 51,
+      "external_id": "115426107444956686",
+      "text": "https://www.washingtonexaminer.com/news/washington-secrets/3861714/historian-craig-shirley-dismisses-trump-ballroom-critics/",
+      "published_at": "2025-10-23T23:37:05",
+      "sentiment": "neutral",
+      "confidence": 0.9983,
+      "url": "https://truthsocial.com/@realDonaldTrump/115426107444956686"
+    },
+    {
+      "id": 52,
+      "external_id": "115426103540693339",
+      "text": "This month is Down Syndrome Awareness Month. To all of the wonderful Down Syndrome children in our Country, and their parents, who love them so much \u2014 You are AMAZING! May God bless you.",
+      "published_at": "2025-10-23T23:36:06",
+      "sentiment": "positive",
+      "confidence": 0.9773,
+      "url": "https://truthsocial.com/@realDonaldTrump/115426103540693339"
+    },
+    {
+      "id": 53,
+      "external_id": "115425827275887037",
+      "text": "I think the Democrats have gone totally crazy...they don't care about the people. I really think they have no leadership\u2014They really should approve an extension, get the Country back to work, and get ...",
+      "published_at": "2025-10-23T22:25:50",
+      "sentiment": "neutral",
+      "confidence": 0.9856,
+      "url": "https://truthsocial.com/@realDonaldTrump/115425827275887037"
+    },
+    {
+      "id": 55,
+      "external_id": "115425791285627525",
+      "text": "https://www.breitbart.com/politics/2025/10/21/exclusive-trumps-dhs-issues-nearly-10-billion-fines-illegals-so-they-self-deport/",
+      "published_at": "2025-10-23T22:16:41",
+      "sentiment": "neutral",
+      "confidence": 0.9971,
+      "url": "https://truthsocial.com/@realDonaldTrump/115425791285627525"
+    },
+    {
+      "id": 56,
+      "external_id": "115425786828177238",
+      "text": "https://www.dailywire.com/news/thune-trump-warn-democrats-republicans-are-united-and-its-time-to-end-the-shutdown",
+      "published_at": "2025-10-23T22:15:33",
+      "sentiment": "neutral",
+      "confidence": 0.9998,
+      "url": "https://truthsocial.com/@realDonaldTrump/115425786828177238"
+    },
+    {
+      "id": 57,
+      "external_id": "115425785889155038",
+      "text": "https://www.dailywire.com/news/trump-praises-fbi-historic-number-of-violent-criminals-have-been-arrested",
+      "published_at": "2025-10-23T22:15:19",
+      "sentiment": "neutral",
+      "confidence": 0.9985,
+      "url": "https://truthsocial.com/@realDonaldTrump/115425785889155038"
+    },
+    {
+      "id": 59,
+      "external_id": "115425782336990511",
+      "text": "https://www.foxnews.com/politics/scoop-trumps-memphis-crime-crackdown-locates-dozens-missing-kids-removes-109-gangbangers-from-streets",
+      "published_at": "2025-10-23T22:14:25",
+      "sentiment": "neutral",
+      "confidence": 0.9999,
+      "url": "https://truthsocial.com/@realDonaldTrump/115425782336990511"
+    },
+    {
+      "id": 60,
+      "external_id": "115425775629237801",
+      "text": "https://www.foxnews.com/politics/trump-hosts-roundtable-efforts-thwart-cartels-human-trafficking-operations-inherited-disgrace",
+      "published_at": "2025-10-23T22:12:42",
+      "sentiment": "neutral",
+      "confidence": 0.9998,
+      "url": "https://truthsocial.com/@realDonaldTrump/115425775629237801"
+    },
+    {
+      "id": 61,
+      "external_id": "115424560133045127",
+      "text": "The Federal Government was preparing to \u201csurge\u201d San Francisco, California, on Saturday, but friends of mine who live in the area called last night to ask me not to go forward with the surge in that th...",
+      "published_at": "2025-10-23T17:03:35",
+      "sentiment": "positive",
+      "confidence": 0.9397,
+      "url": "https://truthsocial.com/@realDonaldTrump/115424560133045127"
+    },
+    {
+      "id": 62,
+      "external_id": "115421521228626427",
+      "text": "I spoke with Governor Kelly Armstrong, and informed him of my approval of $3 Million Dollars to assist in the aftermath of the major tornadoes and flooding that occurred in the beautiful State of Nort...",
+      "published_at": "2025-10-23T04:10:45",
+      "sentiment": "positive",
+      "confidence": 1.0,
+      "url": "https://truthsocial.com/@realDonaldTrump/115421521228626427"
+    },
+    {
+      "id": 63,
+      "external_id": "115420878291596525",
+      "text": "Lee Zeldin: \u201cThe Trump EPA is committed to total transparency. I tasked my team at EPA to compile everything we know about contrails and geoengineering to release to you now publicly. I want you to kn...",
+      "published_at": "2025-10-23T01:27:15",
+      "sentiment": "neutral",
+      "confidence": 1.0,
+      "url": "https://truthsocial.com/@realDonaldTrump/115420878291596525"
+    },
+    {
+      "id": 67,
+      "external_id": "115420822058223259",
+      "text": "Senator Josh Hawley dismantles CNN\u2019s narrative about President Trump\u2019s White House renovation during a live interview.When reporter Manu Raju asked: \u201cWhat about just uprooting the\u2014you know\u2014this is an ...",
+      "published_at": "2025-10-23T01:12:57",
+      "sentiment": "neutral",
+      "confidence": 0.9997,
+      "url": "https://truthsocial.com/@realDonaldTrump/115420822058223259"
+    },
+    {
+      "id": 68,
+      "external_id": "115420686286814272",
+      "text": "14 people were shot over the weekend in Chicago, four DEAD! What does failed Governor Pritzker, and the equally pathetic Mayor, say now? BRING IN THE FEDERAL GOVERNMENT, AND BRING THEM IN NOW!!!",
+      "published_at": "2025-10-23T00:38:25",
+      "sentiment": "neutral",
+      "confidence": 0.9998,
+      "url": "https://truthsocial.com/@realDonaldTrump/115420686286814272"
+    },
+    {
+      "id": 69,
+      "external_id": "115420559392004198",
+      "text": "Ask former President Barack Hussein Obama whether or not he really believes that in 2020 Joe Biden got 15 Million more Votes than he did in 2012 (65.9 vs. 81 Million). Additionally, ask him why it is ...",
+      "published_at": "2025-10-23T00:06:09",
+      "sentiment": "neutral",
+      "confidence": 0.9987,
+      "url": "https://truthsocial.com/@realDonaldTrump/115420559392004198"
+    },
+    {
+      "id": 70,
+      "external_id": "115420439983527137",
+      "text": "I am rescuing the American Spirit by making America the \u201cHOTTEST\u201d Country in the World. Today Bret Baier has a GREAT Book out about another strong President, Teddy Roosevelt. Go out and get, \u201cTo Rescu...",
+      "published_at": "2025-10-22T23:35:47",
+      "sentiment": "positive",
+      "confidence": 1.0,
+      "url": "https://truthsocial.com/@realDonaldTrump/115420439983527137"
+    },
+    {
+      "id": 71,
+      "external_id": "115420436157664232",
+      "text": "RT: https://truthsocial.com/users/realDonaldTrump/statuses/114661266771433205I just spent some time in the Oval Office with Brad Little, the GREAT Governor of Idaho. He is doing a fantastic job, and h...",
+      "published_at": "2025-10-22T23:34:48",
+      "sentiment": "positive",
+      "confidence": 1.0,
+      "url": "https://truthsocial.com/@realDonaldTrump/115420436157664232"
+    },
+    {
+      "id": 72,
+      "external_id": "115420411260976917",
+      "text": "Congratulations to Eric Trump \u2014 Such a Great Honor to be Number One!",
+      "published_at": "2025-10-22T23:28:29",
+      "sentiment": "positive",
+      "confidence": 1.0,
+      "url": "https://truthsocial.com/@realDonaldTrump/115420411260976917"
+    },
+    {
+      "id": 73,
+      "external_id": "115419815673188246",
+      "text": "\u201cTreasury Sanctions Major Russian Oil Companies, Calls on Moscow to Immediately Agree to Ceasefire\u201d",
+      "published_at": "2025-10-22T20:57:01",
+      "sentiment": "neutral",
+      "confidence": 0.7247,
+      "url": "https://truthsocial.com/@realDonaldTrump/115419815673188246"
+    },
+    {
+      "id": 74,
+      "external_id": "115419686256202789",
+      "text": "The Wall Street Journal story on the U.S.A.\u2019s approval of Ukraine being allowed to use long range missiles deep into Russia is FAKE NEWS! The U.S. has nothing to do with those missiles, wherever they ...",
+      "published_at": "2025-10-22T20:24:06",
+      "sentiment": "neutral",
+      "confidence": 0.9999,
+      "url": "https://truthsocial.com/@realDonaldTrump/115419686256202789"
+    },
+    {
+      "id": 76,
+      "external_id": "115419589580674458",
+      "text": "Wilton Simpson is the strong and highly popular Agriculture Commissioner for Florida, my \u201cHome\u201d State, which I love and won SIX times, including with 6.1 Million Votes in 2024, the most in History (BY...",
+      "published_at": "2025-10-22T19:59:31",
+      "sentiment": "positive",
+      "confidence": 0.9998,
+      "url": "https://truthsocial.com/@realDonaldTrump/115419589580674458"
+    },
+    {
+      "id": 77,
+      "external_id": "115419584805414647",
+      "text": "I just informed Governor Mike Dunleavy that, based on his request, I am approving $25 Million Dollars to help Alaska recover from the major typhoon they experienced earlier this month. It is my Honor ...",
+      "published_at": "2025-10-22T19:58:18",
+      "sentiment": "positive",
+      "confidence": 0.9995,
+      "url": "https://truthsocial.com/@realDonaldTrump/115419584805414647"
+    },
+    {
+      "id": 78,
+      "external_id": "115419583758354199",
+      "text": "I just granted $260,000 to the Leech Lake Band of Ojibwe for public assistance. These incredible people are tough, smart, and will build their community stronger than ever before!",
+      "published_at": "2025-10-22T19:58:02",
+      "sentiment": "positive",
+      "confidence": 1.0,
+      "url": "https://truthsocial.com/@realDonaldTrump/115419583758354199"
+    },
+    {
+      "id": 79,
+      "external_id": "115419580763584285",
+      "text": "I just finished speaking with Governor Jim Pillen, of the Great State of Nebraska, and told him that I have approved $15 Million Dollars for the recovery efforts from the major storms they experienced...",
+      "published_at": "2025-10-22T19:57:16",
+      "sentiment": "positive",
+      "confidence": 0.9999,
+      "url": "https://truthsocial.com/@realDonaldTrump/115419580763584285"
+    },
+    {
+      "id": 80,
+      "external_id": "115419577297297862",
+      "text": "I just spoke with Governor Mike Kehoe, of the Great State of Missouri, and told him that I am approving $2.5 Million Dollars in individual assistance after severe storms, high winds, large hail, flash...",
+      "published_at": "2025-10-22T19:56:23",
+      "sentiment": "positive",
+      "confidence": 0.9997,
+      "url": "https://truthsocial.com/@realDonaldTrump/115419577297297862"
+    },
+    {
+      "id": 81,
+      "external_id": "115419510654451460",
+      "text": "For all of those people voting in New Jersey and Virginia for Governor, Attorney General, or any other position, please remember this: A REPUBLICAN VOTE MEANS A DRASTIC DROP IN ENERGY PRICES AND ENERG...",
+      "published_at": "2025-10-22T19:39:26",
+      "sentiment": "neutral",
+      "confidence": 0.8555,
+      "url": "https://truthsocial.com/@realDonaldTrump/115419510654451460"
+    },
+    {
+      "id": 82,
+      "external_id": "115418866635313882",
+      "text": "Mary Barra of General Motors, and Bill Ford of Ford Motor Company, just called to thank me for putting Tariffs on Mid Size and Large Size Trucks. Their Stock has gone through the roof! They told me th...",
+      "published_at": "2025-10-22T16:55:39",
+      "sentiment": "positive",
+      "confidence": 1.0,
+      "url": "https://truthsocial.com/@realDonaldTrump/115418866635313882"
+    },
+    {
+      "id": 83,
+      "external_id": "115418834028774105",
+      "text": "In addition to everything else, Tariffs on other Countries SAVED our Cattle Ranchers!",
+      "published_at": "2025-10-22T16:47:22",
+      "sentiment": "neutral",
+      "confidence": 0.9977,
+      "url": "https://truthsocial.com/@realDonaldTrump/115418834028774105"
+    },
+    {
+      "id": 84,
+      "external_id": "115418813519600271",
+      "text": "The Cattle Ranchers, who I love, don\u2019t understand that the only reason they are doing so well, for the first time in decades, is because I put Tariffs on cattle coming into the United States, includin...",
+      "published_at": "2025-10-22T16:42:09",
+      "sentiment": "negative",
+      "confidence": 0.8538,
+      "url": "https://truthsocial.com/@realDonaldTrump/115418813519600271"
+    },
+    {
+      "id": 85,
+      "external_id": "115414670134103540",
+      "text": "Congressman Paul Gosar, D.D.S., is an America First Patriot, who is doing a fantastic job representing Arizona\u2019s 9th Congressional District!\u00a0A MAGA Warrior, who has been with us from the very beginnin...",
+      "published_at": "2025-10-21T23:08:26",
+      "sentiment": "positive",
+      "confidence": 1.0,
+      "url": "https://truthsocial.com/@realDonaldTrump/115414670134103540"
+    },
+    {
+      "id": 89,
+      "external_id": "115412289768445562",
+      "text": "Numerous of our NOW GREAT ALLIES in the Middle East, and areas surrounding the Middle East, have explicitly and strongly, with great enthusiasm, informed me that they would welcome the opportunity, at...",
+      "published_at": "2025-10-21T13:03:04",
+      "sentiment": "positive",
+      "confidence": 0.9991,
+      "url": "https://truthsocial.com/@realDonaldTrump/115412289768445562"
+    },
+    {
+      "id": 91,
+      "external_id": "115408925114284473",
+      "text": "The FBI, under my Administration, is doing an incredible job. Since January 20th, more than 28,000 Violent Criminals have been arrested (RECORD BREAKING!), with over 6,000 illegal weapons seized, more...",
+      "published_at": "2025-10-20T22:47:24",
+      "sentiment": "positive",
+      "confidence": 0.9929,
+      "url": "https://truthsocial.com/@realDonaldTrump/115408925114284473"
+    },
+    {
+      "id": 92,
+      "external_id": "115408922697857899",
+      "text": "JACK CIATTARELLI IS A WINNER FOR NEW JERSEY! Mikie Sherrill is the exact opposite, a stone cold loser, who will drive your Energy costs through the roof, just like the Democrats are doing all over the...",
+      "published_at": "2025-10-20T22:46:47",
+      "sentiment": "neutral",
+      "confidence": 0.6483,
+      "url": "https://truthsocial.com/@realDonaldTrump/115408922697857899"
+    },
+    {
+      "id": 93,
+      "external_id": "115408916651989676",
+      "text": "Jack Ciattarelli, the wonderful New Jersey Gubernatorial Candidate that is doing very well in the Polls against a very Fake and Corrupt Mikie Sherrill, will bring Energy prices down in New Jersey by r...",
+      "published_at": "2025-10-20T22:45:15",
+      "sentiment": "neutral",
+      "confidence": 0.9983,
+      "url": "https://truthsocial.com/@realDonaldTrump/115408916651989676"
+    },
+    {
+      "id": 94,
+      "external_id": "115408594704490513",
+      "text": "I am pleased to announce that ground has been broken on the White House grounds to build the new, big, beautiful White House Ballroom. Completely separate from the White House itself, the East Wing is...",
+      "published_at": "2025-10-20T21:23:22",
+      "sentiment": "positive",
+      "confidence": 0.9961,
+      "url": "https://truthsocial.com/@realDonaldTrump/115408594704490513"
+    },
+    {
+      "id": 95,
+      "external_id": "115408279042674945",
+      "text": "I am proud to announce the nomination of Alexander Van Hook to serve as Judge on the United States District Court for the Western District of Louisiana. Alexander attended Centenary College of Louisia...",
+      "published_at": "2025-10-20T20:03:06",
+      "sentiment": "positive",
+      "confidence": 1.0,
+      "url": "https://truthsocial.com/@realDonaldTrump/115408279042674945"
+    },
+    {
+      "id": 96,
+      "external_id": "115408277865887528",
+      "text": "I am pleased to announce the nomination of William Crain to serve as Judge on the United States District Court for the Eastern District of Louisiana. William is a proud Graduate of Louisiana State Uni...",
+      "published_at": "2025-10-20T20:02:48",
+      "sentiment": "positive",
+      "confidence": 0.9997,
+      "url": "https://truthsocial.com/@realDonaldTrump/115408277865887528"
+    },
+    {
+      "id": 100,
+      "external_id": "115402354000676703",
+      "text": "I\u2019m pleased to announce Mark Savaya will serve as Special Envoy to the Republic of Iraq. Mark\u2019s deep understanding of the Iraq-U.S. relationship, and his connections in the region, will help advance t...",
+      "published_at": "2025-10-19T18:56:17",
+      "sentiment": "positive",
+      "confidence": 0.9993,
+      "url": "https://truthsocial.com/@realDonaldTrump/115402354000676703"
+    }
+  ]
+}
