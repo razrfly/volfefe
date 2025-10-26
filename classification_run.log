@@ -474,3 +474,567 @@ UPDATE "contents" AS c0 SET "classified" = $1 WHERE (c0."id" = $2) [true, 41]
 [debug] QUERY OK source="contents" db=7.2ms idle=161.5ms
 SELECT c0."id", c0."external_id", c0."author", c0."text", c0."url", c0."published_at", c0."classified", c0."meta", c0."source_id", c0."inserted_at", c0."updated_at" FROM "contents" AS c0 WHERE (c0."id" = $1) [42]
 [90m↳ VolfefeMachine.Intelligence.fetch_content/1, at: lib/volfefe_machine/intelligence.ex:218[0m
+[debug] QUERY OK source="classifications" db=3.1ms idle=531.3ms
+INSERT INTO "classifications" ("meta","sentiment","confidence","content_id","model_version","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING "id" [%{"raw_scores" => %{"negative" => 0.0, "neutral" => 0.0, "positive" => 1.0}}, "positive", 1.0, 42, "finbert-tone-v1.0", ~U[2025-10-26 17:05:28Z], ~U[2025-10-26 17:05:28Z]]
+[90m↳ Mix.Tasks.Classify.Contents.classify_with_progress/3, at: lib/mix/tasks/classify_contents.ex:138[0m
+[debug] QUERY OK source="contents" db=3.5ms idle=535.8ms
+UPDATE "contents" AS c0 SET "classified" = $1 WHERE (c0."id" = $2) [true, 42]
+[90m↳ VolfefeMachine.Content.mark_as_classified/1, at: lib/volfefe_machine/content.ex:182[0m
+  ✅ 📈 positive (1.0) - 8377ms
+
+[40/84] Classifying content_id=43...
+[debug] QUERY OK source="contents" db=0.9ms idle=539.8ms
+SELECT c0."id", c0."external_id", c0."author", c0."text", c0."url", c0."published_at", c0."classified", c0."meta", c0."source_id", c0."inserted_at", c0."updated_at" FROM "contents" AS c0 WHERE (c0."id" = $1) [43]
+[90m↳ VolfefeMachine.Intelligence.fetch_content/1, at: lib/volfefe_machine/intelligence.ex:218[0m
+[debug] QUERY OK source="classifications" db=4.9ms queue=0.1ms idle=1533.7ms
+INSERT INTO "classifications" ("meta","sentiment","confidence","content_id","model_version","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING "id" [%{"raw_scores" => %{"negative" => 0.0002, "neutral" => 0.0007, "positive" => 0.9991}}, "positive", 0.9991, 43, "finbert-tone-v1.0", ~U[2025-10-26 17:05:33Z], ~U[2025-10-26 17:05:33Z]]
+[90m↳ Mix.Tasks.Classify.Contents.classify_with_progress/3, at: lib/mix/tasks/classify_contents.ex:138[0m
+[debug] QUERY OK source="contents" db=0.9ms idle=1539.9ms
+UPDATE "contents" AS c0 SET "classified" = $1 WHERE (c0."id" = $2) [true, 43]
+[90m↳ VolfefeMachine.Content.mark_as_classified/1, at: lib/volfefe_machine/content.ex:182[0m
+  ✅ 📈 positive (1.0) - 4999ms
+
+[41/84] Classifying content_id=44...
+[debug] QUERY OK source="contents" db=3.5ms idle=1542.0ms
+SELECT c0."id", c0."external_id", c0."author", c0."text", c0."url", c0."published_at", c0."classified", c0."meta", c0."source_id", c0."inserted_at", c0."updated_at" FROM "contents" AS c0 WHERE (c0."id" = $1) [44]
+[90m↳ VolfefeMachine.Intelligence.fetch_content/1, at: lib/volfefe_machine/intelligence.ex:218[0m
+[debug] QUERY OK source="classifications" db=44.2ms idle=1783.1ms
+INSERT INTO "classifications" ("meta","sentiment","confidence","content_id","model_version","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING "id" [%{"raw_scores" => %{"negative" => 0.7517, "neutral" => 0.15, "positive" => 0.0984}}, "negative", 0.7517, 44, "finbert-tone-v1.0", ~U[2025-10-26 17:05:38Z], ~U[2025-10-26 17:05:38Z]]
+[90m↳ Mix.Tasks.Classify.Contents.classify_with_progress/3, at: lib/mix/tasks/classify_contents.ex:138[0m
+[debug] QUERY OK source="contents" db=0.4ms idle=1826.6ms
+UPDATE "contents" AS c0 SET "classified" = $1 WHERE (c0."id" = $2) [true, 44]
+[90m↳ VolfefeMachine.Content.mark_as_classified/1, at: lib/volfefe_machine/content.ex:182[0m
+  ✅ 📉 negative (0.75) - 5397ms
+
+[42/84] Classifying content_id=45...
+[debug] QUERY OK source="contents" db=5.6ms idle=1827.3ms
+SELECT c0."id", c0."external_id", c0."author", c0."text", c0."url", c0."published_at", c0."classified", c0."meta", c0."source_id", c0."inserted_at", c0."updated_at" FROM "contents" AS c0 WHERE (c0."id" = $1) [45]
+[90m↳ VolfefeMachine.Intelligence.fetch_content/1, at: lib/volfefe_machine/intelligence.ex:218[0m
+[debug] QUERY OK source="classifications" db=2.0ms queue=0.1ms idle=1596.6ms
+INSERT INTO "classifications" ("meta","sentiment","confidence","content_id","model_version","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING "id" [%{"raw_scores" => %{"negative" => 0.0012, "neutral" => 0.9393, "positive" => 0.0594}}, "neutral", 0.9393, 45, "finbert-tone-v1.0", ~U[2025-10-26 17:05:45Z], ~U[2025-10-26 17:05:45Z]]
+[90m↳ Mix.Tasks.Classify.Contents.classify_with_progress/3, at: lib/mix/tasks/classify_contents.ex:138[0m
+[debug] QUERY OK source="contents" db=4.6ms idle=1599.5ms
+UPDATE "contents" AS c0 SET "classified" = $1 WHERE (c0."id" = $2) [true, 45]
+[90m↳ VolfefeMachine.Content.mark_as_classified/1, at: lib/volfefe_machine/content.ex:182[0m
+  ✅ ➖ neutral (0.94) - 6775ms
+
+[43/84] Classifying content_id=46...
+[debug] QUERY OK source="contents" db=1.2ms idle=1604.6ms
+SELECT c0."id", c0."external_id", c0."author", c0."text", c0."url", c0."published_at", c0."classified", c0."meta", c0."source_id", c0."inserted_at", c0."updated_at" FROM "contents" AS c0 WHERE (c0."id" = $1) [46]
+[90m↳ VolfefeMachine.Intelligence.fetch_content/1, at: lib/volfefe_machine/intelligence.ex:218[0m
+[debug] QUERY OK source="classifications" db=3.7ms idle=1349.4ms
+INSERT INTO "classifications" ("meta","sentiment","confidence","content_id","model_version","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING "id" [%{"raw_scores" => %{"negative" => 0.0055, "neutral" => 0.9942, "positive" => 0.0003}}, "neutral", 0.9942, 46, "finbert-tone-v1.0", ~U[2025-10-26 17:05:49Z], ~U[2025-10-26 17:05:49Z]]
+[90m↳ Mix.Tasks.Classify.Contents.classify_with_progress/3, at: lib/mix/tasks/classify_contents.ex:138[0m
+[debug] QUERY OK source="contents" db=1.1ms idle=1353.7ms
+UPDATE "contents" AS c0 SET "classified" = $1 WHERE (c0."id" = $2) [true, 46]
+[90m↳ VolfefeMachine.Content.mark_as_classified/1, at: lib/volfefe_machine/content.ex:182[0m
+  ✅ ➖ neutral (0.99) - 3754ms
+
+[44/84] Classifying content_id=47...
+[debug] QUERY OK source="contents" db=0.5ms idle=1355.3ms
+SELECT c0."id", c0."external_id", c0."author", c0."text", c0."url", c0."published_at", c0."classified", c0."meta", c0."source_id", c0."inserted_at", c0."updated_at" FROM "contents" AS c0 WHERE (c0."id" = $1) [47]
+[90m↳ VolfefeMachine.Intelligence.fetch_content/1, at: lib/volfefe_machine/intelligence.ex:218[0m
+[debug] QUERY OK source="classifications" db=1.6ms idle=1510.3ms
+INSERT INTO "classifications" ("meta","sentiment","confidence","content_id","model_version","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING "id" [%{"raw_scores" => %{"negative" => 0.0, "neutral" => 0.0002, "positive" => 0.9998}}, "positive", 0.9998, 47, "finbert-tone-v1.0", ~U[2025-10-26 17:05:52Z], ~U[2025-10-26 17:05:52Z]]
+[90m↳ Mix.Tasks.Classify.Contents.classify_with_progress/3, at: lib/mix/tasks/classify_contents.ex:138[0m
+[debug] QUERY OK source="contents" db=1.7ms idle=1512.1ms
+UPDATE "contents" AS c0 SET "classified" = $1 WHERE (c0."id" = $2) [true, 47]
+[90m↳ VolfefeMachine.Content.mark_as_classified/1, at: lib/volfefe_machine/content.ex:182[0m
+  ✅ 📈 positive (1.0) - 3157ms
+
+[45/84] Classifying content_id=48...
+[debug] QUERY OK source="contents" db=1.2ms idle=1514.3ms
+SELECT c0."id", c0."external_id", c0."author", c0."text", c0."url", c0."published_at", c0."classified", c0."meta", c0."source_id", c0."inserted_at", c0."updated_at" FROM "contents" AS c0 WHERE (c0."id" = $1) [48]
+[90m↳ VolfefeMachine.Intelligence.fetch_content/1, at: lib/volfefe_machine/intelligence.ex:218[0m
+[debug] QUERY OK source="classifications" db=2.3ms idle=1765.7ms
+INSERT INTO "classifications" ("meta","sentiment","confidence","content_id","model_version","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING "id" [%{"raw_scores" => %{"negative" => 0.0004, "neutral" => 0.9989, "positive" => 0.0007}}, "neutral", 0.9989, 48, "finbert-tone-v1.0", ~U[2025-10-26 17:05:55Z], ~U[2025-10-26 17:05:55Z]]
+[90m↳ Mix.Tasks.Classify.Contents.classify_with_progress/3, at: lib/mix/tasks/classify_contents.ex:138[0m
+[debug] QUERY OK source="contents" db=1.5ms idle=1768.6ms
+UPDATE "contents" AS c0 SET "classified" = $1 WHERE (c0."id" = $2) [true, 48]
+[90m↳ VolfefeMachine.Content.mark_as_classified/1, at: lib/volfefe_machine/content.ex:182[0m
+  ✅ ➖ neutral (1.0) - 3255ms
+
+[46/84] Classifying content_id=49...
+[debug] QUERY OK source="contents" db=1.2ms idle=1770.5ms
+SELECT c0."id", c0."external_id", c0."author", c0."text", c0."url", c0."published_at", c0."classified", c0."meta", c0."source_id", c0."inserted_at", c0."updated_at" FROM "contents" AS c0 WHERE (c0."id" = $1) [49]
+[90m↳ VolfefeMachine.Intelligence.fetch_content/1, at: lib/volfefe_machine/intelligence.ex:218[0m
+[debug] QUERY OK source="classifications" db=4.1ms idle=1889.2ms
+INSERT INTO "classifications" ("meta","sentiment","confidence","content_id","model_version","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING "id" [%{"raw_scores" => %{"negative" => 0.0006, "neutral" => 0.9981, "positive" => 0.0013}}, "neutral", 0.9981, 49, "finbert-tone-v1.0", ~U[2025-10-26 17:06:00Z], ~U[2025-10-26 17:06:00Z]]
+[90m↳ Mix.Tasks.Classify.Contents.classify_with_progress/3, at: lib/mix/tasks/classify_contents.ex:138[0m
+[debug] QUERY OK source="contents" db=1.2ms idle=1894.0ms
+UPDATE "contents" AS c0 SET "classified" = $1 WHERE (c0."id" = $2) [true, 49]
+[90m↳ VolfefeMachine.Content.mark_as_classified/1, at: lib/volfefe_machine/content.ex:182[0m
+  ✅ ➖ neutral (1.0) - 5176ms
+
+[47/84] Classifying content_id=50...
+[debug] QUERY OK source="contents" db=0.9ms idle=1895.7ms
+SELECT c0."id", c0."external_id", c0."author", c0."text", c0."url", c0."published_at", c0."classified", c0."meta", c0."source_id", c0."inserted_at", c0."updated_at" FROM "contents" AS c0 WHERE (c0."id" = $1) [50]
+[90m↳ VolfefeMachine.Intelligence.fetch_content/1, at: lib/volfefe_machine/intelligence.ex:218[0m
+[debug] QUERY OK source="classifications" db=1.6ms idle=1338.6ms
+INSERT INTO "classifications" ("meta","sentiment","confidence","content_id","model_version","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING "id" [%{"raw_scores" => %{"negative" => 0.0035, "neutral" => 0.8384, "positive" => 0.1581}}, "neutral", 0.8384, 50, "finbert-tone-v1.0", ~U[2025-10-26 17:06:05Z], ~U[2025-10-26 17:06:05Z]]
+[90m↳ Mix.Tasks.Classify.Contents.classify_with_progress/3, at: lib/mix/tasks/classify_contents.ex:138[0m
+[debug] QUERY OK source="contents" db=0.9ms idle=1341.1ms
+UPDATE "contents" AS c0 SET "classified" = $1 WHERE (c0."id" = $2) [true, 50]
+[90m↳ VolfefeMachine.Content.mark_as_classified/1, at: lib/volfefe_machine/content.ex:182[0m
+  ✅ ➖ neutral (0.84) - 4442ms
+
+[48/84] Classifying content_id=51...
+[debug] QUERY OK source="contents" db=0.7ms idle=1343.0ms
+SELECT c0."id", c0."external_id", c0."author", c0."text", c0."url", c0."published_at", c0."classified", c0."meta", c0."source_id", c0."inserted_at", c0."updated_at" FROM "contents" AS c0 WHERE (c0."id" = $1) [51]
+[90m↳ VolfefeMachine.Intelligence.fetch_content/1, at: lib/volfefe_machine/intelligence.ex:218[0m
+[debug] QUERY OK source="classifications" db=1.1ms idle=1443.8ms
+INSERT INTO "classifications" ("meta","sentiment","confidence","content_id","model_version","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING "id" [%{"raw_scores" => %{"negative" => 0.0012, "neutral" => 0.9983, "positive" => 0.0005}}, "neutral", 0.9983, 51, "finbert-tone-v1.0", ~U[2025-10-26 17:06:09Z], ~U[2025-10-26 17:06:09Z]]
+[90m↳ Mix.Tasks.Classify.Contents.classify_with_progress/3, at: lib/mix/tasks/classify_contents.ex:138[0m
+[debug] QUERY OK source="contents" db=0.7ms idle=1445.5ms
+UPDATE "contents" AS c0 SET "classified" = $1 WHERE (c0."id" = $2) [true, 51]
+[90m↳ VolfefeMachine.Content.mark_as_classified/1, at: lib/volfefe_machine/content.ex:182[0m
+  ✅ ➖ neutral (1.0) - 4104ms
+
+[49/84] Classifying content_id=52...
+[debug] QUERY OK source="contents" db=13.0ms idle=1446.6ms
+SELECT c0."id", c0."external_id", c0."author", c0."text", c0."url", c0."published_at", c0."classified", c0."meta", c0."source_id", c0."inserted_at", c0."updated_at" FROM "contents" AS c0 WHERE (c0."id" = $1) [52]
+[90m↳ VolfefeMachine.Intelligence.fetch_content/1, at: lib/volfefe_machine/intelligence.ex:218[0m
+[debug] QUERY OK source="classifications" db=5.6ms idle=1621.1ms
+INSERT INTO "classifications" ("meta","sentiment","confidence","content_id","model_version","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING "id" [%{"raw_scores" => %{"negative" => 0.0025, "neutral" => 0.0202, "positive" => 0.9773}}, "positive", 0.9773, 52, "finbert-tone-v1.0", ~U[2025-10-26 17:06:13Z], ~U[2025-10-26 17:06:13Z]]
+[90m↳ Mix.Tasks.Classify.Contents.classify_with_progress/3, at: lib/mix/tasks/classify_contents.ex:138[0m
+[debug] QUERY OK source="contents" db=7.1ms idle=628.2ms
+UPDATE "contents" AS c0 SET "classified" = $1 WHERE (c0."id" = $2) [true, 52]
+[90m↳ VolfefeMachine.Content.mark_as_classified/1, at: lib/volfefe_machine/content.ex:182[0m
+  ✅ 📈 positive (0.98) - 4182ms
+
+[50/84] Classifying content_id=53...
+[debug] QUERY OK source="contents" db=4.0ms idle=636.8ms
+SELECT c0."id", c0."external_id", c0."author", c0."text", c0."url", c0."published_at", c0."classified", c0."meta", c0."source_id", c0."inserted_at", c0."updated_at" FROM "contents" AS c0 WHERE (c0."id" = $1) [53]
+[90m↳ VolfefeMachine.Intelligence.fetch_content/1, at: lib/volfefe_machine/intelligence.ex:218[0m
+[debug] QUERY OK source="classifications" db=2.7ms idle=1793.0ms
+INSERT INTO "classifications" ("meta","sentiment","confidence","content_id","model_version","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING "id" [%{"raw_scores" => %{"negative" => 0.0132, "neutral" => 0.9856, "positive" => 0.0013}}, "neutral", 0.9856, 53, "finbert-tone-v1.0", ~U[2025-10-26 17:06:16Z], ~U[2025-10-26 17:06:16Z]]
+[90m↳ Mix.Tasks.Classify.Contents.classify_with_progress/3, at: lib/mix/tasks/classify_contents.ex:138[0m
+[debug] QUERY OK source="contents" db=0.5ms idle=1795.8ms
+UPDATE "contents" AS c0 SET "classified" = $1 WHERE (c0."id" = $2) [true, 53]
+[90m↳ VolfefeMachine.Content.mark_as_classified/1, at: lib/volfefe_machine/content.ex:182[0m
+  ✅ ➖ neutral (0.99) - 3159ms
+
+[51/84] Classifying content_id=55...
+[debug] QUERY OK source="contents" db=1.6ms idle=1796.5ms
+SELECT c0."id", c0."external_id", c0."author", c0."text", c0."url", c0."published_at", c0."classified", c0."meta", c0."source_id", c0."inserted_at", c0."updated_at" FROM "contents" AS c0 WHERE (c0."id" = $1) [55]
+[90m↳ VolfefeMachine.Intelligence.fetch_content/1, at: lib/volfefe_machine/intelligence.ex:218[0m
+[debug] QUERY OK source="classifications" db=1.1ms idle=1353.6ms
+INSERT INTO "classifications" ("meta","sentiment","confidence","content_id","model_version","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING "id" [%{"raw_scores" => %{"negative" => 0.0028, "neutral" => 0.9971, "positive" => 0.0}}, "neutral", 0.9971, 55, "finbert-tone-v1.0", ~U[2025-10-26 17:06:20Z], ~U[2025-10-26 17:06:20Z]]
+[90m↳ Mix.Tasks.Classify.Contents.classify_with_progress/3, at: lib/mix/tasks/classify_contents.ex:138[0m
+[debug] QUERY OK source="contents" db=0.5ms idle=1355.5ms
+UPDATE "contents" AS c0 SET "classified" = $1 WHERE (c0."id" = $2) [true, 55]
+[90m↳ VolfefeMachine.Content.mark_as_classified/1, at: lib/volfefe_machine/content.ex:182[0m
+  ✅ ➖ neutral (1.0) - 3558ms
+
+[52/84] Classifying content_id=56...
+[debug] QUERY OK source="contents" db=0.4ms idle=1356.4ms
+SELECT c0."id", c0."external_id", c0."author", c0."text", c0."url", c0."published_at", c0."classified", c0."meta", c0."source_id", c0."inserted_at", c0."updated_at" FROM "contents" AS c0 WHERE (c0."id" = $1) [56]
+[90m↳ VolfefeMachine.Intelligence.fetch_content/1, at: lib/volfefe_machine/intelligence.ex:218[0m
+[debug] QUERY OK source="classifications" db=1.0ms idle=1743.9ms
+INSERT INTO "classifications" ("meta","sentiment","confidence","content_id","model_version","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING "id" [%{"raw_scores" => %{"negative" => 0.0002, "neutral" => 0.9998, "positive" => 0.0}}, "neutral", 0.9998, 56, "finbert-tone-v1.0", ~U[2025-10-26 17:06:23Z], ~U[2025-10-26 17:06:23Z]]
+[90m↳ Mix.Tasks.Classify.Contents.classify_with_progress/3, at: lib/mix/tasks/classify_contents.ex:138[0m
+[debug] QUERY OK source="contents" db=1.1ms idle=1745.8ms
+UPDATE "contents" AS c0 SET "classified" = $1 WHERE (c0."id" = $2) [true, 56]
+[90m↳ VolfefeMachine.Content.mark_as_classified/1, at: lib/volfefe_machine/content.ex:182[0m
+  ✅ ➖ neutral (1.0) - 3390ms
+
+[53/84] Classifying content_id=57...
+[debug] QUERY OK source="contents" db=1.4ms idle=1747.7ms
+SELECT c0."id", c0."external_id", c0."author", c0."text", c0."url", c0."published_at", c0."classified", c0."meta", c0."source_id", c0."inserted_at", c0."updated_at" FROM "contents" AS c0 WHERE (c0."id" = $1) [57]
+[90m↳ VolfefeMachine.Intelligence.fetch_content/1, at: lib/volfefe_machine/intelligence.ex:218[0m
+[debug] QUERY OK source="classifications" db=18.0ms idle=1785.5ms
+INSERT INTO "classifications" ("meta","sentiment","confidence","content_id","model_version","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING "id" [%{"raw_scores" => %{"negative" => 0.001, "neutral" => 0.9985, "positive" => 0.0004}}, "neutral", 0.9985, 57, "finbert-tone-v1.0", ~U[2025-10-26 17:06:27Z], ~U[2025-10-26 17:06:27Z]]
+[90m↳ Mix.Tasks.Classify.Contents.classify_with_progress/3, at: lib/mix/tasks/classify_contents.ex:138[0m
+[debug] QUERY OK source="contents" db=1.2ms idle=1804.3ms
+UPDATE "contents" AS c0 SET "classified" = $1 WHERE (c0."id" = $2) [true, 57]
+[90m↳ VolfefeMachine.Content.mark_as_classified/1, at: lib/volfefe_machine/content.ex:182[0m
+  ✅ ➖ neutral (1.0) - 4059ms
+
+[54/84] Classifying content_id=59...
+[debug] QUERY OK source="contents" db=1.1ms idle=1805.8ms
+SELECT c0."id", c0."external_id", c0."author", c0."text", c0."url", c0."published_at", c0."classified", c0."meta", c0."source_id", c0."inserted_at", c0."updated_at" FROM "contents" AS c0 WHERE (c0."id" = $1) [59]
+[90m↳ VolfefeMachine.Intelligence.fetch_content/1, at: lib/volfefe_machine/intelligence.ex:218[0m
+[debug] QUERY OK source="classifications" db=3.8ms idle=580.5ms
+INSERT INTO "classifications" ("meta","sentiment","confidence","content_id","model_version","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING "id" [%{"raw_scores" => %{"negative" => 0.0001, "neutral" => 0.9999, "positive" => 0.0}}, "neutral", 0.9999, 59, "finbert-tone-v1.0", ~U[2025-10-26 17:06:31Z], ~U[2025-10-26 17:06:31Z]]
+[90m↳ Mix.Tasks.Classify.Contents.classify_with_progress/3, at: lib/mix/tasks/classify_contents.ex:138[0m
+[debug] QUERY OK source="contents" db=3.0ms idle=584.6ms
+UPDATE "contents" AS c0 SET "classified" = $1 WHERE (c0."id" = $2) [true, 59]
+[90m↳ VolfefeMachine.Content.mark_as_classified/1, at: lib/volfefe_machine/content.ex:182[0m
+  ✅ ➖ neutral (1.0) - 3784ms
+
+[55/84] Classifying content_id=60...
+[debug] QUERY OK source="contents" db=3.3ms idle=588.1ms
+SELECT c0."id", c0."external_id", c0."author", c0."text", c0."url", c0."published_at", c0."classified", c0."meta", c0."source_id", c0."inserted_at", c0."updated_at" FROM "contents" AS c0 WHERE (c0."id" = $1) [60]
+[90m↳ VolfefeMachine.Intelligence.fetch_content/1, at: lib/volfefe_machine/intelligence.ex:218[0m
+[debug] QUERY OK source="classifications" db=1.7ms idle=463.5ms
+INSERT INTO "classifications" ("meta","sentiment","confidence","content_id","model_version","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING "id" [%{"raw_scores" => %{"negative" => 0.0002, "neutral" => 0.9998, "positive" => 0.0}}, "neutral", 0.9998, 60, "finbert-tone-v1.0", ~U[2025-10-26 17:06:35Z], ~U[2025-10-26 17:06:35Z]]
+[90m↳ Mix.Tasks.Classify.Contents.classify_with_progress/3, at: lib/mix/tasks/classify_contents.ex:138[0m
+[debug] QUERY OK source="contents" db=3.0ms idle=465.8ms
+UPDATE "contents" AS c0 SET "classified" = $1 WHERE (c0."id" = $2) [true, 60]
+[90m↳ VolfefeMachine.Content.mark_as_classified/1, at: lib/volfefe_machine/content.ex:182[0m
+  ✅ ➖ neutral (1.0) - 3874ms
+
+[56/84] Classifying content_id=61...
+[debug] QUERY OK source="contents" db=1.1ms idle=469.4ms
+SELECT c0."id", c0."external_id", c0."author", c0."text", c0."url", c0."published_at", c0."classified", c0."meta", c0."source_id", c0."inserted_at", c0."updated_at" FROM "contents" AS c0 WHERE (c0."id" = $1) [61]
+[90m↳ VolfefeMachine.Intelligence.fetch_content/1, at: lib/volfefe_machine/intelligence.ex:218[0m
+[debug] QUERY OK source="classifications" db=1.9ms idle=1837.5ms
+INSERT INTO "classifications" ("meta","sentiment","confidence","content_id","model_version","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING "id" [%{"raw_scores" => %{"negative" => 0.0031, "neutral" => 0.0573, "positive" => 0.9397}}, "positive", 0.9397, 61, "finbert-tone-v1.0", ~U[2025-10-26 17:06:38Z], ~U[2025-10-26 17:06:38Z]]
+[90m↳ Mix.Tasks.Classify.Contents.classify_with_progress/3, at: lib/mix/tasks/classify_contents.ex:138[0m
+[debug] QUERY OK source="contents" db=0.7ms idle=1840.2ms
+UPDATE "contents" AS c0 SET "classified" = $1 WHERE (c0."id" = $2) [true, 61]
+[90m↳ VolfefeMachine.Content.mark_as_classified/1, at: lib/volfefe_machine/content.ex:182[0m
+  ✅ 📈 positive (0.94) - 3370ms
+
+[57/84] Classifying content_id=62...
+[debug] QUERY OK source="contents" db=0.8ms idle=1841.2ms
+SELECT c0."id", c0."external_id", c0."author", c0."text", c0."url", c0."published_at", c0."classified", c0."meta", c0."source_id", c0."inserted_at", c0."updated_at" FROM "contents" AS c0 WHERE (c0."id" = $1) [62]
+[90m↳ VolfefeMachine.Intelligence.fetch_content/1, at: lib/volfefe_machine/intelligence.ex:218[0m
+[debug] QUERY OK source="classifications" db=1.6ms idle=1882.4ms
+INSERT INTO "classifications" ("meta","sentiment","confidence","content_id","model_version","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING "id" [%{"raw_scores" => %{"negative" => 0.0, "neutral" => 0.0, "positive" => 1.0}}, "positive", 1.0, 62, "finbert-tone-v1.0", ~U[2025-10-26 17:06:41Z], ~U[2025-10-26 17:06:41Z]]
+[90m↳ Mix.Tasks.Classify.Contents.classify_with_progress/3, at: lib/mix/tasks/classify_contents.ex:138[0m
+[debug] QUERY OK source="contents" db=0.9ms idle=1884.6ms
+UPDATE "contents" AS c0 SET "classified" = $1 WHERE (c0."id" = $2) [true, 62]
+[90m↳ VolfefeMachine.Content.mark_as_classified/1, at: lib/volfefe_machine/content.ex:182[0m
+  ✅ 📈 positive (1.0) - 3043ms
+
+[58/84] Classifying content_id=63...
+[debug] QUERY OK source="contents" db=0.5ms idle=1885.8ms
+SELECT c0."id", c0."external_id", c0."author", c0."text", c0."url", c0."published_at", c0."classified", c0."meta", c0."source_id", c0."inserted_at", c0."updated_at" FROM "contents" AS c0 WHERE (c0."id" = $1) [63]
+[90m↳ VolfefeMachine.Intelligence.fetch_content/1, at: lib/volfefe_machine/intelligence.ex:218[0m
+[debug] QUERY OK source="classifications" db=2.7ms queue=0.1ms idle=452.6ms
+INSERT INTO "classifications" ("meta","sentiment","confidence","content_id","model_version","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING "id" [%{"raw_scores" => %{"negative" => 0.0, "neutral" => 1.0, "positive" => 0.0}}, "neutral", 1.0, 63, "finbert-tone-v1.0", ~U[2025-10-26 17:06:47Z], ~U[2025-10-26 17:06:47Z]]
+[90m↳ Mix.Tasks.Classify.Contents.classify_with_progress/3, at: lib/mix/tasks/classify_contents.ex:138[0m
+[debug] QUERY OK source="contents" db=1.5ms idle=456.7ms
+UPDATE "contents" AS c0 SET "classified" = $1 WHERE (c0."id" = $2) [true, 63]
+[90m↳ VolfefeMachine.Content.mark_as_classified/1, at: lib/volfefe_machine/content.ex:182[0m
+  ✅ ➖ neutral (1.0) - 5611ms
+
+[59/84] Classifying content_id=67...
+[debug] QUERY OK source="contents" db=2.0ms idle=459.1ms
+SELECT c0."id", c0."external_id", c0."author", c0."text", c0."url", c0."published_at", c0."classified", c0."meta", c0."source_id", c0."inserted_at", c0."updated_at" FROM "contents" AS c0 WHERE (c0."id" = $1) [67]
+[90m↳ VolfefeMachine.Intelligence.fetch_content/1, at: lib/volfefe_machine/intelligence.ex:218[0m
+[debug] QUERY OK source="classifications" db=0.9ms queue=0.1ms idle=615.3ms
+INSERT INTO "classifications" ("meta","sentiment","confidence","content_id","model_version","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING "id" [%{"raw_scores" => %{"negative" => 0.0003, "neutral" => 0.9997, "positive" => 0.0}}, "neutral", 0.9997, 67, "finbert-tone-v1.0", ~U[2025-10-26 17:06:51Z], ~U[2025-10-26 17:06:51Z]]
+[90m↳ Mix.Tasks.Classify.Contents.classify_with_progress/3, at: lib/mix/tasks/classify_contents.ex:138[0m
+[debug] QUERY OK source="contents" db=1.3ms idle=617.0ms
+UPDATE "contents" AS c0 SET "classified" = $1 WHERE (c0."id" = $2) [true, 67]
+[90m↳ VolfefeMachine.Content.mark_as_classified/1, at: lib/volfefe_machine/content.ex:182[0m
+  ✅ ➖ neutral (1.0) - 4157ms
+
+[60/84] Classifying content_id=68...
+[debug] QUERY OK source="contents" db=0.4ms idle=618.8ms
+SELECT c0."id", c0."external_id", c0."author", c0."text", c0."url", c0."published_at", c0."classified", c0."meta", c0."source_id", c0."inserted_at", c0."updated_at" FROM "contents" AS c0 WHERE (c0."id" = $1) [68]
+[90m↳ VolfefeMachine.Intelligence.fetch_content/1, at: lib/volfefe_machine/intelligence.ex:218[0m
+[debug] QUERY OK source="classifications" db=1.6ms idle=1723.4ms
+INSERT INTO "classifications" ("meta","sentiment","confidence","content_id","model_version","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING "id" [%{"raw_scores" => %{"negative" => 0.0002, "neutral" => 0.9998, "positive" => 0.0}}, "neutral", 0.9998, 68, "finbert-tone-v1.0", ~U[2025-10-26 17:06:54Z], ~U[2025-10-26 17:06:54Z]]
+[90m↳ Mix.Tasks.Classify.Contents.classify_with_progress/3, at: lib/mix/tasks/classify_contents.ex:138[0m
+[debug] QUERY OK source="contents" db=0.5ms idle=1725.8ms
+UPDATE "contents" AS c0 SET "classified" = $1 WHERE (c0."id" = $2) [true, 68]
+[90m↳ VolfefeMachine.Content.mark_as_classified/1, at: lib/volfefe_machine/content.ex:182[0m
+  ✅ ➖ neutral (1.0) - 3107ms
+
+[61/84] Classifying content_id=69...
+[debug] QUERY OK source="contents" db=0.3ms idle=1726.0ms
+SELECT c0."id", c0."external_id", c0."author", c0."text", c0."url", c0."published_at", c0."classified", c0."meta", c0."source_id", c0."inserted_at", c0."updated_at" FROM "contents" AS c0 WHERE (c0."id" = $1) [69]
+[90m↳ VolfefeMachine.Intelligence.fetch_content/1, at: lib/volfefe_machine/intelligence.ex:218[0m
+[debug] QUERY OK source="classifications" db=0.9ms idle=1903.8ms
+INSERT INTO "classifications" ("meta","sentiment","confidence","content_id","model_version","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING "id" [%{"raw_scores" => %{"negative" => 0.001, "neutral" => 0.9987, "positive" => 0.0003}}, "neutral", 0.9987, 69, "finbert-tone-v1.0", ~U[2025-10-26 17:06:57Z], ~U[2025-10-26 17:06:57Z]]
+[90m↳ Mix.Tasks.Classify.Contents.classify_with_progress/3, at: lib/mix/tasks/classify_contents.ex:138[0m
+[debug] QUERY OK source="contents" db=0.5ms idle=1905.4ms
+UPDATE "contents" AS c0 SET "classified" = $1 WHERE (c0."id" = $2) [true, 69]
+[90m↳ VolfefeMachine.Content.mark_as_classified/1, at: lib/volfefe_machine/content.ex:182[0m
+  ✅ ➖ neutral (1.0) - 3179ms
+
+[62/84] Classifying content_id=70...
+[debug] QUERY OK source="contents" db=0.3ms idle=1905.4ms
+SELECT c0."id", c0."external_id", c0."author", c0."text", c0."url", c0."published_at", c0."classified", c0."meta", c0."source_id", c0."inserted_at", c0."updated_at" FROM "contents" AS c0 WHERE (c0."id" = $1) [70]
+[90m↳ VolfefeMachine.Intelligence.fetch_content/1, at: lib/volfefe_machine/intelligence.ex:218[0m
+[debug] QUERY OK source="classifications" db=3.1ms queue=0.1ms idle=63.3ms
+INSERT INTO "classifications" ("meta","sentiment","confidence","content_id","model_version","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING "id" [%{"raw_scores" => %{"negative" => 0.0, "neutral" => 0.0, "positive" => 1.0}}, "positive", 1.0, 70, "finbert-tone-v1.0", ~U[2025-10-26 17:07:00Z], ~U[2025-10-26 17:07:00Z]]
+[90m↳ Mix.Tasks.Classify.Contents.classify_with_progress/3, at: lib/mix/tasks/classify_contents.ex:138[0m
+[debug] QUERY OK source="contents" db=3.1ms idle=67.2ms
+UPDATE "contents" AS c0 SET "classified" = $1 WHERE (c0."id" = $2) [true, 70]
+[90m↳ VolfefeMachine.Content.mark_as_classified/1, at: lib/volfefe_machine/content.ex:182[0m
+  ✅ 📈 positive (1.0) - 3168ms
+
+[63/84] Classifying content_id=71...
+[debug] QUERY OK source="contents" db=3.9ms idle=70.9ms
+SELECT c0."id", c0."external_id", c0."author", c0."text", c0."url", c0."published_at", c0."classified", c0."meta", c0."source_id", c0."inserted_at", c0."updated_at" FROM "contents" AS c0 WHERE (c0."id" = $1) [71]
+[90m↳ VolfefeMachine.Intelligence.fetch_content/1, at: lib/volfefe_machine/intelligence.ex:218[0m
+[debug] QUERY OK source="classifications" db=0.8ms idle=999.2ms
+INSERT INTO "classifications" ("meta","sentiment","confidence","content_id","model_version","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING "id" [%{"raw_scores" => %{"negative" => 0.0, "neutral" => 0.0, "positive" => 1.0}}, "positive", 1.0, 71, "finbert-tone-v1.0", ~U[2025-10-26 17:07:03Z], ~U[2025-10-26 17:07:03Z]]
+[90m↳ Mix.Tasks.Classify.Contents.classify_with_progress/3, at: lib/mix/tasks/classify_contents.ex:138[0m
+[debug] QUERY OK source="contents" db=0.2ms idle=1000.2ms
+UPDATE "contents" AS c0 SET "classified" = $1 WHERE (c0."id" = $2) [true, 71]
+[90m↳ VolfefeMachine.Content.mark_as_classified/1, at: lib/volfefe_machine/content.ex:182[0m
+  ✅ 📈 positive (1.0) - 2929ms
+
+[64/84] Classifying content_id=72...
+[debug] QUERY OK source="contents" db=2.1ms idle=1000.7ms
+SELECT c0."id", c0."external_id", c0."author", c0."text", c0."url", c0."published_at", c0."classified", c0."meta", c0."source_id", c0."inserted_at", c0."updated_at" FROM "contents" AS c0 WHERE (c0."id" = $1) [72]
+[90m↳ VolfefeMachine.Intelligence.fetch_content/1, at: lib/volfefe_machine/intelligence.ex:218[0m
+[debug] QUERY OK source="classifications" db=3.0ms queue=0.7ms idle=1125.6ms
+INSERT INTO "classifications" ("meta","sentiment","confidence","content_id","model_version","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING "id" [%{"raw_scores" => %{"negative" => 0.0, "neutral" => 0.0, "positive" => 1.0}}, "positive", 1.0, 72, "finbert-tone-v1.0", ~U[2025-10-26 17:07:06Z], ~U[2025-10-26 17:07:06Z]]
+[90m↳ Mix.Tasks.Classify.Contents.classify_with_progress/3, at: lib/mix/tasks/classify_contents.ex:138[0m
+[debug] QUERY OK source="contents" db=0.7ms idle=1130.6ms
+UPDATE "contents" AS c0 SET "classified" = $1 WHERE (c0."id" = $2) [true, 72]
+[90m↳ VolfefeMachine.Content.mark_as_classified/1, at: lib/volfefe_machine/content.ex:182[0m
+  ✅ 📈 positive (1.0) - 3130ms
+
+[65/84] Classifying content_id=73...
+[debug] QUERY OK source="contents" db=1.6ms idle=1131.6ms
+SELECT c0."id", c0."external_id", c0."author", c0."text", c0."url", c0."published_at", c0."classified", c0."meta", c0."source_id", c0."inserted_at", c0."updated_at" FROM "contents" AS c0 WHERE (c0."id" = $1) [73]
+[90m↳ VolfefeMachine.Intelligence.fetch_content/1, at: lib/volfefe_machine/intelligence.ex:218[0m
+[debug] QUERY OK source="classifications" db=3.9ms queue=0.2ms idle=1784.7ms
+INSERT INTO "classifications" ("meta","sentiment","confidence","content_id","model_version","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING "id" [%{"raw_scores" => %{"negative" => 0.2753, "neutral" => 0.7247, "positive" => 0.0001}}, "neutral", 0.7247, 73, "finbert-tone-v1.0", ~U[2025-10-26 17:07:12Z], ~U[2025-10-26 17:07:12Z]]
+[90m↳ Mix.Tasks.Classify.Contents.classify_with_progress/3, at: lib/mix/tasks/classify_contents.ex:138[0m
+[debug] QUERY OK source="contents" db=3.7ms idle=1789.9ms
+UPDATE "contents" AS c0 SET "classified" = $1 WHERE (c0."id" = $2) [true, 73]
+[90m↳ VolfefeMachine.Content.mark_as_classified/1, at: lib/volfefe_machine/content.ex:182[0m
+  ✅ ➖ neutral (0.72) - 5665ms
+
+[66/84] Classifying content_id=74...
+[debug] QUERY OK source="contents" db=3.0ms idle=1794.5ms
+SELECT c0."id", c0."external_id", c0."author", c0."text", c0."url", c0."published_at", c0."classified", c0."meta", c0."source_id", c0."inserted_at", c0."updated_at" FROM "contents" AS c0 WHERE (c0."id" = $1) [74]
+[90m↳ VolfefeMachine.Intelligence.fetch_content/1, at: lib/volfefe_machine/intelligence.ex:218[0m
+[debug] QUERY OK source="classifications" db=5.4ms queue=0.1ms idle=1192.6ms
+INSERT INTO "classifications" ("meta","sentiment","confidence","content_id","model_version","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING "id" [%{"raw_scores" => %{"negative" => 0.0001, "neutral" => 0.9999, "positive" => 0.0}}, "neutral", 0.9999, 74, "finbert-tone-v1.0", ~U[2025-10-26 17:07:18Z], ~U[2025-10-26 17:07:18Z]]
+[90m↳ Mix.Tasks.Classify.Contents.classify_with_progress/3, at: lib/mix/tasks/classify_contents.ex:138[0m
+[debug] QUERY OK source="contents" db=2.7ms idle=1199.3ms
+UPDATE "contents" AS c0 SET "classified" = $1 WHERE (c0."id" = $2) [true, 74]
+[90m↳ VolfefeMachine.Content.mark_as_classified/1, at: lib/volfefe_machine/content.ex:182[0m
+  ✅ ➖ neutral (1.0) - 5405ms
+
+[67/84] Classifying content_id=76...
+[debug] QUERY OK source="contents" db=1.6ms idle=1203.2ms
+SELECT c0."id", c0."external_id", c0."author", c0."text", c0."url", c0."published_at", c0."classified", c0."meta", c0."source_id", c0."inserted_at", c0."updated_at" FROM "contents" AS c0 WHERE (c0."id" = $1) [76]
+[90m↳ VolfefeMachine.Intelligence.fetch_content/1, at: lib/volfefe_machine/intelligence.ex:218[0m
+[debug] QUERY OK source="classifications" db=20.9ms queue=0.1ms idle=1796.8ms
+INSERT INTO "classifications" ("meta","sentiment","confidence","content_id","model_version","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING "id" [%{"raw_scores" => %{"negative" => 0.0, "neutral" => 0.0002, "positive" => 0.9998}}, "positive", 0.9998, 76, "finbert-tone-v1.0", ~U[2025-10-26 17:07:26Z], ~U[2025-10-26 17:07:26Z]]
+[90m↳ Mix.Tasks.Classify.Contents.classify_with_progress/3, at: lib/mix/tasks/classify_contents.ex:138[0m
+[debug] QUERY OK source="contents" db=14.0ms queue=0.2ms idle=1832.9ms
+UPDATE "contents" AS c0 SET "classified" = $1 WHERE (c0."id" = $2) [true, 76]
+[90m↳ VolfefeMachine.Content.mark_as_classified/1, at: lib/volfefe_machine/content.ex:182[0m
+  ✅ 📈 positive (1.0) - 8671ms
+
+[68/84] Classifying content_id=77...
+[debug] QUERY OK source="contents" db=7.5ms idle=1862.0ms
+SELECT c0."id", c0."external_id", c0."author", c0."text", c0."url", c0."published_at", c0."classified", c0."meta", c0."source_id", c0."inserted_at", c0."updated_at" FROM "contents" AS c0 WHERE (c0."id" = $1) [77]
+[90m↳ VolfefeMachine.Intelligence.fetch_content/1, at: lib/volfefe_machine/intelligence.ex:218[0m
+[debug] QUERY OK source="classifications" db=3.9ms idle=1879.1ms
+INSERT INTO "classifications" ("meta","sentiment","confidence","content_id","model_version","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING "id" [%{"raw_scores" => %{"negative" => 0.0, "neutral" => 0.0005, "positive" => 0.9995}}, "positive", 0.9995, 77, "finbert-tone-v1.0", ~U[2025-10-26 17:07:30Z], ~U[2025-10-26 17:07:30Z]]
+[90m↳ Mix.Tasks.Classify.Contents.classify_with_progress/3, at: lib/mix/tasks/classify_contents.ex:138[0m
+  ✅ 📈 positive (1.0) - 4019ms
+
+[debug] QUERY OK source="contents" db=2.5ms idle=883.6ms
+UPDATE "contents" AS c0 SET "classified" = $1 WHERE (c0."id" = $2) [true, 77]
+[90m↳ VolfefeMachine.Content.mark_as_classified/1, at: lib/volfefe_machine/content.ex:182[0m
+[69/84] Classifying content_id=78...
+[debug] QUERY OK source="contents" db=1.3ms idle=886.7ms
+SELECT c0."id", c0."external_id", c0."author", c0."text", c0."url", c0."published_at", c0."classified", c0."meta", c0."source_id", c0."inserted_at", c0."updated_at" FROM "contents" AS c0 WHERE (c0."id" = $1) [78]
+[90m↳ VolfefeMachine.Intelligence.fetch_content/1, at: lib/volfefe_machine/intelligence.ex:218[0m
+[debug] QUERY OK source="classifications" db=1.0ms idle=445.4ms
+INSERT INTO "classifications" ("meta","sentiment","confidence","content_id","model_version","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING "id" [%{"raw_scores" => %{"negative" => 0.0, "neutral" => 0.0, "positive" => 1.0}}, "positive", 1.0, 78, "finbert-tone-v1.0", ~U[2025-10-26 17:07:34Z], ~U[2025-10-26 17:07:34Z]]
+[90m↳ Mix.Tasks.Classify.Contents.classify_with_progress/3, at: lib/mix/tasks/classify_contents.ex:138[0m
+[debug] QUERY OK source="contents" db=1.1ms idle=447.3ms
+UPDATE "contents" AS c0 SET "classified" = $1 WHERE (c0."id" = $2) [true, 78]
+[90m↳ VolfefeMachine.Content.mark_as_classified/1, at: lib/volfefe_machine/content.ex:182[0m
+  ✅ 📈 positive (1.0) - 3561ms
+
+[70/84] Classifying content_id=79...
+[debug] QUERY OK source="contents" db=0.4ms idle=449.2ms
+SELECT c0."id", c0."external_id", c0."author", c0."text", c0."url", c0."published_at", c0."classified", c0."meta", c0."source_id", c0."inserted_at", c0."updated_at" FROM "contents" AS c0 WHERE (c0."id" = $1) [79]
+[90m↳ VolfefeMachine.Intelligence.fetch_content/1, at: lib/volfefe_machine/intelligence.ex:218[0m
+[debug] QUERY OK source="classifications" db=2.5ms idle=1744.8ms
+INSERT INTO "classifications" ("meta","sentiment","confidence","content_id","model_version","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING "id" [%{"raw_scores" => %{"negative" => 0.0, "neutral" => 0.0001, "positive" => 0.9999}}, "positive", 0.9999, 79, "finbert-tone-v1.0", ~U[2025-10-26 17:07:37Z], ~U[2025-10-26 17:07:37Z]]
+[90m↳ Mix.Tasks.Classify.Contents.classify_with_progress/3, at: lib/mix/tasks/classify_contents.ex:138[0m
+[debug] QUERY OK source="contents" db=1.9ms idle=1747.9ms
+UPDATE "contents" AS c0 SET "classified" = $1 WHERE (c0."id" = $2) [true, 79]
+[90m↳ VolfefeMachine.Content.mark_as_classified/1, at: lib/volfefe_machine/content.ex:182[0m
+  ✅ 📈 positive (1.0) - 3299ms
+
+[71/84] Classifying content_id=80...
+[debug] QUERY OK source="contents" db=1.0ms idle=1750.1ms
+SELECT c0."id", c0."external_id", c0."author", c0."text", c0."url", c0."published_at", c0."classified", c0."meta", c0."source_id", c0."inserted_at", c0."updated_at" FROM "contents" AS c0 WHERE (c0."id" = $1) [80]
+[90m↳ VolfefeMachine.Intelligence.fetch_content/1, at: lib/volfefe_machine/intelligence.ex:218[0m
+[debug] QUERY OK source="classifications" db=1.9ms idle=1771.7ms
+INSERT INTO "classifications" ("meta","sentiment","confidence","content_id","model_version","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING "id" [%{"raw_scores" => %{"negative" => 0.0, "neutral" => 0.0003, "positive" => 0.9997}}, "positive", 0.9997, 80, "finbert-tone-v1.0", ~U[2025-10-26 17:07:40Z], ~U[2025-10-26 17:07:40Z]]
+[90m↳ Mix.Tasks.Classify.Contents.classify_with_progress/3, at: lib/mix/tasks/classify_contents.ex:138[0m
+[debug] QUERY OK source="contents" db=1.4ms idle=1774.4ms
+UPDATE "contents" AS c0 SET "classified" = $1 WHERE (c0."id" = $2) [true, 80]
+[90m↳ VolfefeMachine.Content.mark_as_classified/1, at: lib/volfefe_machine/content.ex:182[0m
+  ✅ 📈 positive (1.0) - 3022ms
+
+[72/84] Classifying content_id=81...
+[debug] QUERY OK source="contents" db=0.6ms idle=1776.2ms
+SELECT c0."id", c0."external_id", c0."author", c0."text", c0."url", c0."published_at", c0."classified", c0."meta", c0."source_id", c0."inserted_at", c0."updated_at" FROM "contents" AS c0 WHERE (c0."id" = $1) [81]
+[90m↳ VolfefeMachine.Intelligence.fetch_content/1, at: lib/volfefe_machine/intelligence.ex:218[0m
+[debug] QUERY OK source="classifications" db=1.5ms queue=0.1ms idle=88.0ms
+INSERT INTO "classifications" ("meta","sentiment","confidence","content_id","model_version","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING "id" [%{"raw_scores" => %{"negative" => 0.1415, "neutral" => 0.8555, "positive" => 0.0029}}, "neutral", 0.8555, 81, "finbert-tone-v1.0", ~U[2025-10-26 17:07:43Z], ~U[2025-10-26 17:07:43Z]]
+[90m↳ Mix.Tasks.Classify.Contents.classify_with_progress/3, at: lib/mix/tasks/classify_contents.ex:138[0m
+[debug] QUERY OK source="contents" db=0.6ms idle=90.2ms
+UPDATE "contents" AS c0 SET "classified" = $1 WHERE (c0."id" = $2) [true, 81]
+[90m↳ VolfefeMachine.Content.mark_as_classified/1, at: lib/volfefe_machine/content.ex:182[0m
+  ✅ ➖ neutral (0.86) - 3329ms
+
+[73/84] Classifying content_id=82...
+[debug] QUERY OK source="contents" db=0.7ms idle=91.2ms
+SELECT c0."id", c0."external_id", c0."author", c0."text", c0."url", c0."published_at", c0."classified", c0."meta", c0."source_id", c0."inserted_at", c0."updated_at" FROM "contents" AS c0 WHERE (c0."id" = $1) [82]
+[90m↳ VolfefeMachine.Intelligence.fetch_content/1, at: lib/volfefe_machine/intelligence.ex:218[0m
+[debug] QUERY OK source="classifications" db=3.3ms idle=1252.5ms
+INSERT INTO "classifications" ("meta","sentiment","confidence","content_id","model_version","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING "id" [%{"raw_scores" => %{"negative" => 0.0, "neutral" => 0.0, "positive" => 1.0}}, "positive", 1.0, 82, "finbert-tone-v1.0", ~U[2025-10-26 17:07:47Z], ~U[2025-10-26 17:07:47Z]]
+[90m↳ Mix.Tasks.Classify.Contents.classify_with_progress/3, at: lib/mix/tasks/classify_contents.ex:138[0m
+[debug] QUERY OK source="contents" db=0.7ms idle=1256.5ms
+UPDATE "contents" AS c0 SET "classified" = $1 WHERE (c0."id" = $2) [true, 82]
+[90m↳ VolfefeMachine.Content.mark_as_classified/1, at: lib/volfefe_machine/content.ex:182[0m
+  ✅ 📈 positive (1.0) - 3165ms
+
+[74/84] Classifying content_id=83...
+[debug] QUERY OK source="contents" db=1.0ms idle=1257.6ms
+SELECT c0."id", c0."external_id", c0."author", c0."text", c0."url", c0."published_at", c0."classified", c0."meta", c0."source_id", c0."inserted_at", c0."updated_at" FROM "contents" AS c0 WHERE (c0."id" = $1) [83]
+[90m↳ VolfefeMachine.Intelligence.fetch_content/1, at: lib/volfefe_machine/intelligence.ex:218[0m
+[debug] QUERY OK source="classifications" db=1.9ms idle=1651.8ms
+INSERT INTO "classifications" ("meta","sentiment","confidence","content_id","model_version","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING "id" [%{"raw_scores" => %{"negative" => 0.0022, "neutral" => 0.9977, "positive" => 0.0}}, "neutral", 0.9977, 83, "finbert-tone-v1.0", ~U[2025-10-26 17:07:50Z], ~U[2025-10-26 17:07:50Z]]
+[90m↳ Mix.Tasks.Classify.Contents.classify_with_progress/3, at: lib/mix/tasks/classify_contents.ex:138[0m
+[debug] QUERY OK source="contents" db=0.6ms idle=1654.1ms
+UPDATE "contents" AS c0 SET "classified" = $1 WHERE (c0."id" = $2) [true, 83]
+[90m↳ VolfefeMachine.Content.mark_as_classified/1, at: lib/volfefe_machine/content.ex:182[0m
+  ✅ ➖ neutral (1.0) - 3400ms
+
+[75/84] Classifying content_id=84...
+[debug] QUERY OK source="contents" db=0.7ms idle=1655.0ms
+SELECT c0."id", c0."external_id", c0."author", c0."text", c0."url", c0."published_at", c0."classified", c0."meta", c0."source_id", c0."inserted_at", c0."updated_at" FROM "contents" AS c0 WHERE (c0."id" = $1) [84]
+[90m↳ VolfefeMachine.Intelligence.fetch_content/1, at: lib/volfefe_machine/intelligence.ex:218[0m
+[debug] QUERY OK source="classifications" db=1.4ms queue=0.1ms idle=1772.4ms
+INSERT INTO "classifications" ("meta","sentiment","confidence","content_id","model_version","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING "id" [%{"raw_scores" => %{"negative" => 0.8538, "neutral" => 0.145, "positive" => 0.0013}}, "negative", 0.8538, 84, "finbert-tone-v1.0", ~U[2025-10-26 17:07:53Z], ~U[2025-10-26 17:07:53Z]]
+[90m↳ Mix.Tasks.Classify.Contents.classify_with_progress/3, at: lib/mix/tasks/classify_contents.ex:138[0m
+  ✅ 📉 negative (0.85) - 3116ms
+
+[debug] QUERY OK source="contents" db=1.9ms queue=0.1ms idle=1774.3ms
+UPDATE "contents" AS c0 SET "classified" = $1 WHERE (c0."id" = $2) [true, 84]
+[90m↳ VolfefeMachine.Content.mark_as_classified/1, at: lib/volfefe_machine/content.ex:182[0m
+[76/84] Classifying content_id=85...
+[debug] QUERY OK source="contents" db=2.4ms idle=1776.8ms
+SELECT c0."id", c0."external_id", c0."author", c0."text", c0."url", c0."published_at", c0."classified", c0."meta", c0."source_id", c0."inserted_at", c0."updated_at" FROM "contents" AS c0 WHERE (c0."id" = $1) [85]
+[90m↳ VolfefeMachine.Intelligence.fetch_content/1, at: lib/volfefe_machine/intelligence.ex:218[0m
+[debug] QUERY OK source="classifications" db=1.5ms idle=1236.4ms
+INSERT INTO "classifications" ("meta","sentiment","confidence","content_id","model_version","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING "id" [%{"raw_scores" => %{"negative" => 0.0, "neutral" => 0.0, "positive" => 1.0}}, "positive", 1.0, 85, "finbert-tone-v1.0", ~U[2025-10-26 17:07:57Z], ~U[2025-10-26 17:07:57Z]]
+[90m↳ Mix.Tasks.Classify.Contents.classify_with_progress/3, at: lib/mix/tasks/classify_contents.ex:138[0m
+[debug] QUERY OK source="contents" db=0.6ms idle=1238.8ms
+UPDATE "contents" AS c0 SET "classified" = $1 WHERE (c0."id" = $2) [true, 85]
+[90m↳ VolfefeMachine.Content.mark_as_classified/1, at: lib/volfefe_machine/content.ex:182[0m
+  ✅ 📈 positive (1.0) - 3462ms
+
+[77/84] Classifying content_id=89...
+[debug] QUERY OK source="contents" db=0.7ms idle=1240.0ms
+SELECT c0."id", c0."external_id", c0."author", c0."text", c0."url", c0."published_at", c0."classified", c0."meta", c0."source_id", c0."inserted_at", c0."updated_at" FROM "contents" AS c0 WHERE (c0."id" = $1) [89]
+[90m↳ VolfefeMachine.Intelligence.fetch_content/1, at: lib/volfefe_machine/intelligence.ex:218[0m
+[debug] QUERY OK source="classifications" db=3.3ms idle=1300.4ms
+INSERT INTO "classifications" ("meta","sentiment","confidence","content_id","model_version","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING "id" [%{"raw_scores" => %{"negative" => 0.0, "neutral" => 0.0009, "positive" => 0.9991}}, "positive", 0.9991, 89, "finbert-tone-v1.0", ~U[2025-10-26 17:08:00Z], ~U[2025-10-26 17:08:00Z]]
+[90m↳ Mix.Tasks.Classify.Contents.classify_with_progress/3, at: lib/mix/tasks/classify_contents.ex:138[0m
+[debug] QUERY OK source="contents" db=3.0ms idle=1304.6ms
+UPDATE "contents" AS c0 SET "classified" = $1 WHERE (c0."id" = $2) [true, 89]
+[90m↳ VolfefeMachine.Content.mark_as_classified/1, at: lib/volfefe_machine/content.ex:182[0m
+  ✅ 📈 positive (1.0) - 3064ms
+
+[78/84] Classifying content_id=91...
+[debug] QUERY OK source="contents" db=1.7ms idle=1308.0ms
+SELECT c0."id", c0."external_id", c0."author", c0."text", c0."url", c0."published_at", c0."classified", c0."meta", c0."source_id", c0."inserted_at", c0."updated_at" FROM "contents" AS c0 WHERE (c0."id" = $1) [91]
+[90m↳ VolfefeMachine.Intelligence.fetch_content/1, at: lib/volfefe_machine/intelligence.ex:218[0m
+[debug] QUERY OK source="classifications" db=3.5ms queue=0.1ms idle=1639.0ms
+INSERT INTO "classifications" ("meta","sentiment","confidence","content_id","model_version","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING "id" [%{"raw_scores" => %{"negative" => 0.0003, "neutral" => 0.0067, "positive" => 0.9929}}, "positive", 0.9929, 91, "finbert-tone-v1.0", ~U[2025-10-26 17:08:03Z], ~U[2025-10-26 17:08:03Z]]
+[90m↳ Mix.Tasks.Classify.Contents.classify_with_progress/3, at: lib/mix/tasks/classify_contents.ex:138[0m
+[debug] QUERY OK source="contents" db=2.9ms idle=1643.2ms
+UPDATE "contents" AS c0 SET "classified" = $1 WHERE (c0."id" = $2) [true, 91]
+[90m↳ VolfefeMachine.Content.mark_as_classified/1, at: lib/volfefe_machine/content.ex:182[0m
+  ✅ 📈 positive (0.99) - 3336ms
+
+[79/84] Classifying content_id=92...
+[debug] QUERY OK source="contents" db=1.9ms idle=1646.4ms
+SELECT c0."id", c0."external_id", c0."author", c0."text", c0."url", c0."published_at", c0."classified", c0."meta", c0."source_id", c0."inserted_at", c0."updated_at" FROM "contents" AS c0 WHERE (c0."id" = $1) [92]
+[90m↳ VolfefeMachine.Intelligence.fetch_content/1, at: lib/volfefe_machine/intelligence.ex:218[0m
+[debug] QUERY OK source="classifications" db=3.6ms idle=1830.5ms
+INSERT INTO "classifications" ("meta","sentiment","confidence","content_id","model_version","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING "id" [%{"raw_scores" => %{"negative" => 0.0101, "neutral" => 0.6483, "positive" => 0.3416}}, "neutral", 0.6483, 92, "finbert-tone-v1.0", ~U[2025-10-26 17:08:06Z], ~U[2025-10-26 17:08:06Z]]
+[90m↳ Mix.Tasks.Classify.Contents.classify_with_progress/3, at: lib/mix/tasks/classify_contents.ex:138[0m
+[debug] QUERY OK source="contents" db=1.2ms idle=1834.8ms
+UPDATE "contents" AS c0 SET "classified" = $1 WHERE (c0."id" = $2) [true, 92]
+[90m↳ VolfefeMachine.Content.mark_as_classified/1, at: lib/volfefe_machine/content.ex:182[0m
+  ✅ ➖ neutral (0.65) - 3188ms
+
+[80/84] Classifying content_id=93...
+[debug] QUERY OK source="contents" db=0.8ms idle=1836.4ms
+SELECT c0."id", c0."external_id", c0."author", c0."text", c0."url", c0."published_at", c0."classified", c0."meta", c0."source_id", c0."inserted_at", c0."updated_at" FROM "contents" AS c0 WHERE (c0."id" = $1) [93]
+[90m↳ VolfefeMachine.Intelligence.fetch_content/1, at: lib/volfefe_machine/intelligence.ex:218[0m
+[debug] QUERY OK source="classifications" db=6.0ms idle=1075.3ms
+INSERT INTO "classifications" ("meta","sentiment","confidence","content_id","model_version","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING "id" [%{"raw_scores" => %{"negative" => 0.0006, "neutral" => 0.9983, "positive" => 0.0011}}, "neutral", 0.9983, 93, "finbert-tone-v1.0", ~U[2025-10-26 17:08:09Z], ~U[2025-10-26 17:08:09Z]]
+[90m↳ Mix.Tasks.Classify.Contents.classify_with_progress/3, at: lib/mix/tasks/classify_contents.ex:138[0m
+[debug] QUERY OK source="contents" db=1.0ms idle=1081.8ms
+UPDATE "contents" AS c0 SET "classified" = $1 WHERE (c0."id" = $2) [true, 93]
+[90m↳ VolfefeMachine.Content.mark_as_classified/1, at: lib/volfefe_machine/content.ex:182[0m
+  ✅ ➖ neutral (1.0) - 3245ms
+
+[81/84] Classifying content_id=94...
+[debug] QUERY OK source="contents" db=0.7ms idle=1083.2ms
+SELECT c0."id", c0."external_id", c0."author", c0."text", c0."url", c0."published_at", c0."classified", c0."meta", c0."source_id", c0."inserted_at", c0."updated_at" FROM "contents" AS c0 WHERE (c0."id" = $1) [94]
+[90m↳ VolfefeMachine.Intelligence.fetch_content/1, at: lib/volfefe_machine/intelligence.ex:218[0m
+[debug] QUERY OK source="classifications" db=5.1ms idle=1476.3ms
+INSERT INTO "classifications" ("meta","sentiment","confidence","content_id","model_version","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING "id" [%{"raw_scores" => %{"negative" => 0.0, "neutral" => 0.0039, "positive" => 0.9961}}, "positive", 0.9961, 94, "finbert-tone-v1.0", ~U[2025-10-26 17:08:13Z], ~U[2025-10-26 17:08:13Z]]
+[90m↳ Mix.Tasks.Classify.Contents.classify_with_progress/3, at: lib/mix/tasks/classify_contents.ex:138[0m
+[debug] QUERY OK source="contents" db=1.0ms queue=0.1ms idle=1481.8ms
+UPDATE "contents" AS c0 SET "classified" = $1 WHERE (c0."id" = $2) [true, 94]
+[90m↳ VolfefeMachine.Content.mark_as_classified/1, at: lib/volfefe_machine/content.ex:182[0m
+  ✅ 📈 positive (1.0) - 3399ms
+
+[82/84] Classifying content_id=95...
+[debug] QUERY OK source="contents" db=0.3ms idle=1483.2ms
+SELECT c0."id", c0."external_id", c0."author", c0."text", c0."url", c0."published_at", c0."classified", c0."meta", c0."source_id", c0."inserted_at", c0."updated_at" FROM "contents" AS c0 WHERE (c0."id" = $1) [95]
+[90m↳ VolfefeMachine.Intelligence.fetch_content/1, at: lib/volfefe_machine/intelligence.ex:218[0m
+[debug] QUERY OK source="classifications" db=1.3ms idle=1605.4ms
+INSERT INTO "classifications" ("meta","sentiment","confidence","content_id","model_version","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING "id" [%{"raw_scores" => %{"negative" => 0.0, "neutral" => 0.0, "positive" => 1.0}}, "positive", 1.0, 95, "finbert-tone-v1.0", ~U[2025-10-26 17:08:16Z], ~U[2025-10-26 17:08:16Z]]
+[90m↳ Mix.Tasks.Classify.Contents.classify_with_progress/3, at: lib/mix/tasks/classify_contents.ex:138[0m
+[debug] QUERY OK source="contents" db=1.4ms idle=1607.3ms
+UPDATE "contents" AS c0 SET "classified" = $1 WHERE (c0."id" = $2) [true, 95]
+[90m↳ VolfefeMachine.Content.mark_as_classified/1, at: lib/volfefe_machine/content.ex:182[0m
+  ✅ 📈 positive (1.0) - 3124ms
+
+[83/84] Classifying content_id=96...
+[debug] QUERY OK source="contents" db=0.3ms idle=1609.0ms
+SELECT c0."id", c0."external_id", c0."author", c0."text", c0."url", c0."published_at", c0."classified", c0."meta", c0."source_id", c0."inserted_at", c0."updated_at" FROM "contents" AS c0 WHERE (c0."id" = $1) [96]
+[90m↳ VolfefeMachine.Intelligence.fetch_content/1, at: lib/volfefe_machine/intelligence.ex:218[0m
+[debug] QUERY OK source="classifications" db=1.1ms idle=340.9ms
+INSERT INTO "classifications" ("meta","sentiment","confidence","content_id","model_version","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING "id" [%{"raw_scores" => %{"negative" => 0.0, "neutral" => 0.0003, "positive" => 0.9997}}, "positive", 0.9997, 96, "finbert-tone-v1.0", ~U[2025-10-26 17:08:20Z], ~U[2025-10-26 17:08:20Z]]
+[90m↳ Mix.Tasks.Classify.Contents.classify_with_progress/3, at: lib/mix/tasks/classify_contents.ex:138[0m
+[debug] QUERY OK source="contents" db=0.5ms idle=342.5ms
+UPDATE "contents" AS c0 SET "classified" = $1 WHERE (c0."id" = $2) [true, 96]
+[90m↳ VolfefeMachine.Content.mark_as_classified/1, at: lib/volfefe_machine/content.ex:182[0m
+  ✅ 📈 positive (1.0) - 3749ms
+
+[84/84] Classifying content_id=100...
+[debug] QUERY OK source="contents" db=0.4ms idle=343.4ms
+SELECT c0."id", c0."external_id", c0."author", c0."text", c0."url", c0."published_at", c0."classified", c0."meta", c0."source_id", c0."inserted_at", c0."updated_at" FROM "contents" AS c0 WHERE (c0."id" = $1) [100]
+[90m↳ VolfefeMachine.Intelligence.fetch_content/1, at: lib/volfefe_machine/intelligence.ex:218[0m
+[debug] QUERY OK source="classifications" db=2.3ms idle=1539.0ms
+INSERT INTO "classifications" ("meta","sentiment","confidence","content_id","model_version","inserted_at","updated_at") VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING "id" [%{"raw_scores" => %{"negative" => 0.0, "neutral" => 0.0007, "positive" => 0.9993}}, "positive", 0.9993, 100, "finbert-tone-v1.0", ~U[2025-10-26 17:08:23Z], ~U[2025-10-26 17:08:23Z]]
+[90m↳ Mix.Tasks.Classify.Contents.classify_with_progress/3, at: lib/mix/tasks/classify_contents.ex:138[0m
+[debug] QUERY OK source="contents" db=0.7ms idle=1542.0ms
+UPDATE "contents" AS c0 SET "classified" = $1 WHERE (c0."id" = $2) [true, 100]
+[90m↳ VolfefeMachine.Content.mark_as_classified/1, at: lib/volfefe_machine/content.ex:182[0m
+  ✅ 📈 positive (1.0) - 3198ms
+
+================================================================================
+📊 CLASSIFICATION SUMMARY
+================================================================================
+Total:      84
+Successful: 84
+Failed:     0
+
+📈 Sentiment Distribution:
+  POSITIVE: 51 (60.7%)
+  NEGATIVE: 2 (2.4%)
+  NEUTRAL: 31 (36.9%)
+
+🎯 Average Confidence: 0.9809
+
+✅ Classification complete!
+

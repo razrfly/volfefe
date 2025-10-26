@@ -101,7 +101,7 @@ defmodule VolfefeMachine.Intelligence.FinbertClient do
         end
 
       # Create temp file for input
-      temp_file = Path.join(System.tmp_dir!(), "finbert_input_#{:rand.uniform(100000)}.txt")
+      temp_file = Path.join(System.tmp_dir!(), "finbert_input_#{System.unique_integer([:positive])}.txt")
       File.write!(temp_file, text)
 
       try do

@@ -212,6 +212,162 @@ defmodule VolfefeMachine.Intelligence do
     |> Repo.all()
   end
 
+  ## Monitoring & Analysis Queries
+
+  @doc """
+  Get recent classifications within the last N hours.
+  Uses the inserted_at index for efficient querying.
+
+  ## Examples
+
+      iex> recent_classifications(24)
+      [%Classification{}, ...]
+
+      iex> recent_classifications(1)
+      [%Classification{inserted_at: ~U[2025-10-26 18:30:00Z]}, ...]
+  """
+  def recent_classifications(hours \\ 24) do
+    cutoff = DateTime.utc_now() |> DateTime.add(-hours * 3600, :second)
+
+    Classification
+    |> where([c], c.inserted_at >= ^cutoff)
+    |> order_by([c], desc: c.inserted_at)
+    |> preload(:content)
+    |> Repo.all()
+  end
+
+  @doc """
+  Calculate average processing latency from meta.processing.latency_ms.
+
+  ## Examples
+
+      iex> avg_latency()
+      3245.5
+  """
+  def avg_latency do
+    Repo.one(
+      from c in Classification,
+        select: avg(fragment("(meta->'processing'->>'latency_ms')::int"))
+    )
+  end
+
+  @doc """
+  Find slow classifications (>5000ms by default).
+
+  ## Examples
+
+      iex> slow_classifications()
+      [%Classification{}, ...]
+
+      iex> slow_classifications(10000)
+      [%Classification{}, ...]
+  """
+  def slow_classifications(threshold_ms \\ 5000) do
+    Classification
+    |> where(
+      [c],
+      fragment("(meta->'processing'->>'latency_ms')::int > ?", ^threshold_ms)
+    )
+    |> order_by([c], desc: fragment("(meta->'processing'->>'latency_ms')::int"))
+    |> preload(:content)
+    |> Repo.all()
+  end
+
+  @doc """
+  Find ambiguous classifications with low score margin (<0.3 by default).
+
+  ## Examples
+
+      iex> ambiguous_classifications()
+      [%Classification{}, ...]
+
+      iex> ambiguous_classifications(0.2)
+      [%Classification{}, ...]
+  """
+  def ambiguous_classifications(margin_threshold \\ 0.3) do
+    Classification
+    |> where(
+      [c],
+      fragment("(meta->'quality'->>'score_margin')::float < ?", ^margin_threshold)
+    )
+    |> preload(:content)
+    |> Repo.all()
+  end
+
+  @doc """
+  Get sentiment distribution across all classifications.
+
+  ## Examples
+
+      iex> sentiment_distribution()
+      %{"positive" => 51, "neutral" => 34, "negative" => 2}
+  """
+  def sentiment_distribution do
+    Classification
+    |> group_by([c], c.sentiment)
+    |> select([c], {c.sentiment, count(c.id)})
+    |> Repo.all()
+    |> Enum.into(%{})
+  end
+
+  @doc """
+  Get confidence distribution by ranges.
+
+  ## Examples
+
+      iex> confidence_distribution()
+      %{high: 80, medium: 15, low: 5}
+  """
+  def confidence_distribution do
+    %{
+      high:
+        Repo.aggregate(
+          from(c in Classification, where: c.confidence >= 0.9),
+          :count,
+          :id
+        ),
+      medium:
+        Repo.aggregate(
+          from(c in Classification, where: c.confidence >= 0.7 and c.confidence < 0.9),
+          :count,
+          :id
+        ),
+      low:
+        Repo.aggregate(
+          from(c in Classification, where: c.confidence < 0.7),
+          :count,
+          :id
+        )
+    }
+  end
+
+  @doc """
+  Get comprehensive statistics about all classifications.
+
+  ## Examples
+
+      iex> get_stats()
+      %{
+        total: 87,
+        sentiment: %{"positive" => 51, "neutral" => 34, "negative" => 2},
+        confidence: %{high: 80, medium: 7, low: 0},
+        avg_confidence: 0.9809,
+        avg_latency_ms: 3245.5
+      }
+  """
+  def get_stats do
+    total = Repo.aggregate(Classification, :count, :id)
+    avg_confidence = Repo.one(from c in Classification, select: avg(c.confidence))
+
+    %{
+      total: total,
+      sentiment: sentiment_distribution(),
+      confidence: confidence_distribution(),
+      avg_confidence: if(avg_confidence, do: Float.round(avg_confidence, 4), else: 0.0),
+      avg_latency_ms: avg_latency()
+    }
+  end
+
   # Private helper functions
 
   defp fetch_content(content_id) do
@@ -221,9 +377,14 @@ defmodule VolfefeMachine.Intelligence do
     end
   end
 
-  defp validate_text(%{text: nil}), do: {:error, :no_text_to_classify}
-  defp validate_text(%{text: ""}), do: {:error, :no_text_to_classify}
-  defp validate_text(%{text: text}), do: {:ok, text}
+  defp validate_text(%{text: text}) when is_binary(text) do
+    case String.trim(text) do
+      "" -> {:error, :no_text_to_classify}
+      _ -> {:ok, text}
+    end
+  end
+
+  defp validate_text(_), do: {:error, :no_text_to_classify}
 
   defp call_finbert_service(text) do
     alias VolfefeMachine.Intelligence.FinbertClient

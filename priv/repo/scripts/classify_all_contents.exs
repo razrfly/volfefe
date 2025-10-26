@@ -62,9 +62,11 @@ if successes > 0 do
     |> Enum.into(%{})
 
   IO.puts("\n📈 Sentiment Distribution:")
+  total_db = length(classifications)
+
   for sentiment <- ["positive", "negative", "neutral"] do
     count = Map.get(sentiment_counts, sentiment, 0)
-    pct = Float.round(count / successes * 100, 1)
+    pct = Float.round(count / total_db * 100, 1)
     IO.puts("  #{String.upcase(sentiment)}: #{count} (#{pct}%)")
   end
 

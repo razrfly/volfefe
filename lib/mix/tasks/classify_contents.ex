@@ -108,9 +108,14 @@ defmodule Mix.Tasks.Classify.Contents do
 
     content_ids
     |> Enum.each(fn id ->
-      content = Content.get_content(id)
-      text_preview = String.slice(content.text || "", 0, 80)
-      Mix.shell().info("  [#{id}] #{text_preview}...")
+      case Content.get_content(id) do
+        nil ->
+          Mix.shell().info("  [#{id}] (missing)")
+
+        content ->
+          text_preview = String.slice(content.text || "", 0, 80)
+          Mix.shell().info("  [#{id}] #{text_preview}...")
+      end
     end)
 
     Mix.shell().info("\n✅ Run without --dry-run to perform classification.\n")
