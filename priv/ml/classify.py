@@ -14,18 +14,24 @@ Output format:
       "confidence": 0.95,
       "model_version": "finbert-tone-v1.0",
       "meta": {
-        "raw_scores": {
-          "positive": 0.95,
-          "negative": 0.02,
-          "neutral": 0.03
-        }
+        "raw_scores": {...},
+        "processing": {...},
+        "text_info": {...},
+        "model_config": {...},
+        "quality": {...}
       }
     }
 """
 
 import json
 import sys
+import time
+import hashlib
+import math
+import platform
 from transformers import pipeline
+import transformers
+import torch
 
 # Model version for tracking
 MODEL_VERSION = "finbert-tone-v1.0"
@@ -45,21 +51,85 @@ def load_model():
         device=-1  # CPU
     )
 
+def get_system_info():
+    """Capture system and model configuration - store everything raw."""
+    return {
+        "model_name": "yiyanghkust/finbert-tone",
+        "device": "cuda:0" if torch.cuda.is_available() else "cpu",
+        "transformers_version": transformers.__version__,
+        "torch_version": torch.__version__,
+        "python_version": platform.python_version(),
+        "platform": platform.platform(),
+        "processor": platform.processor()
+    }
+
+def get_text_info(text):
+    """Capture text metadata - everything we can extract."""
+    words = text.split()
+    return {
+        "char_count": len(text),
+        "word_count": len(words),
+        "line_count": text.count('\n') + 1,
+        "input_hash": hashlib.sha256(text.encode()).hexdigest()[:16],
+        "has_urls": 'http' in text.lower(),
+        "has_hashtags": '#' in text,
+        "has_mentions": '@' in text,
+        "uppercase_ratio": sum(1 for c in text if c.isupper()) / len(text) if text else 0,
+        "exclamation_count": text.count('!'),
+        "question_count": text.count('?')
+    }
+
+def calculate_quality_metrics(raw_scores):
+    """Calculate confidence quality metrics from raw scores."""
+    scores = sorted(raw_scores.values(), reverse=True)
+
+    # Score margin: difference between top 2 scores
+    score_margin = scores[0] - scores[1] if len(scores) > 1 else 1.0
+
+    # Shannon entropy: measure of uncertainty
+    entropy = -sum(p * math.log2(p) if p > 0 else 0 for p in raw_scores.values())
+
+    # Quality flags
+    flags = []
+    if scores[0] >= 0.95:
+        flags.append("high_confidence")
+    if scores[0] == 1.0:
+        flags.append("perfect_score")
+    if score_margin >= 0.8:
+        flags.append("clear_winner")
+    if score_margin < 0.3:
+        flags.append("ambiguous")
+    if entropy < 0.1:
+        flags.append("low_uncertainty")
+    if entropy > 1.0:
+        flags.append("high_uncertainty")
+
+    return {
+        "score_margin": round(score_margin, 4),
+        "entropy": round(entropy, 4),
+        "flags": flags
+    }
+
 def classify_text(classifier, text):
     """
     Classify text using FinBERT.
+    Captures EVERYTHING - latency, text info, model config, quality metrics.
 
     Args:
         classifier: Loaded FinBERT pipeline
         text: Text to classify
 
     Returns:
-        dict: Classification result with sentiment, confidence, and metadata
+        dict: Classification result with comprehensive metadata
     """
+    # Start timing
+    start_time = time.time()
+
     # Get all three scores from model
-    # The pipeline returns a list with one element (per input text)
-    # That element contains a list of label/score dicts
     all_results = classifier(text, top_k=3)
+
+    # Calculate latency immediately after model call
+    latency_ms = int((time.time() - start_time) * 1000)
 
     # Handle both list-of-lists and list-of-dicts formats
     if isinstance(all_results[0], list):
@@ -80,12 +150,28 @@ def classify_text(classifier, text):
         label = LABEL_MAP.get(result['label'], result['label']).lower()
         raw_scores[label] = round(result['score'], 4)
 
+    # Capture ALL metadata
     return {
         "sentiment": sentiment,
         "confidence": round(confidence, 4),
         "model_version": MODEL_VERSION,
         "meta": {
-            "raw_scores": raw_scores
+            "raw_scores": raw_scores,
+            "processing": {
+                "latency_ms": latency_ms,
+                "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                "attempt": 1  # Will be updated by Elixir on retry
+            },
+            "text_info": get_text_info(text),
+            "model_config": get_system_info(),
+            "quality": calculate_quality_metrics(raw_scores),
+            "raw_model_output": [
+                {
+                    "label": r['label'],
+                    "score": round(r['score'], 6)
+                }
+                for r in results
+            ]
         }
     }
 

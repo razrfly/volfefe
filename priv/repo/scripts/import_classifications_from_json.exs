@@ -4,7 +4,7 @@
 # Run with: mix run priv/repo/scripts/import_classifications_from_json.exs
 
 alias VolfefeMachine.{Content, Intelligence, Repo}
-require Logger
+import Ecto.Query
 
 IO.puts("\n" <> String.duplicate("=", 80))
 IO.puts("📥 Importing Classifications from JSON")

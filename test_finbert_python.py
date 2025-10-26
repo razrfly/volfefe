@@ -57,4 +57,4 @@ for text in test_texts:
 with open("finbert_test_results.json", "w") as f:
     json.dump(results, indent=2, fp=f)
 
-print(f"\n✅ Results saved to finbert_test_results.json")
+print("\n✅ Results saved to finbert_test_results.json")
