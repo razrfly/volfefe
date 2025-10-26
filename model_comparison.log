@@ -1,0 +1,215 @@
+Device set to use cpu
+Some weights of the model checkpoint at cardiffnlp/twitter-roberta-base-sentiment-latest were not used when initializing RobertaForSequenceClassification: ['roberta.pooler.dense.bias', 'roberta.pooler.dense.weight']
+- This IS expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).
+- This IS NOT expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model that you expect to be exactly identical (initializing a BertForSequenceClassification model from a BertForSequenceClassification model).
+Device set to use cpu
+Device set to use cpu
+================================================================================
+Loading Sentiment Models...
+================================================================================
+
+1/3 Loading FinBERT (financial news)...
+2/3 Loading Twitter-RoBERTa (social media)...
+3/3 Loading DistilBERT SST-2 (general sentiment)...
+
+✅ All models loaded!
+
+================================================================================
+Testing 20 Trump Truth Social Posts
+================================================================================
+
+[1/20] Content ID: 1
+Text: I am on my way to Malaysia, where I will sign the great Peace Deal, which I proudly brokered between...
+
+  Current DB:      neutral  (0.9989)
+  FinBERT:         neutral  (0.9989) - 2156ms
+  Twitter-RoBERTa: neutral  (0.4827) - 144ms
+  DistilBERT:      positive (0.9995) - 1529ms
+  ⚠️  DISAGREEMENT: Models disagree on sentiment!
+
+[2/20] Content ID: 2
+Text: RT @realDonaldTrumpCanada was caught, red handed, putting up a fraudulent advertisement on Ronald Re...
+
+  Current DB:      neutral  (0.9982)
+  FinBERT:         neutral  (0.9982) - 109ms
+  Twitter-RoBERTa: negative (0.7525) - 90ms
+  DistilBERT:      negative (0.9757) - 53ms
+  ⚠️  DISAGREEMENT: Models disagree on sentiment!
+
+[3/20] Content ID: 3
+Text: https://www.dailysignal.com/2025/10/22/trumps-middle-east-triumph-embarrassed-self-proclaimed-expert...
+
+  Current DB:      neutral  (0.9994)
+  FinBERT:         neutral  (0.9994) - 30ms
+  Twitter-RoBERTa: neutral  (0.6283) - 42ms
+  DistilBERT:      negative (0.9834) - 25ms
+  ⚠️  DISAGREEMENT: Models disagree on sentiment!
+
+[4/20] Content ID: 4
+Text: https://www.foxnews.com/opinion/new-high-tech-tool-trump-using-secure-our-border
+
+  Current DB:      neutral  (0.9803)
+  FinBERT:         neutral  (0.9803) - 31ms
+  Twitter-RoBERTa: neutral  (0.8701) - 39ms
+  DistilBERT:      negative (0.9383) - 19ms
+  ⚠️  DISAGREEMENT: Models disagree on sentiment!
+
+[5/20] Content ID: 5
+Text: https://www.foxnews.com/politics/scoop-trumps-memphis-crime-crackdown-locates-dozens-missing-kids-re...
+
+  Current DB:      neutral  (0.9999)
+  FinBERT:         neutral  (0.9999) - 30ms
+  Twitter-RoBERTa: neutral  (0.6068) - 42ms
+  DistilBERT:      negative (0.9895) - 17ms
+  ⚠️  DISAGREEMENT: Models disagree on sentiment!
+
+[6/20] Content ID: 6
+Text: https://dailycaller.com/2025/10/22/jeff-merkley-floor-speech-government-shutdown/
+
+  Current DB:      neutral  (0.9960)
+  FinBERT:         neutral  (0.9960) - 30ms
+  Twitter-RoBERTa: neutral  (0.8829) - 34ms
+  DistilBERT:      negative (0.9900) - 18ms
+  ⚠️  DISAGREEMENT: Models disagree on sentiment!
+
+[7/20] Content ID: 7
+Text: https://www.foxnews.com/us/new-york-city-ice-raid-nets-9-arrests-illegal-aliens-from-west-africa-4-p...
+
+  Current DB:      neutral  (0.9999)
+  FinBERT:         neutral  (0.9999) - 29ms
+  Twitter-RoBERTa: neutral  (0.7830) - 35ms
+  DistilBERT:      negative (0.9788) - 18ms
+  ⚠️  DISAGREEMENT: Models disagree on sentiment!
+
+[8/20] Content ID: 8
+Text: https://justthenews.com/government/security/deadly-serious-trump-counterterrorism-program-kills-370-...
+
+  Current DB:      neutral  (0.9932)
+  FinBERT:         neutral  (0.9932) - 29ms
+  Twitter-RoBERTa: negative (0.5755) - 39ms
+  DistilBERT:      negative (0.9967) - 21ms
+  ⚠️  DISAGREEMENT: Models disagree on sentiment!
+
+[9/20] Content ID: 9
+Text: Canada was caught, red handed, putting up a fraudulent advertisement on Ronald Reagan’s Speech on Ta...
+
+  Current DB:      neutral  (0.9966)
+  FinBERT:         neutral  (0.9966) - 77ms
+  Twitter-RoBERTa: negative (0.7528) - 78ms
+  DistilBERT:      negative (0.6834) - 34ms
+  ⚠️  DISAGREEMENT: Models disagree on sentiment!
+
+[10/20] Content ID: 10
+Text: We have a very strong PEACE in the Middle East, and I believe it has a good chance of being EVERLAST...
+
+  Current DB:      neutral  (0.9623)
+  FinBERT:         neutral  (0.9623) - 50ms
+  Twitter-RoBERTa: positive (0.6605) - 57ms
+  DistilBERT:      positive (0.9926) - 31ms
+  ⚠️  DISAGREEMENT: Models disagree on sentiment!
+
+[11/20] Content ID: 11
+Text: https://www.cnbc.com/2025/10/23/stock-market-today-live-updates.html
+
+  Current DB:      neutral  (0.9977)
+  FinBERT:         neutral  (0.9977) - 29ms
+  Twitter-RoBERTa: neutral  (0.8999) - 44ms
+  DistilBERT:      negative (0.9206) - 16ms
+  ⚠️  DISAGREEMENT: Models disagree on sentiment!
+
+[12/20] Content ID: 12
+Text: Congressman Jimmy Patronis is a MAGA Warrior who is doing a fantastic job representing Florida’s 1st...
+
+  Current DB:      positive (1.0000)
+  FinBERT:         positive (1.0000) - 86ms
+  Twitter-RoBERTa: positive (0.9710) - 79ms
+  DistilBERT:      positive (0.9998) - 47ms
+
+[13/20] Content ID: 13
+Text: Richard Hudson is a Great Man, and TREMENDOUS Congressman, who is doing an outstanding job represent...
+
+  Current DB:      positive (1.0000)
+  FinBERT:         positive (1.0000) - 86ms
+  Twitter-RoBERTa: positive (0.9672) - 182ms
+  DistilBERT:      positive (0.9998) - 66ms
+
+[14/20] Content ID: 14
+Text: Congressman David Rouzer is a terrific Representative for the incredible people of North Carolina’s ...
+
+  Current DB:      positive (0.9999)
+  FinBERT:         positive (0.9999) - 108ms
+  Twitter-RoBERTa: positive (0.9571) - 86ms
+  DistilBERT:      positive (0.9998) - 44ms
+
+[15/20] Content ID: 15
+Text: Congressman Addison McDowell is an America First Patriot, who is doing a fantastic job representing ...
+
+  Current DB:      positive (1.0000)
+  FinBERT:         positive (1.0000) - 55ms
+  Twitter-RoBERTa: positive (0.9701) - 57ms
+  DistilBERT:      positive (0.9998) - 29ms
+
+[16/20] Content ID: 16
+Text: Congresswoman Nicole Malliotakis is a Tremendous Champion for New York’s 11th Congressional District...
+
+  Current DB:      positive (1.0000)
+  FinBERT:         positive (1.0000) - 51ms
+  Twitter-RoBERTa: positive (0.9698) - 79ms
+  DistilBERT:      positive (0.9998) - 39ms
+
+[17/20] Content ID: 17
+Text: Congressman Jack Bergman is a Tremendous Champion for the Great People of Michigan's 1st Congression...
+
+  Current DB:      positive (1.0000)
+  FinBERT:         positive (1.0000) - 59ms
+  Twitter-RoBERTa: positive (0.9691) - 107ms
+  DistilBERT:      positive (0.9998) - 32ms
+
+[18/20] Content ID: 18
+Text: Congresswoman Lisa McClain is a Fantastic Advocate for the Great People of Michigan’s 9th Congressio...
+
+  Current DB:      positive (1.0000)
+  FinBERT:         positive (1.0000) - 51ms
+  Twitter-RoBERTa: positive (0.9737) - 51ms
+  DistilBERT:      positive (0.9999) - 30ms
+
+[19/20] Content ID: 19
+Text: Greg Steube is a tremendous Representative for the Great People of Florida’s 17th Congressional Dist...
+
+  Current DB:      positive (0.9981)
+  FinBERT:         positive (0.9981) - 88ms
+  Twitter-RoBERTa: positive (0.9519) - 117ms
+  DistilBERT:      positive (0.9998) - 37ms
+
+[20/20] Content ID: 20
+Text: Congressman Mike Haridopolos is an America First Patriot who is doing a fantastic job representing F...
+
+  Current DB:      positive (1.0000)
+  FinBERT:         positive (1.0000) - 71ms
+  Twitter-RoBERTa: positive (0.9736) - 57ms
+  DistilBERT:      positive (0.9997) - 28ms
+
+================================================================================
+SUMMARY STATISTICS
+================================================================================
+
+FinBERT (Financial News):
+  Positive:  9 ( 45.0%)
+  Neutral:  11 ( 55.0%)
+  Negative:  0 (  0.0%)
+
+Twitter-RoBERTa (Social Media):
+  Positive: 10 ( 50.0%)
+  Neutral:   7 ( 35.0%)
+  Negative:  3 ( 15.0%)
+
+DistilBERT (General Sentiment):
+  Positive: 11 ( 55.0%)
+  Neutral:   0 (  0.0%)
+  Negative:  9 ( 45.0%)
+
+🤝 Model Agreement:
+  All 3 models agree: 9/20 (45.0%)
+  Models disagree:    11/20 (55.0%)
+
+✅ Results saved to model_comparison_results.json
