@@ -26,8 +26,27 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
      |> assign(:sort_order, "desc")
      |> assign(:loading, false)
      |> assign(:error, nil)
+     |> assign(:selected_content, nil)
      |> load_content()
      |> load_stats()}
+  end
+
+  @impl true
+  def handle_params(params, _uri, socket) do
+    {:noreply, apply_action(socket, socket.assigns.live_action, params)}
+  end
+
+  defp apply_action(socket, :index, _params) do
+    assign(socket, :selected_content, nil)
+  end
+
+  defp apply_action(socket, :show, %{"id" => id}) do
+    content =
+      from(c in Content.Content, where: c.id == ^id)
+      |> Repo.one()
+      |> Repo.preload(:classification)
+
+    assign(socket, :selected_content, content)
   end
 
   @impl true
@@ -283,7 +302,11 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
               <%= for content <- @contents do %>
-                <tr class="hover:bg-gray-50 transition-colors animate-fade-in">
+                <tr
+                  class="hover:bg-gray-50 transition-colors animate-fade-in cursor-pointer"
+                  phx-click="select_content"
+                  phx-value-id={content.id}
+                >
                   <td class="px-6 py-4 whitespace-nowrap">
                     <div class="text-sm font-medium text-gray-900">
                       <%= content.author || "Unknown" %>
@@ -358,6 +381,198 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
           </div>
         </div>
       <% end %>
+
+      <!-- Slide-over Detail View -->
+      <%= if @selected_content do %>
+        <div phx-window-keydown="close_detail" phx-key="Escape">
+          <!-- Overlay -->
+          <div
+            class="fixed inset-0 bg-gray-500/75 transition-opacity z-40"
+            phx-click="close_detail"
+          >
+          </div>
+
+          <!-- Slide-over Panel -->
+          <div class="fixed inset-y-0 right-0 w-full sm:w-2/3 lg:w-1/2 xl:w-2/5 bg-white shadow-xl z-50 overflow-y-auto">
+            <div class="p-6 space-y-6">
+              <!-- Header with Close Button -->
+              <div class="flex justify-between items-start">
+                <h2 class="text-xl font-bold text-gray-900">Content Details</h2>
+                <button
+                  phx-click="close_detail"
+                  class="text-gray-400 hover:text-gray-500 focus:outline-none"
+                >
+                  <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <!-- Content Information -->
+              <div>
+                <h3 class="text-sm font-semibold text-gray-900 uppercase tracking-wider flex items-center gap-2 mb-3">
+                  <svg class="h-5 w-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Content Information
+                </h3>
+                <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 space-y-2">
+                  <div class="grid grid-cols-3 gap-2">
+                    <span class="text-sm font-medium text-gray-500">Author:</span>
+                    <span class="col-span-2 text-sm text-gray-900"><%= @selected_content.author || "Unknown" %></span>
+                  </div>
+                  <div class="grid grid-cols-3 gap-2">
+                    <span class="text-sm font-medium text-gray-500">Published:</span>
+                    <span class="col-span-2 text-sm text-gray-900"><%= format_datetime(@selected_content.published_at) %></span>
+                  </div>
+                  <div class="grid grid-cols-3 gap-2">
+                    <span class="text-sm font-medium text-gray-500">External ID:</span>
+                    <span class="col-span-2 text-sm text-gray-900 font-mono text-xs break-all"><%= @selected_content.external_id %></span>
+                  </div>
+                  <%= if @selected_content.url do %>
+                    <div class="grid grid-cols-3 gap-2">
+                      <span class="text-sm font-medium text-gray-500">URL:</span>
+                      <span class="col-span-2 text-sm">
+                        <a href={@selected_content.url} target="_blank" class="text-purple-600 hover:text-purple-700 underline">
+                          View Original →
+                        </a>
+                      </span>
+                    </div>
+                  <% end %>
+                </div>
+              </div>
+
+              <!-- Full Text -->
+              <div>
+                <h3 class="text-sm font-semibold text-gray-900 uppercase tracking-wider flex items-center gap-2 mb-3">
+                  <svg class="h-5 w-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Full Text
+                </h3>
+                <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                  <p class="text-sm text-gray-900 whitespace-pre-wrap leading-relaxed"><%= @selected_content.text %></p>
+                  <div class="mt-3 text-xs text-gray-500">
+                    <%= String.length(@selected_content.text || "") %> characters
+                  </div>
+                </div>
+              </div>
+
+              <!-- Classification Results -->
+              <%= if @selected_content.classification do %>
+                <div>
+                  <h3 class="text-sm font-semibold text-gray-900 uppercase tracking-wider flex items-center gap-2 mb-3">
+                    <svg class="h-5 w-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                    </svg>
+                    Classification Results
+                  </h3>
+                  <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 space-y-3">
+                    <div class="flex items-center justify-between">
+                      <span class="text-sm font-medium text-gray-500">Sentiment:</span>
+                      <%= render_sentiment_badge(@selected_content.classification.sentiment) %>
+                    </div>
+                    <div>
+                      <div class="flex items-center justify-between mb-2">
+                        <span class="text-sm font-medium text-gray-500">Confidence:</span>
+                        <span class="text-sm font-bold text-gray-900">
+                          <%= format_confidence(@selected_content.classification.confidence) %>
+                        </span>
+                      </div>
+                      <div class="w-full bg-gray-200 rounded-full h-3">
+                        <div
+                          class="bg-purple-600 h-3 rounded-full transition-all"
+                          style={"width: #{round((@selected_content.classification.confidence || 0) * 100)}%"}
+                        >
+                        </div>
+                      </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <span class="text-gray-500">Model:</span>
+                        <span class="text-gray-900 ml-1"><%= @selected_content.classification.model_version || "N/A" %></span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              <% else %>
+                <div>
+                  <h3 class="text-sm font-semibold text-gray-900 uppercase tracking-wider flex items-center gap-2 mb-3">
+                    <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Classification Pending
+                  </h3>
+                  <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    <p class="text-sm text-gray-500">This content has not been classified yet.</p>
+                  </div>
+                </div>
+              <% end %>
+
+              <!-- Metadata -->
+              <%= if @selected_content.meta && map_size(@selected_content.meta) > 0 do %>
+                <div>
+                  <h3 class="text-sm font-semibold text-gray-900 uppercase tracking-wider flex items-center gap-2 mb-3">
+                    <svg class="h-5 w-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                    </svg>
+                    Metadata
+                  </h3>
+                  <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    <pre class="text-xs text-gray-900 overflow-x-auto"><%= Jason.encode!(@selected_content.meta, pretty: true) %></pre>
+                  </div>
+                </div>
+              <% end %>
+
+              <!-- Future Features Placeholder -->
+              <div class="opacity-60">
+                <h3 class="text-sm font-semibold text-gray-900 uppercase tracking-wider flex items-center gap-2 mb-3">
+                  <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  Future Features
+                  <span class="ml-2 px-2 py-0.5 bg-gray-200 text-gray-600 text-xs rounded">Coming Soon</span>
+                </h3>
+                <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 space-y-4">
+                  <div>
+                    <h4 class="text-xs font-semibold text-gray-700 mb-2">🏢 Extracted Entities</h4>
+                    <ul class="text-xs text-gray-500 space-y-1">
+                      <li>• Companies: [Pending]</li>
+                      <li>• Locations: [Pending]</li>
+                      <li>• People: [Pending]</li>
+                    </ul>
+                  </div>
+                  <div>
+                    <h4 class="text-xs font-semibold text-gray-700 mb-2">📈 Trading Signals</h4>
+                    <ul class="text-xs text-gray-500 space-y-1">
+                      <li>• Strategy: [Not yet implemented]</li>
+                      <li>• Signals: [Pending]</li>
+                      <li>• Risk Level: [Pending]</li>
+                    </ul>
+                  </div>
+                  <div>
+                    <h4 class="text-xs font-semibold text-gray-700 mb-2">🔗 Related Content</h4>
+                    <ul class="text-xs text-gray-500 space-y-1">
+                      <li>• Similar posts: [Coming soon]</li>
+                      <li>• By same author: [Coming soon]</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Close Button (Bottom) -->
+              <div class="flex justify-end pt-4 border-t border-gray-200">
+                <button
+                  phx-click="close_detail"
+                  class="px-4 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-200 transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      <% end %>
     </div>
     """
   end
@@ -425,6 +640,16 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
      |> assign(:sort_by, field)
      |> assign(:sort_order, sort_order)
      |> load_content()}
+  end
+
+  @impl true
+  def handle_event("select_content", %{"id" => id}, socket) do
+    {:noreply, push_patch(socket, to: ~p"/admin/content/#{id}")}
+  end
+
+  @impl true
+  def handle_event("close_detail", _params, socket) do
+    {:noreply, push_patch(socket, to: ~p"/admin/content")}
   end
 
   # ========================================

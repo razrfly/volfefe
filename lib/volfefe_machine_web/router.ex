@@ -25,6 +25,7 @@ defmodule VolfefeMachineWeb.Router do
     pipe_through :browser
 
     live "/content", ContentIndexLive, :index
+    live "/content/:id", ContentIndexLive, :show
   end
 
   # Other scopes may use custom stacks.
