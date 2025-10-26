@@ -1,0 +1,32 @@
+[
+  {
+    "text": "Stock market hitting record highs! Economic boom ahead!",
+    "sentiment": "Positive",
+    "confidence": 0.9999997615814209,
+    "label": "Positive"
+  },
+  {
+    "text": "Massive tariffs will devastate the steel industry",
+    "sentiment": "Negative",
+    "confidence": 0.9999958276748657,
+    "label": "Negative"
+  },
+  {
+    "text": "The Federal Reserve announced interest rate decision",
+    "sentiment": "Neutral",
+    "confidence": 0.9982707500457764,
+    "label": "Neutral"
+  },
+  {
+    "text": "THE STOCK MARKET IS STRONGER THAN EVER BEFORE BECAUSE OF TARIFFS!",
+    "sentiment": "Positive",
+    "confidence": 1.0,
+    "label": "Positive"
+  },
+  {
+    "text": "Canada was caught, red handed, putting up a fraudulent advertisement on Ronald Reagan's Speech on Tariffs",
+    "sentiment": "Negative",
+    "confidence": 0.547691822052002,
+    "label": "Negative"
+  }
+]
