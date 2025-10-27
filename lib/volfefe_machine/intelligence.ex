@@ -197,18 +197,28 @@ defmodule VolfefeMachine.Intelligence do
   def classify_content_multi_model(content_id) do
     with {:ok, content} <- fetch_content(content_id),
          {:ok, text} <- validate_text(content),
-         {:ok, multi_results} <- call_multi_model_service(text),
-         {:ok, model_classifications} <- store_model_classifications(content_id, multi_results),
-         {:ok, consensus} <- calculate_and_store_consensus(content_id, model_classifications) do
-      {:ok, %{
-        consensus: consensus,
-        model_results: model_classifications,
-        metadata: %{
-          total_latency_ms: multi_results.total_latency_ms,
-          models_used: multi_results.models_used,
-          successful_models: multi_results.successful_models
-        }
-      }}
+         {:ok, multi_results} <- call_multi_model_service(text) do
+      # Wrap database operations in transaction to ensure atomicity
+      # If consensus storage fails, model_classifications are rolled back
+      case Repo.transaction(fn ->
+        with {:ok, model_classifications} <- store_model_classifications(content_id, multi_results),
+             {:ok, consensus} <- calculate_and_store_consensus(content_id, model_classifications) do
+          %{
+            consensus: consensus,
+            model_results: model_classifications,
+            metadata: %{
+              total_latency_ms: multi_results.total_latency_ms,
+              models_used: multi_results.models_used,
+              successful_models: multi_results.successful_models
+            }
+          }
+        else
+          {:error, reason} -> Repo.rollback(reason)
+        end
+      end) do
+        {:ok, result} -> {:ok, result}
+        {:error, reason} -> {:error, reason}
+      end
     end
   end
 
@@ -530,7 +540,7 @@ defmodule VolfefeMachine.Intelligence do
 
     case Consensus.calculate(model_results) do
       {:ok, consensus_result} ->
-        # Store or update consensus classification
+        # Store or update consensus classification using upsert to avoid race conditions
         attrs = %{
           content_id: content_id,
           sentiment: consensus_result.sentiment,
@@ -539,16 +549,14 @@ defmodule VolfefeMachine.Intelligence do
           meta: consensus_result.meta
         }
 
-        # Check if classification already exists
-        case get_classification_by_content(content_id) do
-          nil ->
-            # Create new
-            create_classification(attrs)
-
-          existing ->
-            # Update existing
-            update_classification(existing, attrs)
-        end
+        # Use upsert with on_conflict to handle concurrent inserts elegantly
+        # The unique constraint on content_id makes this safe from TOCTOU races
+        %Classification{}
+        |> Classification.changeset(attrs)
+        |> Repo.insert(
+          on_conflict: {:replace, [:sentiment, :confidence, :model_version, :meta, :updated_at]},
+          conflict_target: :content_id
+        )
 
       {:error, reason} ->
         {:error, reason}

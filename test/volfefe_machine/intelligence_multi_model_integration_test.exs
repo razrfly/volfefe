@@ -104,13 +104,15 @@ defmodule VolfefeMachine.IntelligenceMultiModelIntegrationTest do
       # Should be same ID (updated, not inserted)
       assert consensus1_id == consensus2_id
 
-      # Should have 6 model classifications (3 from each run)
+      # Should have 3 model classifications (upserted on second run due to unique constraint)
+      # The unique constraint on (content_id, model_id, model_version) means second run
+      # updates existing records rather than creating new ones
       count = Repo.aggregate(
         from(mc in ModelClassification, where: mc.content_id == ^content.id),
         :count,
         :id
       )
-      assert count == 6
+      assert count == 3
     end
 
     @tag :slow

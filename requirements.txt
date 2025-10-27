@@ -1,6 +1,8 @@
 # Machine Learning & NLP
-transformers>=4.30.0
-torch>=2.0.0
+# Security: torch>=2.6.0 fixes CVE-2024-5480 (CRITICAL RCE vulnerability)
+# Security: transformers>=4.53.0 fixes MODERATE ReDoS vulnerabilities
+transformers>=4.53.0
+torch>=2.6.0
 
 # Database
 psycopg2-binary>=2.9.0

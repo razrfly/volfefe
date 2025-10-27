@@ -471,21 +471,13 @@ defmodule VolfefeMachine.Intelligence.EntityExtractor do
   defp validate_text(_), do: {:error, :no_text}
 
   defp run_entity_extraction(text, content_id) do
-    # Similar to FinBERT client - pipe text to Python script
-    temp_file = Path.join(System.tmp_dir!(), "entity_input_#{System.unique_integer([:positive])}.txt")
-
-    try do
-      File.write!(temp_file, text)
-
-      case System.cmd("python3", [@python_script],
-                      cd: File.cwd!(),
-                      stderr_to_stdout: true,
-                      stdin: text) do
-        {output, 0} -> {:ok, output}
-        {error, _} -> {:error, {:python_error, error}}
-      end
-    after
-      File.rm(temp_file)
+    # Pass text directly via stdin using input: parameter
+    case System.cmd("python3", [@python_script],
+                    cd: File.cwd!(),
+                    stderr_to_stdout: true,
+                    input: text) do
+      {output, 0} -> {:ok, output}
+      {error, _} -> {:error, {:python_error, error}}
     end
   end
 

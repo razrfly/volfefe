@@ -44,7 +44,7 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
     content =
       from(c in Content.Content, where: c.id == ^id)
       |> Repo.one()
-      |> Repo.preload(:classification)
+      |> Repo.preload([:classification, :model_classifications])
 
     assign(socket, :selected_content, content)
   end
@@ -509,6 +509,30 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
                 </div>
               <% end %>
 
+              <!-- Model Comparison -->
+              <%= if length(@selected_content.model_classifications) > 0 do %>
+                <div>
+                  <h3 class="text-sm font-semibold text-gray-900 uppercase tracking-wider flex items-center gap-2 mb-3">
+                    <svg class="h-5 w-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                    Model Comparison
+                    <span class="ml-2 px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded font-medium">
+                      <%= length(@selected_content.model_classifications) %> Models
+                    </span>
+                  </h3>
+                  <div class="space-y-3">
+                    <%= for model_class <- sort_model_classifications(@selected_content.model_classifications, @selected_content.classification) do %>
+                      <%= render_model_card(assigns, model_class, is_primary_model?(model_class, @selected_content.classification)) %>
+                    <% end %>
+
+                    <%= if length(@selected_content.model_classifications) > 1 do %>
+                      <%= render_consensus_summary(assigns, @selected_content.model_classifications) %>
+                    <% end %>
+                  </div>
+                </div>
+              <% end %>
+
               <!-- Metadata -->
               <%= if @selected_content.meta && map_size(@selected_content.meta) > 0 do %>
                 <div>
@@ -821,4 +845,288 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
         """
     end
   end
+
+  # ========================================
+  # Model Comparison Functions
+  # ========================================
+
+  defp sort_model_classifications(model_classifications, primary_classification) do
+    Enum.sort_by(model_classifications, fn mc ->
+      # Primary model first, then by confidence descending
+      is_primary = is_primary_model?(mc, primary_classification)
+      {!is_primary, -mc.confidence}
+    end)
+  end
+
+  defp is_primary_model?(_model_class, nil), do: false
+
+  defp is_primary_model?(model_class, primary_classification) do
+    # Check if primary classification is a consensus (contains "consensus")
+    # If so, extract the primary model from meta
+    cond do
+      # Direct model_version match (for single-model classifications)
+      model_class.model_version == primary_classification.model_version ->
+        true
+
+      # For consensus classifications, check if this model had highest vote
+      String.contains?(primary_classification.model_version || "", "consensus") ->
+        is_consensus_winner?(model_class, primary_classification)
+
+      true ->
+        false
+    end
+  end
+
+  defp is_consensus_winner?(model_class, primary_classification) do
+    # Extract model votes from consensus meta
+    model_votes = get_in(primary_classification.meta, ["model_votes"]) || []
+
+    # Find the model with highest weighted score
+    winner = Enum.max_by(model_votes, fn vote ->
+      vote["weighted_score"] || 0
+    end, fn -> nil end)
+
+    # Check if this model is the winner
+    winner && winner["model_id"] == model_class.model_id
+  end
+
+  defp render_model_card(assigns, model_class, is_primary) do
+    consensus_sentiment = if assigns.selected_content.classification do
+      assigns.selected_content.classification.sentiment
+    else
+      nil
+    end
+
+    disagrees = consensus_sentiment && model_class.sentiment != consensus_sentiment
+    is_ambiguous = model_class.confidence < 0.6
+
+    quality_flags = get_in(model_class.meta, ["quality", "flags"]) || []
+    latency_ms = get_in(model_class.meta, ["processing", "latency_ms"])
+
+    assigns = Map.merge(assigns, %{
+      model_class: model_class,
+      is_primary: is_primary,
+      disagrees: disagrees,
+      is_ambiguous: is_ambiguous,
+      quality_flags: quality_flags,
+      latency_ms: latency_ms
+    })
+
+    ~H"""
+    <div class={"border rounded-lg #{if @is_primary, do: "border-blue-300 bg-blue-50", else: "border-gray-200 bg-gray-50"} p-3"}>
+      <div class="flex items-start justify-between mb-2">
+        <div class="flex items-center gap-2">
+          <h4 class="text-sm font-semibold text-gray-900">
+            <%= format_model_name(@model_class.model_id) %>
+          </h4>
+          <%= if @is_primary do %>
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-600 text-white">
+              <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+              </svg>
+              Primary
+            </span>
+          <% end %>
+          <%= if @disagrees do %>
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">
+              ⚠️ Disagrees
+            </span>
+          <% end %>
+          <%= if @is_ambiguous do %>
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+              ⚠️ Ambiguous
+            </span>
+          <% end %>
+        </div>
+      </div>
+
+      <div class="space-y-2">
+        <div class="flex items-center justify-between">
+          <span class="text-xs text-gray-600">Sentiment:</span>
+          <%= render_sentiment_badge(@model_class.sentiment) %>
+        </div>
+
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-xs text-gray-600">Confidence:</span>
+            <span class="text-sm font-bold text-gray-900">
+              <%= format_confidence(@model_class.confidence) %>
+            </span>
+          </div>
+          <div class="w-full bg-gray-200 rounded-full h-2">
+            <div
+              class={"h-2 rounded-full transition-all #{confidence_color(@model_class.confidence)}"}
+              style={"width: #{round(@model_class.confidence * 100)}%"}
+            >
+            </div>
+          </div>
+        </div>
+
+        <%= if length(@quality_flags) > 0 do %>
+          <div class="flex flex-wrap gap-1">
+            <%= for flag <- @quality_flags do %>
+              <span class="text-xs px-2 py-0.5 bg-purple-100 text-purple-700 rounded">
+                <%= format_quality_flag(flag) %>
+              </span>
+            <% end %>
+          </div>
+        <% end %>
+
+        <%= if @latency_ms do %>
+          <div class="text-xs text-gray-500">
+            Processing: <%= format_latency(@latency_ms) %>
+          </div>
+        <% end %>
+
+        <details class="mt-2">
+          <summary class="text-xs text-purple-600 cursor-pointer hover:text-purple-700 font-medium">
+            View Details ▼
+          </summary>
+          <div class="mt-2 pt-2 border-t border-gray-300 space-y-2">
+            <%= if @model_class.meta["raw_scores"] do %>
+              <div>
+                <div class="text-xs font-medium text-gray-700 mb-1">Raw Scores:</div>
+                <div class="text-xs text-gray-600 space-y-0.5">
+                  <%= for {sentiment, score} <- @model_class.meta["raw_scores"] do %>
+                    <div class="flex justify-between">
+                      <span class="capitalize"><%= sentiment %>:</span>
+                      <span class="font-mono"><%= Float.round(score, 4) %></span>
+                    </div>
+                  <% end %>
+                </div>
+              </div>
+            <% end %>
+
+            <%= if @model_class.meta["quality"] do %>
+              <div>
+                <div class="text-xs font-medium text-gray-700 mb-1">Quality Metrics:</div>
+                <div class="text-xs text-gray-600 space-y-0.5">
+                  <%= if @model_class.meta["quality"]["entropy"] do %>
+                    <div class="flex justify-between">
+                      <span>Entropy:</span>
+                      <span class="font-mono"><%= Float.round(@model_class.meta["quality"]["entropy"], 4) %></span>
+                    </div>
+                  <% end %>
+                  <%= if @model_class.meta["quality"]["score_margin"] do %>
+                    <div class="flex justify-between">
+                      <span>Score Margin:</span>
+                      <span class="font-mono"><%= Float.round(@model_class.meta["quality"]["score_margin"], 4) %></span>
+                    </div>
+                  <% end %>
+                </div>
+              </div>
+            <% end %>
+
+            <div>
+              <div class="text-xs font-medium text-gray-700 mb-1">Model Info:</div>
+              <div class="text-xs text-gray-600">
+                <div class="font-mono text-xs break-all"><%= @model_class.model_version %></div>
+              </div>
+            </div>
+          </div>
+        </details>
+      </div>
+    </div>
+    """
+  end
+
+  defp render_consensus_summary(assigns, model_classifications) do
+    sentiments = Enum.map(model_classifications, & &1.sentiment)
+    sentiment_counts = Enum.frequencies(sentiments)
+    {consensus_sentiment, consensus_count} = Enum.max_by(sentiment_counts, fn {_s, count} -> count end)
+
+    total_models = length(model_classifications)
+    agreement_pct = round(consensus_count / total_models * 100)
+
+    disagreeing_models = Enum.filter(model_classifications, fn mc ->
+      mc.sentiment != consensus_sentiment
+    end)
+
+    confidence_values = Enum.map(model_classifications, & &1.confidence)
+    min_confidence = Enum.min(confidence_values)
+    max_confidence = Enum.max(confidence_values)
+
+    assigns = Map.merge(assigns, %{
+      consensus_sentiment: consensus_sentiment,
+      consensus_count: consensus_count,
+      total_models: total_models,
+      agreement_pct: agreement_pct,
+      disagreeing_models: disagreeing_models,
+      min_confidence: min_confidence,
+      max_confidence: max_confidence
+    })
+
+    ~H"""
+    <div class="border-t border-gray-300 pt-3 mt-3">
+      <h4 class="text-xs font-semibold text-gray-900 uppercase tracking-wider mb-2">
+        📊 Consensus Summary
+      </h4>
+      <div class="bg-white rounded-lg p-3 border border-gray-200 space-y-2">
+        <div class="flex items-center justify-between">
+          <span class="text-xs text-gray-600">Agreement:</span>
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-bold text-gray-900">
+              <%= @consensus_count %>/<%= @total_models %> models (<%= @agreement_pct %>%)
+            </span>
+            <%= if @agreement_pct == 100 do %>
+              <span class="text-green-600">✓ Full consensus</span>
+            <% else %>
+              <span class="text-amber-600">⚠️ Partial agreement</span>
+            <% end %>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between">
+          <span class="text-xs text-gray-600">Consensus Sentiment:</span>
+          <%= render_sentiment_badge(@consensus_sentiment) %>
+        </div>
+
+        <div class="flex items-center justify-between">
+          <span class="text-xs text-gray-600">Confidence Range:</span>
+          <span class="text-xs text-gray-900">
+            <%= format_confidence(@min_confidence) %> - <%= format_confidence(@max_confidence) %>
+          </span>
+        </div>
+
+        <%= if length(@disagreeing_models) > 0 do %>
+          <div class="pt-2 border-t border-gray-200">
+            <div class="text-xs text-gray-700 font-medium mb-1">
+              Disagreeing Models:
+            </div>
+            <ul class="text-xs text-gray-600 space-y-1">
+              <%= for model <- @disagreeing_models do %>
+                <li>
+                  <span class="font-medium"><%= format_model_name(model.model_id) %></span>:
+                  <%= model.sentiment %> (<%= format_confidence(model.confidence) %>)
+                </li>
+              <% end %>
+            </ul>
+          </div>
+        <% end %>
+      </div>
+    </div>
+    """
+  end
+
+  defp format_model_name(model_id) do
+    case model_id do
+      "finbert" -> "FinBERT"
+      "twitter_roberta" -> "Twitter-RoBERTa"
+      "distilbert" -> "DistilBERT"
+      _ -> String.capitalize(model_id)
+    end
+  end
+
+  defp confidence_color(confidence) when confidence >= 0.8, do: "bg-green-500"
+  defp confidence_color(confidence) when confidence >= 0.6, do: "bg-yellow-500"
+  defp confidence_color(_), do: "bg-red-500"
+
+  defp format_quality_flag(flag) do
+    flag
+    |> String.replace("_", " ")
+    |> String.capitalize()
+  end
+
+  defp format_latency(ms) when ms < 1000, do: "#{ms}ms"
+  defp format_latency(ms), do: "#{Float.round(ms / 1000, 2)}s"
 end
