@@ -10,9 +10,17 @@ defmodule VolfefeMachine.Intelligence.MultiModelClient do
 
   require Logger
 
-  # Use absolute paths to avoid :enoent errors
-  @python_cmd Path.join(File.cwd!(), "venv/bin/python3")
-  @script_path Path.join(File.cwd!(), "priv/ml/classify_multi_model.py")
+  # Get paths that work in both dev and releases
+  # :code.priv_dir works in releases where File.cwd! fails
+  defp python_cmd do
+    # Allow config override for custom python path (e.g., in production)
+    Application.get_env(:volfefe_machine, :python_path, "venv/bin/python3")
+  end
+
+  defp script_path do
+    priv_dir = :code.priv_dir(:volfefe_machine) |> to_string()
+    Path.join(priv_dir, "ml/classify_multi_model.py")
+  end
 
   @doc """
   Classify text using all configured sentiment models.
@@ -46,15 +54,13 @@ defmodule VolfefeMachine.Intelligence.MultiModelClient do
   end
 
   defp run_classification(text) do
-    # Use temporary file for reliable text passing
-    temp_file = Path.join(System.tmp_dir!(), "multimodel_input_#{System.unique_integer([:positive])}.txt")
-
+    # Pass text directly via stdin (no temp file needed, avoids quoting issues)
+    # Use timeout: :infinity since model loading can take >5s on first run
     try do
-      # Write text to temp file
-      File.write!(temp_file, text)
-
-      # Run Python script using shell pipe (don't redirect stderr to keep JSON clean)
-      case System.cmd("sh", ["-c", "cat #{temp_file} | #{@python_cmd} #{@script_path}"]) do
+      case System.cmd(python_cmd(), [script_path()],
+                      input: text,
+                      timeout: :infinity,
+                      stderr_to_stdout: false) do
         {output, 0} ->
           {:ok, output}
 
@@ -66,8 +72,6 @@ defmodule VolfefeMachine.Intelligence.MultiModelClient do
       e ->
         Logger.error("Failed to run multi-model classification: #{inspect(e)}")
         {:error, {:system_error, e}}
-    after
-      File.rm(temp_file)
     end
   end
 

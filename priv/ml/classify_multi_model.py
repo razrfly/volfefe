@@ -43,6 +43,7 @@ import time
 import hashlib
 import math
 import platform
+import traceback
 from transformers import pipeline
 import transformers
 import torch
@@ -101,8 +102,9 @@ def load_models():
                 model=config["name"],
                 device=device
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - intentional broad catch for model loading
             print(f"  Error loading {model_id}: {str(e)}", file=sys.stderr)
+            traceback.print_exc(file=sys.stderr)
             # Continue loading other models even if one fails
             continue
 
@@ -237,8 +239,10 @@ def classify_with_model(model_id, classifier, text, model_config):
             }
         }
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - intentional broad catch for model classification
         # Return error for this specific model
+        print(f"Error classifying with {model_id}: {str(e)}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
         latency_ms = int((time.time() - start_time) * 1000)
         return {
             "model_id": model_id,
@@ -314,12 +318,13 @@ def main():
         # Output JSON to stdout
         print(json.dumps(result, indent=2))
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - intentional broad catch for main execution
         # Return error as JSON
+        print(f"Fatal error in classification pipeline: {str(e)}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
         error_result = {
             "error": "classification_failed",
-            "message": str(e),
-            "traceback": str(e.__traceback__)
+            "message": str(e)
         }
         print(json.dumps(error_result))
         sys.exit(1)

@@ -86,40 +86,42 @@ if finbert_count > 0 do
     order_by: [asc: c.id]
   )
 
-  backfilled = 0
-  skipped = 0
+  # Use Enum.reduce to properly accumulate counters (variables are immutable in Elixir)
+  {backfilled, skipped} =
+    old_classifications
+    |> Enum.reduce({0, 0}, fn classification, {backfill_count, skip_count} ->
+      # Check if already has model_classification
+      existing = Repo.one(
+        from mc in ModelClassification,
+        where: mc.content_id == ^classification.content_id and mc.model_id == "finbert"
+      )
 
-  for classification <- old_classifications do
-    # Check if already has model_classification
-    existing = Repo.one(
-      from mc in ModelClassification,
-      where: mc.content_id == ^classification.content_id and mc.model_id == "finbert"
-    )
+      if existing do
+        {backfill_count, skip_count + 1}
+      else
+        # Create model_classification from existing classification
+        attrs = %{
+          content_id: classification.content_id,
+          model_id: "finbert",
+          model_version: classification.model_version,
+          sentiment: classification.sentiment,
+          confidence: classification.confidence,
+          meta: classification.meta
+        }
 
-    if existing do
-      skipped = skipped + 1
-    else
-      # Create model_classification from existing classification
-      attrs = %{
-        content_id: classification.content_id,
-        model_id: "finbert",
-        model_version: classification.model_version,
-        sentiment: classification.sentiment,
-        confidence: classification.confidence,
-        meta: classification.meta
-      }
-
-      case ModelClassification.changeset(%ModelClassification{}, attrs) |> Repo.insert() do
-        {:ok, _mc} ->
-          backfilled = backfilled + 1
-          if rem(backfilled, 10) == 0 do
-            IO.write(".")
-          end
-        {:error, changeset} ->
-          IO.puts("\n   ⚠️  Failed to backfill content_id=#{classification.content_id}: #{inspect(changeset.errors)}")
+        case ModelClassification.changeset(%ModelClassification{}, attrs) |> Repo.insert() do
+          {:ok, _mc} ->
+            new_backfill = backfill_count + 1
+            if rem(new_backfill, 10) == 0 do
+              IO.write(".")
+            end
+            {new_backfill, skip_count}
+          {:error, changeset} ->
+            IO.puts("\n   ⚠️  Failed to backfill content_id=#{classification.content_id}: #{inspect(changeset.errors)}")
+            {backfill_count, skip_count}
+        end
       end
-    end
-  end
+    end)
 
   IO.puts("\n✅ Backfilled #{backfilled} FinBERT results (#{skipped} already existed)")
 else

@@ -77,9 +77,16 @@ defmodule VolfefeMachine.Intelligence.Consensus do
       agreement_count = Enum.count(successful_results, fn r -> r.sentiment == consensus_sentiment end)
       agreement_rate = agreement_count / length(successful_results)
 
-      # Normalize confidence (weighted score / total weight)
-      total_weight = Enum.sum(Map.values(weights))
-      normalized_confidence = consensus_score / total_weight
+      # Normalize confidence (weighted score / total weight of successful models only)
+      # Important: Use only weights of successful models, not all configured models
+      # If a model fails, we shouldn't penalize confidence by including its weight
+      used_total_weight =
+        successful_results
+        |> Enum.map(&Map.get(weights, &1.model_id, 1.0))
+        |> Enum.sum()
+
+      # Use max() to avoid division by zero in edge cases
+      normalized_confidence = consensus_score / max(used_total_weight, 1.0)
 
       # Build consensus result
       {:ok, %{
@@ -93,7 +100,8 @@ defmodule VolfefeMachine.Intelligence.Consensus do
           total_models: length(successful_results),
           agreement_rate: Float.round(agreement_rate, 2),
           model_votes: build_model_votes(successful_results, weights),
-          weighted_scores: weighted_scores,
+          # Round weighted_scores for display only (winner was determined from raw scores)
+          weighted_scores: Enum.into(weighted_scores, %{}, fn {k, v} -> {k, Float.round(v, 4)} end),
           failed_models: Enum.filter(model_results, fn r -> Map.has_key?(r, :error) end)
                          |> Enum.map(& &1.model_id)
         }
@@ -112,6 +120,8 @@ defmodule VolfefeMachine.Intelligence.Consensus do
   end
 
   defp calculate_weighted_scores(results, weights) do
+    # Keep raw scores for winner selection to avoid rounding affecting near-ties
+    # Only round for display in metadata after winner is determined
     results
     |> Enum.reduce(%{}, fn result, acc ->
       weight = Map.get(weights, result.model_id, 1.0)
@@ -120,8 +130,7 @@ defmodule VolfefeMachine.Intelligence.Consensus do
 
       Map.update(acc, sentiment, weighted_score, &(&1 + weighted_score))
     end)
-    |> Enum.map(fn {sentiment, score} -> {sentiment, Float.round(score, 4)} end)
-    |> Enum.into(%{})
+    # Return raw scores - rounding happens in metadata for display only
   end
 
   defp build_model_votes(results, weights) do
