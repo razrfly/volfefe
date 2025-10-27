@@ -19,7 +19,7 @@ defmodule VolfefeMachine.Content.Content do
     belongs_to :source, VolfefeMachine.Content.Source
     has_one :classification, VolfefeMachine.Intelligence.Classification
     has_many :model_classifications, VolfefeMachine.Intelligence.ModelClassification
-    has_many :content_targets, VolfefeMachine.Content.ContentTarget
+    has_many :content_targets, VolfefeMachine.Intelligence.ContentTarget
     has_many :targeted_assets, through: [:content_targets, :asset]
 
     timestamps(type: :utc_datetime)

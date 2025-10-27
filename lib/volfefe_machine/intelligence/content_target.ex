@@ -1,4 +1,4 @@
-defmodule VolfefeMachine.Content.ContentTarget do
+defmodule VolfefeMachine.Intelligence.ContentTarget do
   @moduledoc """
   Schema representing the relationship between content and targeted assets.
 
@@ -18,6 +18,8 @@ defmodule VolfefeMachine.Content.ContentTarget do
   * `:extraction_method` - How the target was identified (manual, ner, regex, keyword, ai)
   * `:confidence` - Confidence score (0.0-1.0) of the extraction
   * `:context` - Text snippet where asset was mentioned
+  * `:mention_text` - Exact text that triggered the match (e.g., "Tesla", "TSLA")
+  * `:meta` - Additional metadata (NER output, alternatives, debugging info)
 
   ## Examples
 
@@ -59,6 +61,8 @@ defmodule VolfefeMachine.Content.ContentTarget do
 
     field :confidence, :float
     field :context, :string
+    field :mention_text, :string
+    field :meta, :map
 
     timestamps(type: :utc_datetime)
   end
@@ -87,7 +91,7 @@ defmodule VolfefeMachine.Content.ContentTarget do
   """
   def changeset(content_target, attrs) do
     content_target
-    |> cast(attrs, [:content_id, :asset_id, :extraction_method, :confidence, :context])
+    |> cast(attrs, [:content_id, :asset_id, :extraction_method, :confidence, :context, :mention_text, :meta])
     |> validate_required([:content_id, :asset_id, :extraction_method])
     |> validate_number(:confidence, greater_than_or_equal_to: 0.0, less_than_or_equal_to: 1.0)
     |> foreign_key_constraint(:content_id)

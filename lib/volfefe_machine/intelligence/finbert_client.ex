@@ -22,7 +22,6 @@ defmodule VolfefeMachine.Intelligence.FinbertClient do
   require Logger
 
   @script_path "priv/ml/classify.py"
-  @python_cmd "venv/bin/python3"
 
   @doc """
   Classifies text using FinBERT model.

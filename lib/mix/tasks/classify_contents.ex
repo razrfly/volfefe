@@ -159,7 +159,7 @@ defmodule Mix.Tasks.Classify.Contents do
 
     case result do
       # Multi-model result
-      {:ok, %{consensus: classification, model_results: model_results, metadata: metadata}} ->
+      {:ok, %{consensus: classification, model_results: model_results, metadata: _metadata}} ->
         # Mark content as classified
         Content.mark_as_classified(content_id)
 

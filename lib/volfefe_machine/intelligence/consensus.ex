@@ -11,8 +11,6 @@ defmodule VolfefeMachine.Intelligence.Consensus do
   - Confidence-based weighting
   """
 
-  alias VolfefeMachine.Intelligence.MultiModelClient
-
   @consensus_version "v1.0"
 
   @doc """
