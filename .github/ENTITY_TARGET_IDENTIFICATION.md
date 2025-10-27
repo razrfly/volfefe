@@ -453,9 +453,9 @@ defmodule VolfefeMachine.Intelligence.EntityExtractor do
 
   def extract_and_store(content) do
     with {:ok, text} <- validate_text(content),
-         {:ok, entities_json} <- run_entity_extraction(text, content.id),
+         {:ok, entities_json} <- run_entity_extraction(text),
          {:ok, entities} <- parse_entities(entities_json),
-         {:ok, saved} <- save_entities(entities) do
+         {:ok, saved} <- save_entities(entities, content.id) do
       {:ok, saved}
     else
       error -> error
@@ -470,8 +470,9 @@ defmodule VolfefeMachine.Intelligence.EntityExtractor do
   end
   defp validate_text(_), do: {:error, :no_text}
 
-  defp run_entity_extraction(text, content_id) do
+  defp run_entity_extraction(text) do
     # Pass text directly via stdin using input: parameter
+    # Python returns entities without content_id; we inject it after parsing
     case System.cmd("python3", [@python_script],
                     cd: File.cwd!(),
                     stderr_to_stdout: true,
@@ -489,10 +490,11 @@ defmodule VolfefeMachine.Intelligence.EntityExtractor do
     end
   end
 
-  defp save_entities(entities) do
+  defp save_entities(entities, content_id) do
     # Insert all entities from all models
+    # Inject content_id into each entity before building changeset
     entities
-    |> Enum.map(&build_entity_changeset/1)
+    |> Enum.map(&build_entity_changeset(&1, content_id))
     |> Enum.reduce_while({:ok, []}, fn changeset, {:ok, acc} ->
       case Repo.insert(changeset) do
         {:ok, entity} -> {:cont, {:ok, [entity | acc]}}
@@ -501,9 +503,10 @@ defmodule VolfefeMachine.Intelligence.EntityExtractor do
     end)
   end
 
-  defp build_entity_changeset(entity_data) do
+  defp build_entity_changeset(entity_data, content_id) do
+    # Inject content_id from Elixir context (not from Python output)
     ContentEntity.changeset(%ContentEntity{}, %{
-      content_id: entity_data["content_id"],
+      content_id: content_id,
       model_id: entity_data["model_id"],
       model_version: entity_data["model_version"],
       entity_text: entity_data["entity_text"],
