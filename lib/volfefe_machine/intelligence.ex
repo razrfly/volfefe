@@ -27,6 +27,7 @@ defmodule VolfefeMachine.Intelligence do
   alias VolfefeMachine.Intelligence.ModelClassification
   alias VolfefeMachine.Intelligence.MultiModelClient
   alias VolfefeMachine.Intelligence.Consensus
+  alias VolfefeMachine.Intelligence.ContentTarget
   alias VolfefeMachine.Content
 
   @doc """
@@ -566,5 +567,117 @@ defmodule VolfefeMachine.Intelligence do
       {:error, reason} ->
         {:error, reason}
     end
+  end
+
+  # ============================================================================
+  # Content Target Query Helpers
+  # ============================================================================
+
+  @doc """
+  Get all assets targeted by a content item.
+
+  Returns list of ContentTarget structs with preloaded assets,
+  ordered by confidence (highest first).
+
+  ## Examples
+
+      iex> targets_for_content(123)
+      [
+        %ContentTarget{
+          asset: %Asset{symbol: "TSLA", name: "Tesla Inc"},
+          confidence: 0.95,
+          extraction_method: :ner
+        }
+      ]
+  """
+  def targets_for_content(content_id) do
+    from(t in ContentTarget,
+      where: t.content_id == ^content_id,
+      preload: [:asset],
+      order_by: [desc: t.confidence]
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Get all content targeting a specific asset.
+
+  ## Options
+
+  * `:sentiment` - Filter by sentiment ("positive", "negative", "neutral")
+  * `:limit` - Max results (default: 50)
+  * `:min_confidence` - Minimum target confidence (default: 0.7)
+
+  ## Examples
+
+      iex> content_targeting_asset(tesla_id, sentiment: "negative", limit: 10)
+      [%ContentTarget{content: %Content{text: "Tesla recall..."}, ...}]
+  """
+  def content_targeting_asset(asset_id, opts \\ []) do
+    limit = Keyword.get(opts, :limit, 50)
+    sentiment = Keyword.get(opts, :sentiment)
+    min_confidence = Keyword.get(opts, :min_confidence, 0.7)
+
+    query =
+      from t in ContentTarget,
+        join: c in assoc(t, :content),
+        left_join: cl in assoc(c, :classification),
+        where: t.asset_id == ^asset_id,
+        where: t.confidence >= ^min_confidence,
+        preload: [content: {c, classification: cl}],
+        order_by: [desc: c.published_at],
+        limit: ^limit
+
+    query =
+      if sentiment do
+        from [t, c, cl] in query, where: cl.sentiment == ^sentiment
+      else
+        query
+      end
+
+    Repo.all(query)
+  end
+
+  @doc """
+  Get targeting statistics for content or asset.
+
+  ## Examples
+
+      iex> target_stats(:content, 123)
+      %{
+        total_targets: 3,
+        avg_confidence: 0.88
+      }
+
+      iex> target_stats(:asset, 456)
+      %{
+        total_mentions: 47,
+        unique_contents: 45,
+        avg_confidence: 0.91,
+        last_mention: ~U[2025-10-27 12:34:56Z]
+      }
+  """
+  def target_stats(:content, content_id) do
+    from(t in ContentTarget,
+      where: t.content_id == ^content_id,
+      select: %{
+        total_targets: count(t.id),
+        avg_confidence: avg(t.confidence)
+      }
+    )
+    |> Repo.one()
+  end
+
+  def target_stats(:asset, asset_id) do
+    from(t in ContentTarget,
+      where: t.asset_id == ^asset_id,
+      select: %{
+        total_mentions: count(t.id),
+        unique_contents: count(t.content_id, :distinct),
+        avg_confidence: avg(t.confidence),
+        last_mention: max(t.inserted_at)
+      }
+    )
+    |> Repo.one()
   end
 end

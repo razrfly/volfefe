@@ -67,7 +67,7 @@ defmodule VolfefeMachine.MarketData.Asset do
 
     field :meta, :map
 
-    has_many :content_targets, VolfefeMachine.Content.ContentTarget
+    has_many :content_targets, VolfefeMachine.Intelligence.ContentTarget
     has_many :targeting_contents, through: [:content_targets, :content]
 
     timestamps(type: :utc_datetime)
@@ -115,6 +115,6 @@ defmodule VolfefeMachine.MarketData.Asset do
     |> validate_length(:symbol, min: 1, max: 25)
     |> validate_inclusion(:data_source, ["alpaca", "yahoo", "polygon", "manual"])
     |> unique_constraint(:symbol)
-    |> unique_constraint(:alpaca_id)
+    |> unique_constraint(:alpaca_id, name: :assets_alpaca_id_unique)
   end
 end
