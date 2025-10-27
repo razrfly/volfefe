@@ -24,6 +24,9 @@ defmodule VolfefeMachine.Intelligence do
   import Ecto.Query, warn: false
   alias VolfefeMachine.Repo
   alias VolfefeMachine.Intelligence.Classification
+  alias VolfefeMachine.Intelligence.ModelClassification
+  alias VolfefeMachine.Intelligence.MultiModelClient
+  alias VolfefeMachine.Intelligence.Consensus
   alias VolfefeMachine.Content
 
   @doc """
@@ -166,6 +169,50 @@ defmodule VolfefeMachine.Intelligence do
   end
 
   @doc """
+  Classifies a content item using ALL configured sentiment models.
+
+  This is the new multi-model classification approach:
+  1. Fetches the content item
+  2. Calls multi-model Python script for all models
+  3. Stores individual model classifications in model_classifications table
+  4. Calculates weighted consensus
+  5. Stores/updates consensus in classifications table
+  6. Returns both consensus and individual model results
+
+  ## Examples
+
+      iex> classify_content_multi_model(content_id)
+      {:ok, %{
+        consensus: %Classification{sentiment: "negative", confidence: 0.85},
+        model_results: [
+          %ModelClassification{model_id: "distilbert", sentiment: "negative", ...},
+          %ModelClassification{model_id: "twitter_roberta", sentiment: "negative", ...},
+          %ModelClassification{model_id: "finbert", sentiment: "neutral", ...}
+        ]
+      }}
+
+      iex> classify_content_multi_model(999)
+      {:error, :content_not_found}
+  """
+  def classify_content_multi_model(content_id) do
+    with {:ok, content} <- fetch_content(content_id),
+         {:ok, text} <- validate_text(content),
+         {:ok, multi_results} <- call_multi_model_service(text),
+         {:ok, model_classifications} <- store_model_classifications(content_id, multi_results),
+         {:ok, consensus} <- calculate_and_store_consensus(content_id, model_classifications) do
+      {:ok, %{
+        consensus: consensus,
+        model_results: model_classifications,
+        metadata: %{
+          total_latency_ms: multi_results.total_latency_ms,
+          models_used: multi_results.models_used,
+          successful_models: multi_results.successful_models
+        }
+      }}
+    end
+  end
+
+  @doc """
   Batch classifies multiple content items.
 
   Returns a list of results with {:ok, classification} or {:error, reason}
@@ -182,6 +229,25 @@ defmodule VolfefeMachine.Intelligence do
   """
   def batch_classify_contents(content_ids) when is_list(content_ids) do
     Enum.map(content_ids, &classify_content/1)
+  end
+
+  @doc """
+  Batch classifies multiple content items using multi-model approach.
+
+  Returns a list of results with {:ok, result} or {:error, reason}
+  for each content ID.
+
+  ## Examples
+
+      iex> batch_classify_contents_multi_model([1, 2, 3])
+      [
+        {:ok, %{consensus: %Classification{}, model_results: [...]}},
+        {:ok, %{consensus: %Classification{}, model_results: [...]}},
+        {:error, :no_text_to_classify}
+      ]
+  """
+  def batch_classify_contents_multi_model(content_ids) when is_list(content_ids) do
+    Enum.map(content_ids, &classify_content_multi_model/1)
   end
 
   @doc """
@@ -405,5 +471,87 @@ defmodule VolfefeMachine.Intelligence do
     }
 
     create_classification(attrs)
+  end
+
+  # Multi-model classification helpers
+
+  defp call_multi_model_service(text) do
+    case MultiModelClient.classify(text) do
+      {:ok, results} -> {:ok, results}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp store_model_classifications(content_id, multi_results) do
+    # Store each model's classification result
+    results = multi_results.results
+
+    stored_classifications =
+      Enum.reduce_while(results, {:ok, []}, fn result, {:ok, acc} ->
+        # Skip models that failed
+        if Map.has_key?(result, :error) do
+          {:cont, {:ok, acc}}
+        else
+          attrs = %{
+            content_id: content_id,
+            model_id: result.model_id,
+            model_version: result.model_version,
+            sentiment: result.sentiment,
+            confidence: result.confidence,
+            meta: result.meta
+          }
+
+          case ModelClassification.changeset(%ModelClassification{}, attrs) |> Repo.insert() do
+            {:ok, model_classification} ->
+              {:cont, {:ok, [model_classification | acc]}}
+
+            {:error, changeset} ->
+              {:halt, {:error, {:model_classification_failed, changeset}}}
+          end
+        end
+      end)
+
+    case stored_classifications do
+      {:ok, classifications} -> {:ok, Enum.reverse(classifications)}
+      error -> error
+    end
+  end
+
+  defp calculate_and_store_consensus(content_id, model_classifications) do
+    # Convert ModelClassification structs to maps for Consensus module
+    model_results =
+      Enum.map(model_classifications, fn mc ->
+        %{
+          model_id: mc.model_id,
+          sentiment: mc.sentiment,
+          confidence: mc.confidence
+        }
+      end)
+
+    case Consensus.calculate(model_results) do
+      {:ok, consensus_result} ->
+        # Store or update consensus classification
+        attrs = %{
+          content_id: content_id,
+          sentiment: consensus_result.sentiment,
+          confidence: consensus_result.confidence,
+          model_version: consensus_result.model_version,
+          meta: consensus_result.meta
+        }
+
+        # Check if classification already exists
+        case get_classification_by_content(content_id) do
+          nil ->
+            # Create new
+            create_classification(attrs)
+
+          existing ->
+            # Update existing
+            update_classification(existing, attrs)
+        end
+
+      {:error, reason} ->
+        {:error, reason}
+    end
   end
 end

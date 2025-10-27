@@ -11,16 +11,21 @@ Goal: Find model that better captures political sentiment vs financial sentiment
 """
 
 import json
+import os
 import psycopg2
 from transformers import pipeline
 import time
+from dotenv import load_dotenv
 
-# Database connection
+# Load environment variables from .env file
+load_dotenv()
+
+# Database connection using environment variables
 conn = psycopg2.connect(
-    host="localhost",
-    database="volfefe_machine_dev",
-    user="postgres",
-    password="postgres"
+    host=os.getenv("PGHOST", "localhost"),
+    database=os.getenv("PGDATABASE", "volfefe_machine_dev"),
+    user=os.getenv("PGUSER", "postgres"),
+    password=os.getenv("PGPASSWORD")
 )
 
 # Load models

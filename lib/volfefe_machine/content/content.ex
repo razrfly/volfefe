@@ -18,6 +18,7 @@ defmodule VolfefeMachine.Content.Content do
 
     belongs_to :source, VolfefeMachine.Content.Source
     has_one :classification, VolfefeMachine.Intelligence.Classification
+    has_many :model_classifications, VolfefeMachine.Intelligence.ModelClassification
 
     timestamps(type: :utc_datetime)
   end
