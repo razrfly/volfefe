@@ -115,13 +115,15 @@ defmodule VolfefeMachine.MarketData.Loader do
 
   defp upsert_asset(alpaca_data) do
     attrs = %{
-      alpaca_id: alpaca_data["id"],
       symbol: alpaca_data["symbol"],
       name: alpaca_data["name"],
       exchange: alpaca_data["exchange"],
       class: map_asset_class(alpaca_data["class"]),
       status: map_status(alpaca_data["status"]),
       tradable: alpaca_data["tradable"],
+      # Source tracking
+      data_source: "alpaca",
+      alpaca_id: alpaca_data["id"],
       # CRITICAL: Store complete Alpaca response for debugging and future use
       meta: alpaca_data
     }
@@ -129,12 +131,12 @@ defmodule VolfefeMachine.MarketData.Loader do
     %Asset{}
     |> Asset.changeset(attrs)
     |> Repo.insert(
-      on_conflict: {:replace_all_except, [:alpaca_id, :inserted_at]},
-      conflict_target: :alpaca_id
+      on_conflict: {:replace_all_except, [:id, :inserted_at]},
+      conflict_target: :symbol
     )
     |> case do
       {:ok, asset} ->
-        Logger.debug("✓ Upserted asset: #{asset.symbol}")
+        Logger.debug("✓ Upserted asset: #{asset.symbol} (id: #{asset.id})")
         {:ok, asset}
 
       {:error, changeset} ->
