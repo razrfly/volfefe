@@ -1,37 +1,31 @@
 #!/usr/bin/env python3
 """
-Multi-Model Sentiment Classification for Volfefe Machine.
+Multi-Model Sentiment Classification + NER for Volfefe Machine.
 
-Runs multiple sentiment analysis models on the same text and returns all results.
+Runs multiple sentiment analysis models AND named entity recognition on the same text.
 Philosophy: Run ALL models, capture ALL data, decide consensus later in Elixir.
 
-Models:
+Sentiment Models:
   - DistilBERT (distilbert-base-uncased-finetuned-sst-2-english)
   - Twitter-RoBERTa (cardiffnlp/twitter-roberta-base-sentiment-latest)
   - FinBERT (yiyanghkust/finbert-tone)
+
+NER Model:
+  - BERT-base-NER (dslim/bert-base-NER)
+    Extracts: ORG (organizations), LOC (locations), PER (persons), MISC
 
 Usage:
     echo "text to classify" | python3 classify_multi_model.py
 
 Output format:
     {
-      "results": [
-        {
-          "model_id": "distilbert",
-          "model_version": "distilbert-base-uncased-finetuned-sst-2-english",
-          "sentiment": "negative",
-          "confidence": 0.9757,
-          "meta": {...}
-        },
-        {
-          "model_id": "twitter_roberta",
-          ...
-        },
-        {
-          "model_id": "finbert",
-          ...
-        }
-      ],
+      "results": [...sentiment results...],
+      "entities": {
+        "model_id": "bert_base_ner",
+        "model_version": "dslim/bert-base-NER",
+        "extracted": [...entity list...],
+        "stats": {...}
+      },
       "text_info": {...},
       "total_latency_ms": 2300
     }
@@ -110,6 +104,148 @@ def load_models():
 
     print(f"  Loaded {len(models)}/{len(MODELS)} models\n", file=sys.stderr)
     return models
+
+def load_ner_model():
+    """
+    Load the NER model for entity extraction.
+
+    Returns:
+        pipeline or None: Loaded NER pipeline or None if loading failed
+    """
+    device = 0 if torch.cuda.is_available() else -1
+    model_name = "dslim/bert-base-NER"
+
+    print("Loading NER model...", file=sys.stderr)
+
+    try:
+        print(f"  Loading NER ({model_name})...", file=sys.stderr)
+        ner_pipeline = pipeline(
+            "ner",
+            model=model_name,
+            device=device,
+            aggregation_strategy="simple"  # Merge subword tokens into full entities
+        )
+        print(f"  NER model loaded successfully\n", file=sys.stderr)
+        return ner_pipeline
+    except Exception as e:  # noqa: BLE001 - intentional broad catch for model loading
+        print(f"  Error loading NER model: {str(e)}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        return None
+
+def extract_context_window(text, start, end, window_size=20):
+    """
+    Extract context window around an entity.
+
+    Args:
+        text: Full text
+        start: Entity start position
+        end: Entity end position
+        window_size: Characters to include before/after
+
+    Returns:
+        str: Context string with ellipsis if truncated
+    """
+    context_start = max(0, start - window_size)
+    context_end = min(len(text), end + window_size)
+
+    context = text[context_start:context_end]
+
+    # Add ellipsis if truncated
+    if context_start > 0:
+        context = "..." + context
+    if context_end < len(text):
+        context = context + "..."
+
+    return context
+
+def extract_entities(ner_pipeline, text):
+    """
+    Extract named entities from text using NER model.
+
+    Args:
+        ner_pipeline: Loaded NER pipeline
+        text: Text to extract entities from
+
+    Returns:
+        dict: Entity extraction results with metadata
+    """
+    start_time = time.time()
+
+    try:
+        # Run NER model
+        raw_entities = ner_pipeline(text)
+
+        # Calculate latency
+        latency_ms = int((time.time() - start_time) * 1000)
+
+        # Process entities
+        extracted = []
+        entity_counts = {"ORG": 0, "LOC": 0, "PER": 0, "MISC": 0}
+
+        for entity in raw_entities:
+            # Map entity_group to simplified type
+            entity_type = entity.get("entity_group", "MISC")
+
+            # Extract context window
+            context = extract_context_window(text, entity["start"], entity["end"])
+
+            # Build entity record (convert numpy types to Python types for JSON serialization)
+            entity_record = {
+                "text": str(entity["word"]),
+                "type": str(entity_type),
+                "confidence": round(float(entity["score"]), 4),
+                "start": int(entity["start"]),
+                "end": int(entity["end"]),
+                "context": str(context)
+            }
+
+            extracted.append(entity_record)
+
+            # Update counts
+            if entity_type in entity_counts:
+                entity_counts[entity_type] += 1
+
+        return {
+            "model_id": "bert_base_ner",
+            "model_version": "dslim/bert-base-NER",
+            "extracted": extracted,
+            "stats": {
+                "total_entities": len(extracted),
+                "by_type": entity_counts
+            },
+            "meta": {
+                "processing": {
+                    "latency_ms": latency_ms,
+                    "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+                },
+                "model_config": {
+                    "model_name": "dslim/bert-base-NER",
+                    "aggregation_strategy": "simple",
+                    "entity_types": ["ORG", "LOC", "PER", "MISC"]
+                }
+            }
+        }
+
+    except Exception as e:  # noqa: BLE001 - intentional broad catch for entity extraction
+        print(f"Error extracting entities: {str(e)}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        latency_ms = int((time.time() - start_time) * 1000)
+        return {
+            "model_id": "bert_base_ner",
+            "model_version": "dslim/bert-base-NER",
+            "error": str(e),
+            "extracted": [],
+            "stats": {
+                "total_entities": 0,
+                "by_type": {"ORG": 0, "LOC": 0, "PER": 0, "MISC": 0}
+            },
+            "meta": {
+                "processing": {
+                    "latency_ms": latency_ms,
+                    "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+                }
+            }
+        }
 
 def get_system_info():
     """Capture system and environment configuration."""
@@ -290,9 +426,9 @@ def classify_all_models(models, text):
     }
 
 def main():
-    """Main entry point - read from stdin, classify with all models, write to stdout."""
+    """Main entry point - read from stdin, classify with all models + NER, write to stdout."""
     try:
-        # Load all models
+        # Load all sentiment models
         models = load_models()
 
         if not models:
@@ -303,6 +439,9 @@ def main():
             print(json.dumps(result))
             sys.exit(1)
 
+        # Load NER model
+        ner_model = load_ner_model()
+
         # Read text from stdin
         text = sys.stdin.read().strip()
 
@@ -312,8 +451,23 @@ def main():
                 "message": "No text provided for classification"
             }
         else:
-            # Classify with all models
+            # Run sentiment classification
             result = classify_all_models(models, text)
+
+            # Run entity extraction if NER model loaded
+            if ner_model:
+                entities_result = extract_entities(ner_model, text)
+                result["entities"] = entities_result
+            else:
+                result["entities"] = {
+                    "error": "ner_model_not_loaded",
+                    "message": "NER model failed to load",
+                    "extracted": [],
+                    "stats": {
+                        "total_entities": 0,
+                        "by_type": {"ORG": 0, "LOC": 0, "PER": 0, "MISC": 0}
+                    }
+                }
 
         # Output JSON to stdout
         print(json.dumps(result, indent=2))
