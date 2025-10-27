@@ -397,7 +397,7 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
           </div>
 
           <!-- Slide-over Panel -->
-          <div class="fixed inset-y-0 right-0 w-full sm:w-2/3 lg:w-1/2 xl:w-2/5 bg-white shadow-xl z-50 overflow-y-auto">
+          <div class="fixed top-0 right-0 h-dvh w-full sm:w-2/3 lg:w-1/2 xl:w-2/5 bg-white shadow-xl z-50 overflow-y-auto">
             <div class="p-6 space-y-6">
               <!-- Header with Close Button -->
               <div class="flex justify-between items-start">
