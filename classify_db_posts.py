@@ -9,6 +9,10 @@ import sys
 import os
 import psycopg2
 from psycopg2.extras import RealDictCursor
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Load FinBERT model
 print("🔄 Loading FinBERT model...")
@@ -19,13 +23,13 @@ classifier = pipeline(
 )
 print("✅ Model loaded!\n")
 
-# Connect to database
+# Connect to database using environment variables
 print("🔄 Connecting to database...")
 conn = psycopg2.connect(
-    host="localhost",
-    database="volfefe_machine_dev",
-    user="postgres",
-    password="postgres"
+    host=os.getenv("PGHOST", "localhost"),
+    database=os.getenv("PGDATABASE", "volfefe_machine_dev"),
+    user=os.getenv("PGUSER", "postgres"),
+    password=os.getenv("PGPASSWORD")
 )
 cur = conn.cursor(cursor_factory=RealDictCursor)
 

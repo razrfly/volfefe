@@ -75,14 +75,40 @@ cd volfefe
 mix deps.get
 cd assets && npm install && cd ..
 
+# Set up environment variables
+cp .env.example .env
+# Edit .env with your actual credentials (database password, API tokens, etc.)
+
 # Set up database
 mix ecto.setup
+
+# (Optional) Install Python dependencies for ML scripts
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
 
 # Start Phoenix server
 mix phx.server
 ```
 
 Visit [`localhost:4000`](http://localhost:4000) to see the live dashboard.
+
+### Environment Variables
+
+The project uses environment variables for sensitive configuration. Copy `.env.example` to `.env` and update with your credentials:
+
+```bash
+# PostgreSQL Database
+PGHOST=localhost
+PGDATABASE=volfefe_machine_dev
+PGUSER=postgres
+PGPASSWORD=your_postgres_password
+
+# Apify API (for Truth Social scraping)
+APIFY_PERSONAL_API_TOKEN=your_api_token_here
+```
+
+**⚠️ Never commit your `.env` file to version control!** It's already in `.gitignore`.
 
 ---
 
