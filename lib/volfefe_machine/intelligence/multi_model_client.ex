@@ -1,9 +1,9 @@
 defmodule VolfefeMachine.Intelligence.MultiModelClient do
   @moduledoc """
-  Client for multi-model sentiment classification using Python script.
+  Client for multi-model sentiment classification + NER using Python script.
 
   Runs multiple sentiment analysis models (DistilBERT, Twitter-RoBERTa, FinBERT)
-  on the same text and returns all results for consensus calculation.
+  AND named entity recognition (BERT-base-NER) on the same text.
 
   Philosophy: Run ALL models, capture ALL data, calculate consensus in Elixir.
   """
@@ -82,9 +82,11 @@ defmodule VolfefeMachine.Intelligence.MultiModelClient do
 
       {:ok, %{"results" => results} = data} ->
         parsed_results = Enum.map(results, &parse_model_result/1)
+        parsed_entities = parse_entities(data["entities"])
 
         {:ok, %{
           results: parsed_results,
+          entities: parsed_entities,
           text_info: data["text_info"],
           system_info: data["system_info"],
           total_latency_ms: data["total_latency_ms"],
@@ -122,6 +124,42 @@ defmodule VolfefeMachine.Intelligence.MultiModelClient do
       sentiment: result["sentiment"],
       confidence: result["confidence"],
       meta: result["meta"]
+    }
+  end
+
+  defp parse_entities(nil), do: nil
+
+  defp parse_entities(%{"error" => error} = entities_data) do
+    # Entity extraction failed
+    %{
+      model_id: entities_data["model_id"],
+      model_version: entities_data["model_version"],
+      error: error,
+      extracted: [],
+      stats: entities_data["stats"] || %{},
+      meta: entities_data["meta"] || %{}
+    }
+  end
+
+  defp parse_entities(entities_data) do
+    # Successful entity extraction
+    extracted_entities = Enum.map(entities_data["extracted"] || [], fn entity ->
+      %{
+        text: entity["text"],
+        type: entity["type"],
+        confidence: entity["confidence"],
+        start: entity["start"],
+        end: entity["end"],
+        context: entity["context"]
+      }
+    end)
+
+    %{
+      model_id: entities_data["model_id"],
+      model_version: entities_data["model_version"],
+      extracted: extracted_entities,
+      stats: entities_data["stats"] || %{},
+      meta: entities_data["meta"] || %{}
     }
   end
 
