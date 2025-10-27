@@ -59,11 +59,13 @@ defmodule VolfefeMachine.MarketData do
   Searches for assets by name or symbol.
 
   Performs case-insensitive partial matching on both name and symbol fields.
-  Returns all matching assets ordered by symbol.
+  Returns matching assets ordered by symbol, limited by default to 20 results.
 
   ## Parameters
 
   - `query` - Search term (case insensitive)
+  - `opts` - Options keyword list
+    - `:limit` - Maximum results to return (default: 20)
 
   ## Returns
 
@@ -77,15 +79,20 @@ defmodule VolfefeMachine.MarketData do
       iex> MarketData.search("AA")
       [%Asset{symbol: "AAPL", ...}, %Asset{symbol: "AAL", ...}, ...]
 
+      iex> MarketData.search("AA", limit: 5)
+      [%Asset{symbol: "AAPL", ...}, %Asset{symbol: "AAL", ...}, ...]
+
       iex> MarketData.search("nonexistent")
       []
   """
-  def search(query) when is_binary(query) do
+  def search(query, opts \\ []) when is_binary(query) do
     search_pattern = "%#{query}%"
+    limit = Keyword.get(opts, :limit, 20)
 
     from(a in Asset,
       where: ilike(a.symbol, ^search_pattern) or ilike(a.name, ^search_pattern),
-      order_by: a.symbol
+      order_by: a.symbol,
+      limit: ^limit
     )
     |> Repo.all()
   end

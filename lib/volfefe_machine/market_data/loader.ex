@@ -153,12 +153,14 @@ defmodule VolfefeMachine.MarketData.Loader do
   defp map_status(_), do: :inactive
 
   defp log_stats(%{total: total, success: success, errors: errors}) do
+    rate = if total > 0, do: Float.round(success / total * 100, 1), else: 0.0
+
     Logger.info("""
     Asset load complete:
       Total:   #{total}
       Success: #{success}
       Errors:  #{errors}
-      Rate:    #{Float.round(success / total * 100, 1)}%
+      Rate:    #{rate}%
     """)
   end
 end
