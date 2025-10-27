@@ -74,7 +74,7 @@ defmodule VolfefeMachine.MarketData.Asset do
     asset
     |> cast(attrs, [:alpaca_id, :symbol, :name, :exchange, :class, :status, :tradable, :meta])
     |> validate_required([:alpaca_id, :symbol, :name, :class, :meta])
-    |> validate_length(:symbol, min: 1, max: 10)
+    |> validate_length(:symbol, min: 1, max: 25)
     |> unique_constraint(:symbol)
   end
 end
