@@ -511,7 +511,12 @@ defmodule VolfefeMachine.Intelligence do
             meta: result.meta
           }
 
-          case ModelClassification.changeset(%ModelClassification{}, attrs) |> Repo.insert() do
+          # Use upsert to make re-runs idempotent (satisfies re-classification test)
+          case ModelClassification.changeset(%ModelClassification{}, attrs)
+               |> Repo.insert(
+                 on_conflict: {:replace, [:sentiment, :confidence, :meta, :updated_at]},
+                 conflict_target: [:content_id, :model_id, :model_version]
+               ) do
             {:ok, model_classification} ->
               {:cont, {:ok, [model_classification | acc]}}
 

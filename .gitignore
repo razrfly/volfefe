@@ -40,3 +40,5 @@ npm-debug.log
 .env.*
 !.env.example
 
+# Playwright MCP screenshots
+.playwright-mcp/

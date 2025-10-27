@@ -243,13 +243,15 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
           </div>
         <% else %>
         <div class="bg-white border rounded-lg shadow-sm overflow-hidden">
+          <div class="overflow-x-auto touch-pan-x overscroll-x-contain">
           <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
               <tr>
                 <th
                   phx-click="sort"
                   phx-value-field="author"
-                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                  class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                  style="min-width: 120px"
                 >
                   <div class="flex items-center">
                     Author
@@ -266,13 +268,14 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
                     <% end %>
                   </div>
                 </th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="min-width: 200px">
                   Content
                 </th>
                 <th
                   phx-click="sort"
                   phx-value-field="published_at"
-                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                  class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                  style="min-width: 140px"
                 >
                   <div class="flex items-center">
                     Published
@@ -289,13 +292,13 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
                     <% end %>
                   </div>
                 </th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="min-width: 110px">
                   Sentiment
                 </th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="min-width: 140px">
                   Confidence
                 </th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="min-width: 100px">
                   Status
                 </th>
               </tr>
@@ -307,35 +310,35 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
                   phx-click="select_content"
                   phx-value-id={content.id}
                 >
-                  <td class="px-6 py-4 whitespace-nowrap">
+                  <td class="px-4 md:px-6 py-3 md:py-4 whitespace-nowrap">
                     <div class="text-sm font-medium text-gray-900">
                       <%= content.author || "Unknown" %>
                     </div>
                   </td>
-                  <td class="px-6 py-4">
+                  <td class="px-4 md:px-6 py-3 md:py-4">
                     <div class="text-sm text-gray-900">
                       <%= truncate_text(content.text, 150) %>
                     </div>
                   </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
+                  <td class="px-4 md:px-6 py-3 md:py-4 whitespace-nowrap">
                     <div class="text-sm text-gray-500">
                       <%= format_datetime(content.published_at) %>
                     </div>
                   </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
+                  <td class="px-4 md:px-6 py-3 md:py-4 whitespace-nowrap">
                     <%= if content.classification do %>
                       <%= render_sentiment_badge(content.classification.sentiment) %>
                     <% else %>
                       <span class="text-xs text-gray-400">-</span>
                     <% end %>
                   </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
+                  <td class="px-4 md:px-6 py-3 md:py-4 whitespace-nowrap">
                     <%= if content.classification do %>
                       <div class="flex items-center">
                         <span class="text-sm font-medium text-gray-900">
                           <%= format_confidence(content.classification.confidence) %>
                         </span>
-                        <div class="ml-2 w-16 bg-gray-200 rounded-full h-2">
+                        <div class="ml-2 w-12 md:w-16 bg-gray-200 rounded-full h-2">
                           <div
                             class="bg-purple-600 h-2 rounded-full"
                             style={"width: #{round((content.classification.confidence || 0) * 100)}%"}>
@@ -346,7 +349,7 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
                       <span class="text-xs text-gray-400">-</span>
                     <% end %>
                   </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
+                  <td class="px-4 md:px-6 py-3 md:py-4 whitespace-nowrap">
                     <%= if content.classified do %>
                       <span class="px-2 py-1 text-xs bg-green-100 text-green-800 rounded font-medium">
                         Classified
@@ -361,6 +364,7 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
               <% end %>
             </tbody>
           </table>
+          </div>
         </div>
         <% end %>
       <% end %>
