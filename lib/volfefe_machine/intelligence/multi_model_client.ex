@@ -14,7 +14,8 @@ defmodule VolfefeMachine.Intelligence.MultiModelClient do
   # :code.priv_dir works in releases where File.cwd! fails
   defp python_cmd do
     # Allow config override for custom python path (e.g., in production)
-    Application.get_env(:volfefe_machine, :python_path, "venv/bin/python3")
+    default_path = Path.join(File.cwd!(), "venv/bin/python3")
+    Application.get_env(:volfefe_machine, :python_path, default_path)
   end
 
   defp script_path do
@@ -54,22 +55,29 @@ defmodule VolfefeMachine.Intelligence.MultiModelClient do
   end
 
   defp run_classification(text) do
-    # Pass text directly via stdin (no temp file needed, avoids quoting issues)
-    # Use timeout: :infinity since model loading can take >5s on first run
+    # Write text to temp file and pass via stdin redirect
+    # System.cmd doesn't support :input/:stdin options in Elixir 1.18
+    temp_file = Path.join(System.tmp_dir!(), "volfefe_input_#{:rand.uniform(999999)}.txt")
+
     try do
-      case System.cmd(python_cmd(), [script_path()],
-                      input: text,
-                      timeout: :infinity,
-                      stderr_to_stdout: false) do
+      File.write!(temp_file, text)
+
+      # Use shell to pipe file to python script
+      cmd = "cat #{temp_file} | #{python_cmd()} #{script_path()}"
+
+      case System.cmd("sh", ["-c", cmd], stderr_to_stdout: false) do
         {output, 0} ->
+          File.rm(temp_file)
           {:ok, output}
 
         {error_output, exit_code} ->
+          File.rm(temp_file)
           Logger.error("Multi-model classification failed (exit #{exit_code}): #{error_output}")
           {:error, {:python_error, exit_code, error_output}}
       end
     rescue
       e ->
+        if File.exists?(temp_file), do: File.rm(temp_file)
         Logger.error("Failed to run multi-model classification: #{inspect(e)}")
         {:error, {:system_error, e}}
     end
