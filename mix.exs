@@ -66,6 +66,7 @@ defmodule VolfefeMachine.MixProject do
       {:jason, "~> 1.2"},
       {:oban, "~> 2.18"},
       {:oban_web, "~> 2.11"},
+      {:live_toast, "~> 0.8.0"},
       {:dns_cluster, "~> 0.2.0"},
       {:bandit, "~> 1.5"}
     ]

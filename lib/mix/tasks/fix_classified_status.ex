@@ -24,7 +24,7 @@ defmodule Mix.Tasks.FixClassifiedStatus do
 
   use Mix.Task
 
-  alias VolfefeMachine.{Repo, Content}
+  alias VolfefeMachine.Repo
   import Ecto.Query
 
   require Logger

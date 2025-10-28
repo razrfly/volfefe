@@ -31,6 +31,13 @@ defmodule VolfefeMachineWeb.Router do
   end
 
   # Admin Oban dashboard
+  # TODO: Add authentication in production! This is currently publicly accessible.
+  # Recommended: Use Plug.BasicAuth or create an admin authentication pipeline.
+  # Example:
+  #   pipeline :admin do
+  #     plug :browser
+  #     plug :require_authenticated_admin
+  #   end
   scope "/admin" do
     pipe_through :browser
 
