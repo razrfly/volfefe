@@ -64,6 +64,8 @@ defmodule VolfefeMachine.MixProject do
       {:telemetry_poller, "~> 1.0"},
       {:gettext, "~> 0.26"},
       {:jason, "~> 1.2"},
+      {:oban, "~> 2.18"},
+      {:oban_web, "~> 2.11"},
       {:dns_cluster, "~> 0.2.0"},
       {:bandit, "~> 1.5"}
     ]

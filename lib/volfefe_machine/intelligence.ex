@@ -750,4 +750,58 @@ defmodule VolfefeMachine.Intelligence do
         nil
     end
   end
+
+  # ========================================
+  # ML Reprocessing Functions
+  # ========================================
+
+  @doc """
+  Reprocess content with ML models.
+
+  Delegates to `VolfefeMachine.Intelligence.Reprocessor.reprocess/1`.
+
+  See `VolfefeMachine.Intelligence.Reprocessor` for full documentation.
+
+  ## Examples
+
+      # Rerun specific model on unclassified content
+      Intelligence.reprocess(model: "finbert", limit: 10)
+
+      # Rerun all models on all content
+      Intelligence.reprocess(all: true, force: true)
+
+      # Preview what would be processed
+      Intelligence.reprocess(model: "finbert", limit: 10, dry_run: true)
+  """
+  defdelegate reprocess(opts \\ []), to: VolfefeMachine.Intelligence.Reprocessor
+
+  @doc """
+  List all configured ML models.
+
+  Delegates to `VolfefeMachine.Intelligence.ModelRegistry.list_models/1`.
+
+  See `VolfefeMachine.Intelligence.ModelRegistry` for full documentation.
+
+  ## Examples
+
+      # List all models
+      Intelligence.list_models()
+
+      # List only sentiment models
+      Intelligence.list_models(type: :sentiment)
+  """
+  defdelegate list_models(opts \\ []), to: VolfefeMachine.Intelligence.ModelRegistry
+
+  @doc """
+  Get a specific model by ID.
+
+  Delegates to `VolfefeMachine.Intelligence.ModelRegistry.get_model/1`.
+
+  See `VolfefeMachine.Intelligence.ModelRegistry` for full documentation.
+
+  ## Examples
+
+      Intelligence.get_model("finbert")
+  """
+  defdelegate get_model(id), to: VolfefeMachine.Intelligence.ModelRegistry
 end

@@ -55,14 +55,16 @@ defmodule VolfefeMachine.Intelligence.MultiModelClient do
   end
 
   defp run_classification(text) do
-    # Pass text directly to Python script via stdin using System.cmd :input option
-    # This is safer than building shell commands and avoids temp files
+    # Use temporary file for reliable text passing to Python script via stdin
+    # System.cmd doesn't support stdin directly, so we pipe via shell
+    temp_file = Path.join(System.tmp_dir!(), "multimodel_input_#{System.unique_integer([:positive])}.txt")
+
     try do
-      case System.cmd(python_cmd(), [script_path()],
-             input: text,
-             stderr_to_stdout: true,
-             timeout: 60_000
-           ) do
+      # Write text to temp file
+      File.write!(temp_file, text)
+
+      # Run Python script using shell pipe (redirect stderr to /dev/null to keep JSON clean)
+      case System.cmd("sh", ["-c", "cat '#{temp_file}' | '#{python_cmd()}' '#{script_path()}' 2>/dev/null"]) do
         {output, 0} ->
           {:ok, output}
 
@@ -74,6 +76,9 @@ defmodule VolfefeMachine.Intelligence.MultiModelClient do
       e ->
         Logger.error("Failed to run multi-model classification:\n" <> Exception.format(:error, e, __STACKTRACE__))
         {:error, {:system_error, e}}
+    after
+      # Clean up temp file
+      File.rm(temp_file)
     end
   end
 

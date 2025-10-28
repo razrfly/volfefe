@@ -1,5 +1,6 @@
 defmodule VolfefeMachineWeb.Router do
   use VolfefeMachineWeb, :router
+  import Oban.Web.Router
 
   pipeline :browser do
     plug :accepts, ["html"]
@@ -26,6 +27,14 @@ defmodule VolfefeMachineWeb.Router do
 
     live "/content", ContentIndexLive, :index
     live "/content/:id", ContentIndexLive, :show
+    live "/ml", MLDashboardLive, :index
+  end
+
+  # Admin Oban dashboard
+  scope "/admin" do
+    pipe_through :browser
+
+    oban_dashboard "/oban"
   end
 
   # Other scopes may use custom stacks.

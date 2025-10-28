@@ -184,6 +184,99 @@ defmodule VolfefeMachine.Content do
     :ok
   end
 
+  @doc """
+  Marks a content as unclassified.
+  Used when classifications are deleted.
+
+  ## Examples
+
+      iex> mark_as_unclassified(1)
+      :ok
+  """
+  def mark_as_unclassified(content_id) do
+    from(c in Content, where: c.id == ^content_id)
+    |> Repo.update_all(set: [classified: false])
+
+    :ok
+  end
+
+  @doc """
+  Marks all content as unclassified.
+  Used when bulk deleting all classifications.
+
+  ## Examples
+
+      iex> mark_all_as_unclassified()
+      {:ok, 42}  # Returns count of updated records
+  """
+  def mark_all_as_unclassified do
+    {count, _} =
+      from(c in Content, where: c.classified == true)
+      |> Repo.update_all(set: [classified: false])
+
+    {:ok, count}
+  end
+
+  @doc """
+  Synchronizes the classified status flag with actual classification records.
+  Fixes any inconsistencies where the flag doesn't match database state.
+
+  This is useful for:
+  - Fixing data after manual database modifications
+  - Recovering from race conditions
+  - Periodic health checks
+
+  ## Examples
+
+      iex> synchronize_classified_status()
+      {:ok, %{marked_classified: 5, marked_unclassified: 3}}
+  """
+  def synchronize_classified_status do
+    require Logger
+
+    # Find content marked as classified but has no classification records
+    incorrectly_classified =
+      from(c in Content,
+        left_join: cl in assoc(c, :classification),
+        where: c.classified == true and is_nil(cl.id),
+        select: c.id
+      )
+      |> Repo.all()
+
+    # Find content marked as unclassified but has classification records
+    incorrectly_unclassified =
+      from(c in Content,
+        join: cl in assoc(c, :classification),
+        where: c.classified == false,
+        select: c.id
+      )
+      |> Repo.all()
+
+    # Fix incorrectly classified (has flag but no records)
+    {marked_unclassified, _} =
+      if length(incorrectly_classified) > 0 do
+        from(c in Content, where: c.id in ^incorrectly_classified)
+        |> Repo.update_all(set: [classified: false])
+      else
+        {0, nil}
+      end
+
+    # Fix incorrectly unclassified (has records but no flag)
+    {marked_classified, _} =
+      if length(incorrectly_unclassified) > 0 do
+        from(c in Content, where: c.id in ^incorrectly_unclassified)
+        |> Repo.update_all(set: [classified: true])
+      else
+        {0, nil}
+      end
+
+    Logger.info(
+      "Synchronized classified status: #{marked_classified} marked as classified, #{marked_unclassified} marked as unclassified"
+    )
+
+    {:ok, %{marked_classified: marked_classified, marked_unclassified: marked_unclassified}}
+  end
+
   # ========================================
   # Private Helpers
   # ========================================
