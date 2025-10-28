@@ -7,7 +7,7 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
   """
   use VolfefeMachineWeb, :live_view
 
-  alias VolfefeMachine.{Content, Intelligence, Repo}
+  alias VolfefeMachine.{Content, Intelligence, MarketData, Repo}
   import Ecto.Query
 
   @impl true
@@ -301,6 +301,9 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
                 <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="min-width: 120px">
                   Entities
                 </th>
+                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="min-width: 120px">
+                  Market Impact
+                </th>
                 <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="min-width: 100px">
                   Status
                 </th>
@@ -354,6 +357,9 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
                   </td>
                   <td class="px-4 md:px-6 py-3 md:py-4 whitespace-nowrap">
                     <%= render_entity_badges(content) %>
+                  </td>
+                  <td class="px-4 md:px-6 py-3 md:py-4 whitespace-nowrap">
+                    <%= render_impact_badge(content) %>
                   </td>
                   <td class="px-4 md:px-6 py-3 md:py-4 whitespace-nowrap">
                     <%= if content.classified do %>
@@ -518,6 +524,9 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
                   </div>
                 </div>
               <% end %>
+
+              <!-- Market Impact Timeline -->
+              <%= render_market_impact_timeline(@selected_content) %>
 
               <!-- Model Comparison -->
               <%= if length(@selected_content.model_classifications) > 0 do %>
@@ -1281,5 +1290,268 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
       </div>
     <% end %>
     """
+  end
+
+  # ========================================
+  # Market Impact Display Functions
+  # ========================================
+
+  defp render_impact_badge(content) do
+    case MarketData.get_impact_summary(content.id) do
+      {:ok, summary} ->
+        render_impact_badge_with_summary(summary)
+
+      {:error, :no_snapshots} ->
+        assigns = %{}
+        ~H"""
+        <span class="text-xs text-gray-400">-</span>
+        """
+    end
+  end
+
+  defp render_market_impact_timeline(content) do
+    case MarketData.get_impact_summary(content.id) do
+      {:ok, summary} ->
+        render_impact_timeline_section(summary)
+
+      {:error, :no_snapshots} ->
+        assigns = %{}
+        ~H"""
+        <div>
+          <h3 class="text-sm font-semibold text-gray-900 uppercase tracking-wider flex items-center gap-2 mb-3">
+            <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+            </svg>
+            Market Impact
+          </h3>
+          <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+            <p class="text-sm text-gray-500">No market snapshots captured for this content yet.</p>
+          </div>
+        </div>
+        """
+    end
+  end
+
+  defp render_impact_timeline_section(summary) do
+    isolation_color =
+      cond do
+        summary.isolation_score >= 0.7 -> "green"
+        summary.isolation_score >= 0.5 -> "yellow"
+        true -> "red"
+      end
+
+    assigns = %{
+      summary: summary,
+      isolation_color: isolation_color
+    }
+
+    ~H"""
+    <div>
+      <h3 class="text-sm font-semibold text-gray-900 uppercase tracking-wider flex items-center gap-2 mb-3">
+        <svg class="h-5 w-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+        </svg>
+        Market Impact Analysis
+        <%= render_impact_badge_inline(@summary.significance, @summary.max_z_score) %>
+      </h3>
+
+      <div class="bg-gradient-to-br from-orange-50 to-amber-50 rounded-lg p-4 border border-orange-200 space-y-4">
+        <!-- Summary Stats -->
+        <div class="grid grid-cols-3 gap-3">
+          <div class="bg-white rounded-lg p-3 border border-orange-100">
+            <div class="text-xs text-gray-500 mb-1">Max Impact</div>
+            <div class="text-lg font-bold text-gray-900"><%= Float.round(@summary.max_z_score, 2) %>σ</div>
+          </div>
+          <div class="bg-white rounded-lg p-3 border border-orange-100">
+            <div class="text-xs text-gray-500 mb-1">Isolation</div>
+            <div class={"text-lg font-bold #{isolation_text_color(@isolation_color)}"}>
+              <%= Float.round(@summary.isolation_score, 2) %>
+            </div>
+          </div>
+          <div class="bg-white rounded-lg p-3 border border-orange-100">
+            <div class="text-xs text-gray-500 mb-1">Snapshots</div>
+            <div class="text-lg font-bold text-gray-900"><%= @summary.snapshot_count %></div>
+          </div>
+        </div>
+
+        <!-- Asset Impacts -->
+        <div>
+          <h4 class="text-xs font-semibold text-gray-900 mb-2">Asset-Specific Impacts</h4>
+          <div class="space-y-2">
+            <%= for asset <- @summary.assets do %>
+              <div class="bg-white rounded-lg p-3 border border-gray-200">
+                <div class="flex items-center justify-between mb-2">
+                  <div class="flex items-center gap-2">
+                    <span class="text-sm font-bold text-gray-900"><%= asset.symbol %></span>
+                    <%= render_significance_badge_small(asset.significance) %>
+                  </div>
+                  <span class="text-xs text-gray-500"><%= asset.window %></span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span class="text-xs text-gray-600">Z-Score:</span>
+                  <span class={"text-sm font-mono font-bold #{z_score_color(asset.max_z_score)}"}>
+                    <%= Float.round(asset.max_z_score, 2) %>σ
+                  </span>
+                </div>
+              </div>
+            <% end %>
+          </div>
+        </div>
+
+        <!-- Help Section -->
+        <details class="mt-4">
+          <summary class="text-xs text-orange-700 cursor-pointer hover:text-orange-800 font-medium flex items-center gap-1">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Understanding Market Impact Metrics ▼
+          </summary>
+          <div class="mt-3 pt-3 border-t border-orange-200 space-y-2 text-xs text-gray-700">
+            <div>
+              <span class="font-semibold text-gray-900">Z-Score (σ):</span>
+              <p class="mt-1 text-gray-600">
+                Measures how unusual a price move is compared to historical patterns. Higher absolute values indicate more significant moves.
+                <ul class="ml-4 mt-1 space-y-0.5 list-disc">
+                  <li><span class="font-medium text-red-700">|z| ≥ 2.0</span>: High significance (95th percentile or higher)</li>
+                  <li><span class="font-medium text-yellow-700">1.0 ≤ |z| &lt; 2.0</span>: Moderate significance (68th-95th percentile)</li>
+                  <li><span class="font-medium text-gray-600">|z| &lt; 1.0</span>: Normal market noise</li>
+                </ul>
+              </p>
+            </div>
+            <div>
+              <span class="font-semibold text-gray-900">Isolation Score:</span>
+              <p class="mt-1 text-gray-600">
+                Indicates measurement quality based on nearby content within ±4 hours.
+                <ul class="ml-4 mt-1 space-y-0.5 list-disc">
+                  <li><span class="font-medium text-green-700">≥ 0.7</span>: Good isolation (reliable measurement)</li>
+                  <li><span class="font-medium text-yellow-700">0.5 - 0.7</span>: Moderate contamination (some noise)</li>
+                  <li><span class="font-medium text-red-700">&lt; 0.5</span>: High contamination (less reliable)</li>
+                </ul>
+              </p>
+            </div>
+            <div>
+              <span class="font-semibold text-gray-900">Time Windows:</span>
+              <p class="mt-1 text-gray-600">
+                Snapshots captured at:
+                <span class="font-mono">before</span> (1hr before posting),
+                <span class="font-mono">1hr_after</span>,
+                <span class="font-mono">4hr_after</span>, and
+                <span class="font-mono">24hr_after</span> posting.
+              </p>
+            </div>
+          </div>
+        </details>
+      </div>
+    </div>
+    """
+  end
+
+  defp render_impact_badge_inline(significance, max_z_score) do
+    z_formatted = Float.round(max_z_score, 2)
+    assigns = %{significance: significance, max_z: z_formatted}
+
+    case assigns.significance do
+      "high" ->
+        ~H"""
+        <span class="ml-2 px-2 py-0.5 bg-red-600 text-white text-xs rounded font-medium">
+          High Impact (z=<%= @max_z %>)
+        </span>
+        """
+      "moderate" ->
+        ~H"""
+        <span class="ml-2 px-2 py-0.5 bg-yellow-600 text-white text-xs rounded font-medium">
+          Moderate (z=<%= @max_z %>)
+        </span>
+        """
+      "noise" ->
+        ~H"""
+        <span class="ml-2 px-2 py-0.5 bg-gray-500 text-white text-xs rounded font-medium">
+          No Impact (z=<%= @max_z %>)
+        </span>
+        """
+      _ ->
+        ~H"""
+        <span class="ml-2 px-2 py-0.5 bg-gray-400 text-white text-xs rounded">Unknown</span>
+        """
+    end
+  end
+
+  defp render_significance_badge_small(significance) do
+    assigns = %{significance: significance}
+
+    case assigns.significance do
+      "high" ->
+        ~H"""
+        <span class="text-xs px-2 py-0.5 bg-red-100 text-red-800 rounded font-medium">High</span>
+        """
+      "moderate" ->
+        ~H"""
+        <span class="text-xs px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded font-medium">Mod</span>
+        """
+      "noise" ->
+        ~H"""
+        <span class="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded">Noise</span>
+        """
+      _ ->
+        ~H"""
+        <span class="text-xs px-2 py-0.5 bg-gray-100 text-gray-400 rounded">-</span>
+        """
+    end
+  end
+
+  defp isolation_text_color("green"), do: "text-green-600"
+  defp isolation_text_color("yellow"), do: "text-yellow-600"
+  defp isolation_text_color("red"), do: "text-red-600"
+  defp isolation_text_color(_), do: "text-gray-600"
+
+  defp z_score_color(z_score) do
+    abs_z = abs(z_score)
+    cond do
+      abs_z >= 2.0 -> "text-red-600"
+      abs_z >= 1.0 -> "text-yellow-600"
+      true -> "text-gray-600"
+    end
+  end
+
+  defp render_impact_badge_with_summary(summary) do
+    max_z_formatted = Float.round(summary.max_z_score, 2)
+    assigns = %{significance: summary.significance, max_z_score: max_z_formatted}
+
+    case assigns.significance do
+      "high" ->
+        ~H"""
+        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800" title={"Max z-score: #{@max_z_score}"}>
+          <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
+          </svg>
+          High Impact
+        </span>
+        """
+
+      "moderate" ->
+        ~H"""
+        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800" title={"Max z-score: #{@max_z_score}"}>
+          <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
+          </svg>
+          Moderate
+        </span>
+        """
+
+      "noise" ->
+        ~H"""
+        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600" title={"Max z-score: #{@max_z_score}"}>
+          <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm0-2a6 6 0 100-12 6 6 0 000 12z" clip-rule="evenodd" />
+          </svg>
+          No Impact
+        </span>
+        """
+
+      _ ->
+        ~H"""
+        <span class="text-xs text-gray-400">Unknown</span>
+        """
+    end
   end
 end

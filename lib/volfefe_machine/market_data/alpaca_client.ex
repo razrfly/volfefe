@@ -1,157 +1,364 @@
 defmodule VolfefeMachine.MarketData.AlpacaClient do
   @moduledoc """
-  HTTP client for Alpaca Markets Trading API.
+  Alpaca market data client for real-time market snapshots.
 
-  Fetches asset data from Alpaca's `/v2/assets` endpoint.
-  Supports paper trading and live trading environments.
+  **Free tier limitation**: Only provides last 15 minutes of historical data.
+  Use AlphaVantageClient for historical baseline calculations.
+
+  Provides functions for:
+  - Fetching single bars closest to a timestamp (for snapshots)
+  - Fetching asset information (for asset seeding)
 
   ## Configuration
 
-  Requires environment variables:
-  - `ALPACA_API_KEY` - Your Alpaca API key
-  - `ALPACA_SECRET_KEY` - Your Alpaca secret key
+      # .env
+      ALPACA_API_KEY=your_api_key
+      ALPACA_API_SECRET=your_api_secret
 
-  ## Examples
+  ## API Limits (Free Basic Plan)
 
-      # List all active US equities
-      {:ok, assets} = AlpacaClient.list_assets()
-
-      # List only NASDAQ stocks
-      {:ok, assets} = AlpacaClient.list_assets(exchange: "NASDAQ")
-
-      # Get a specific asset
-      {:ok, asset} = AlpacaClient.get_asset("AAPL")
+  - **Historical data**: Last 15 minutes only
+  - **Real-time data**: IEX exchange
+  - **API calls**: 200/minute
+  - **WebSocket**: 30 symbol subscriptions
   """
 
-  require Logger
+  @behaviour VolfefeMachine.MarketData.MarketDataProvider
 
-  @base_url "https://paper-api.alpaca.markets"
-
-  @doc """
-  Creates a new Req client configured for Alpaca API.
-
-  Reads credentials from environment variables and sets up
-  authentication headers.
-
-  ## Raises
-
-  Raises if `ALPACA_API_KEY` or `ALPACA_SECRET_KEY` are not set.
-  """
-  def new do
-    api_key = System.get_env("ALPACA_API_KEY") || raise "ALPACA_API_KEY not set"
-    secret_key = System.get_env("ALPACA_SECRET_KEY") || raise "ALPACA_SECRET_KEY not set"
-
-    Req.new(
-      base_url: @base_url,
-      headers: [
-        {"APCA-API-KEY-ID", api_key},
-        {"APCA-API-SECRET-KEY", secret_key}
-      ],
-      retry: :transient,
-      max_retries: 3,
-      retry_delay: fn attempt -> :timer.seconds(attempt) end
-    )
-  end
+  @base_url "https://data.alpaca.markets/v2/stocks"
+  @paper_base_url "https://paper-api.alpaca.markets/v2"
 
   @doc """
-  Lists assets from Alpaca API.
+  Get single bar closest to target timestamp.
 
-  ## Options
+  Fetches a 2-hour window (1hr before to 1hr after) to find the closest match.
+  Used for taking market snapshots.
 
-  - `:status` - Filter by status ("active", "inactive"). Default: "active"
-  - `:asset_class` - Filter by asset class ("us_equity", "crypto"). Default: "us_equity"
-  - `:exchange` - Filter by exchange ("NASDAQ", "NYSE", etc.). Default: nil
-
-  ## Returns
-
-  - `{:ok, assets}` - List of asset maps
-  - `{:error, reason}` - Error tuple
-
-  ## Examples
-
-      # Get all active US equities
-      {:ok, assets} = AlpacaClient.list_assets()
-
-      # Get only NASDAQ stocks
-      {:ok, assets} = AlpacaClient.list_assets(exchange: "NASDAQ")
-
-      # Get crypto assets
-      {:ok, assets} = AlpacaClient.list_assets(asset_class: "crypto")
-  """
-  def list_assets(opts \\ []) do
-    client = new()
-
-    params =
-      [
-        status: Keyword.get(opts, :status, "active"),
-        asset_class: Keyword.get(opts, :asset_class, "us_equity")
-      ]
-      |> maybe_add_exchange(opts)
-
-    Logger.info("Fetching assets from Alpaca API with params: #{inspect(params)}")
-
-    case Req.get(client, url: "/v2/assets", params: params) do
-      {:ok, %{status: 200, body: assets}} when is_list(assets) ->
-        Logger.info("Successfully fetched #{length(assets)} assets from Alpaca")
-        {:ok, assets}
-
-      {:ok, %{status: status, body: body}} ->
-        Logger.error("Alpaca API error: status=#{status}, body=#{inspect(body)}")
-        {:error, {:api_error, status, body}}
-
-      {:error, reason} ->
-        Logger.error("Failed to fetch from Alpaca: #{inspect(reason)}")
-        {:error, reason}
-    end
-  end
-
-  @doc """
-  Gets a single asset by symbol.
+  **Note**: Free tier only provides last 15 minutes of data.
 
   ## Parameters
 
-  - `symbol` - The ticker symbol (e.g., "AAPL")
+  - `symbol` - Stock symbol (e.g., "SPY")
+  - `timestamp` - Target DateTime
+  - `timeframe` - Bar timeframe (default: "1Hour")
 
   ## Returns
 
-  - `{:ok, asset}` - Asset map
-  - `{:error, :not_found}` - Asset not found
-  - `{:error, reason}` - Other errors
+  - `{:ok, bar}` - Bar data with open, high, low, close, volume, timestamp
+  - `{:error, reason}` - Error message
 
   ## Examples
 
-      {:ok, asset} = AlpacaClient.get_asset("AAPL")
-      # => %{"symbol" => "AAPL", "name" => "Apple Inc.", ...}
+      {:ok, bar} = AlpacaClient.get_bar("SPY", ~U[2025-01-15 14:30:00Z])
+      bar.close  # => #Decimal<450.25>
   """
-  def get_asset(symbol) when is_binary(symbol) do
-    client = new()
+  @impl true
+  def get_bar(symbol, timestamp, timeframe \\ "1Hour") do
+    start_time = DateTime.add(timestamp, -3600, :second) |> DateTime.to_iso8601()
+    end_time = DateTime.add(timestamp, 3600, :second) |> DateTime.to_iso8601()
 
-    Logger.debug("Fetching asset: #{symbol}")
+    url = "#{@base_url}/#{symbol}/bars?start=#{start_time}&end=#{end_time}&timeframe=#{timeframe}"
 
-    case Req.get(client, url: "/v2/assets/#{symbol}") do
-      {:ok, %{status: 200, body: asset}} ->
-        {:ok, asset}
+    case make_data_request(url) do
+      {:ok, %{"bars" => bars}} when is_list(bars) and length(bars) > 0 ->
+        bar = find_closest_bar(bars, timestamp)
+        {:ok, parse_bar(bar)}
+      _ ->
+        {:error, "No data available for this time period"}
+    end
+  end
 
-      {:ok, %{status: 404}} ->
-        Logger.debug("Asset not found: #{symbol}")
-        {:error, :not_found}
+  @doc """
+  Get historical bars for a date range.
 
-      {:ok, %{status: status, body: body}} ->
-        Logger.error("Alpaca API error for #{symbol}: status=#{status}, body=#{inspect(body)}")
-        {:error, {:api_error, status, body}}
+  **Warning**: Free tier only provides last 15 minutes of data.
+  For historical baseline calculations, use AlphaVantageClient instead.
+
+  ## Parameters
+
+  - `symbol` - Stock symbol (e.g., "SPY")
+  - `start_date` - Start DateTime
+  - `end_date` - End DateTime
+  - `opts` - Options keyword list
+    - `:timeframe` - Bar timeframe (default: "1Hour")
+    - `:limit` - Max results (default: 10000)
+
+  ## Returns
+
+  - `{:ok, [bar]}` - List of bars with open, high, low, close, volume, timestamp
+  - `{:error, reason}` - Error message
+
+  ## Examples
+
+      # Only works for last 15 minutes on free tier
+      start_date = DateTime.utc_now() |> DateTime.add(-900, :second)
+      end_date = DateTime.utc_now()
+      {:ok, bars} = AlpacaClient.get_bars("SPY", start_date, end_date, timeframe: "1Hour")
+  """
+  @impl true
+  def get_bars(symbol, start_date, end_date, opts \\ []) do
+    timeframe = Keyword.get(opts, :timeframe, "1Hour")
+    limit = Keyword.get(opts, :limit, 10000)
+
+    start_time = DateTime.to_iso8601(start_date)
+    end_time = DateTime.to_iso8601(end_date)
+
+    url = "#{@base_url}/#{symbol}/bars?start=#{start_time}&end=#{end_time}&timeframe=#{timeframe}&limit=#{limit}"
+
+    case make_data_request(url) do
+      {:ok, %{"bars" => bars}} when is_list(bars) ->
+        {:ok, Enum.map(bars, &parse_bar/1)}
+      {:ok, _} ->
+        {:error, "No bars found in response"}
+      error ->
+        error
+    end
+  end
+
+  @doc """
+  Get asset information from Alpaca.
+
+  Used by mix fetch.assets task.
+
+  ## Parameters
+
+  - `symbol` - Stock symbol
+
+  ## Returns
+
+  - `{:ok, asset_data}` - Asset metadata map
+  - `{:error, reason}` - Error message
+  """
+  def get_asset(symbol) do
+    url = "#{@paper_base_url}/assets/#{symbol}"
+
+    case make_trading_request(url) do
+      {:ok, data} -> {:ok, data}
+      error -> error
+    end
+  end
+
+  @doc """
+  Get bar for market snapshot with validation.
+
+  Fetches a bar for the specified timestamp with market hours validation
+  and returns additional market context for snapshot creation.
+
+  ## Parameters
+
+  - `symbol` - Stock symbol
+  - `timestamp` - Target DateTime
+  - `opts` - Options
+    - `:allow_closed` - Allow fetching when market closed (default: true)
+    - `:allow_stale` - Allow data older than 15 min (default: true)
+
+  ## Returns
+
+  - `{:ok, {bar, context}}` - Bar data and market context map
+  - `{:error, reason}` - Error message
+
+  ## Context Map
+
+  - `:market_state` - "regular_hours" | "extended_hours" | "closed"
+  - `:trading_session_id` - Session identifier (e.g., "2025-01-27-regular")
+  - `:data_validity` - "valid" | "stale" | "low_liquidity" | "gap"
+
+  ## Examples
+
+      {:ok, {bar, context}} = AlpacaClient.get_snapshot_bar("SPY", ~U[2025-01-27 14:30:00Z])
+      bar.close          # => #Decimal<450.25>
+      context.market_state  # => "regular_hours"
+  """
+  def get_snapshot_bar(symbol, timestamp, opts \\ []) do
+    alias VolfefeMachine.MarketData.{Helpers, Snapshot}
+
+    # Validate timing
+    allow_closed = Keyword.get(opts, :allow_closed, true)
+    allow_stale = Keyword.get(opts, :allow_stale, true)
+
+    case Helpers.validate_snapshot_timing(timestamp, allow_closed: allow_closed, allow_stale: allow_stale) do
+      {:ok, market_state} ->
+        # Fetch bar
+        case get_bar(symbol, timestamp) do
+          {:ok, bar} ->
+            # Build context
+            context = %{
+              market_state: market_state,
+              trading_session_id: Helpers.generate_session_id(timestamp),
+              data_validity: Snapshot.determine_data_validity(
+                timestamp,
+                market_state,
+                bar.volume,
+                nil  # avg_volume will be added during snapshot creation
+              )
+            }
+
+            {:ok, {bar, context}}
+
+          error ->
+            error
+        end
 
       {:error, reason} ->
-        Logger.error("Failed to fetch asset #{symbol}: #{inspect(reason)}")
         {:error, reason}
     end
   end
 
-  # Private helpers
+  @doc """
+  Get bar with full market context for snapshot creation.
 
-  defp maybe_add_exchange(params, opts) do
-    case Keyword.get(opts, :exchange) do
-      nil -> params
-      exchange -> Keyword.put(params, :exchange, exchange)
+  Enhanced version of get_bar that includes all market validation
+  and context needed for creating a market snapshot.
+
+  ## Parameters
+
+  - `symbol` - Stock symbol
+  - `timestamp` - Target DateTime
+  - `baseline` - BaselineStats struct (optional, for volume context)
+
+  ## Returns
+
+  - `{:ok, snapshot_attrs}` - Map ready for Snapshot.changeset
+  - `{:error, reason}` - Error message
+
+  ## Example
+
+      baseline = Repo.get_by(BaselineStats, asset_id: asset.id, window_minutes: 60)
+      {:ok, attrs} = AlpacaClient.get_bar_with_context("SPY", timestamp, baseline)
+
+      # attrs contains:
+      # - All OHLCV fields (open_price, high_price, etc.)
+      # - market_state, data_validity, trading_session_id
+      # - volume_vs_avg (if baseline provided)
+  """
+  def get_bar_with_context(symbol, timestamp, baseline \\ nil) do
+    alias VolfefeMachine.MarketData.{Helpers, Snapshot}
+
+    case get_snapshot_bar(symbol, timestamp, allow_closed: true, allow_stale: true) do
+      {:ok, {bar, context}} ->
+        # Calculate volume context if baseline available
+        {volume_vs_avg, volume_z_score} =
+          if baseline do
+            vol_ratio = Helpers.calculate_volume_ratio(bar.volume, baseline.mean_volume)
+            vol_z = calculate_volume_z_score(bar.volume, baseline)
+            {vol_ratio, vol_z}
+          else
+            {nil, nil}
+          end
+
+        # Build snapshot attributes
+        attrs = %{
+          snapshot_timestamp: timestamp,
+          open_price: bar.open,
+          high_price: bar.high,
+          low_price: bar.low,
+          close_price: bar.close,
+          volume: bar.volume,
+          volume_vs_avg: volume_vs_avg,
+          volume_z_score: volume_z_score,
+          market_state: context.market_state,
+          data_validity: Snapshot.determine_data_validity(
+            timestamp,
+            context.market_state,
+            bar.volume,
+            if(baseline, do: baseline.mean_volume, else: nil)
+          ),
+          trading_session_id: context.trading_session_id
+        }
+
+        {:ok, attrs}
+
+      error ->
+        error
     end
   end
+
+  # Private functions
+
+  defp calculate_volume_z_score(_volume, baseline) when is_nil(baseline), do: nil
+  defp calculate_volume_z_score(_volume, %{volume_std_dev: std_dev}) when std_dev == 0, do: nil
+
+  defp calculate_volume_z_score(volume, baseline) do
+    observed = Decimal.new(volume)
+    mean = Decimal.new(baseline.mean_volume)
+    std_dev = Decimal.new(baseline.volume_std_dev)
+
+    Decimal.sub(observed, mean)
+    |> Decimal.div(std_dev)
+  end
+
+  defp make_data_request(url) do
+    headers = [
+      {"APCA-API-KEY-ID", get_api_key()},
+      {"APCA-API-SECRET-KEY", get_api_secret()}
+    ]
+
+    case HTTPoison.get(url, headers) do
+      {:ok, %HTTPoison.Response{status_code: 200, body: body}} ->
+        Jason.decode(body)
+
+      {:ok, %HTTPoison.Response{status_code: 401}} ->
+        {:error, "Authentication failed - check API credentials"}
+
+      {:ok, %HTTPoison.Response{status_code: 404}} ->
+        {:error, "Asset not found"}
+
+      {:ok, %HTTPoison.Response{status_code: code}} ->
+        {:error, "Alpaca API returned #{code}"}
+
+      {:error, %HTTPoison.Error{reason: reason}} ->
+        {:error, "HTTP request failed: #{inspect(reason)}"}
+    end
+  end
+
+  defp make_trading_request(url) do
+    headers = [
+      {"APCA-API-KEY-ID", get_api_key()},
+      {"APCA-API-SECRET-KEY", get_api_secret()}
+    ]
+
+    case HTTPoison.get(url, headers) do
+      {:ok, %HTTPoison.Response{status_code: 200, body: body}} ->
+        Jason.decode(body)
+
+      {:ok, %HTTPoison.Response{status_code: 401}} ->
+        {:error, "Authentication failed - check API credentials"}
+
+      {:ok, %HTTPoison.Response{status_code: 404}} ->
+        {:error, "Asset not found"}
+
+      {:ok, %HTTPoison.Response{status_code: code}} ->
+        {:error, "Alpaca API returned #{code}"}
+
+      {:error, %HTTPoison.Error{reason: reason}} ->
+        {:error, "HTTP request failed: #{inspect(reason)}"}
+    end
+  end
+
+  defp find_closest_bar(bars, target_timestamp) do
+    bars
+    |> Enum.min_by(fn bar ->
+      bar_time = parse_timestamp(bar["t"])
+      abs(DateTime.diff(bar_time, target_timestamp))
+    end)
+  end
+
+  defp parse_bar(bar) do
+    %{
+      timestamp: parse_timestamp(bar["t"]),
+      open: Decimal.new(to_string(bar["o"])),
+      high: Decimal.new(to_string(bar["h"])),
+      low: Decimal.new(to_string(bar["l"])),
+      close: Decimal.new(to_string(bar["c"])),
+      volume: bar["v"]
+    }
+  end
+
+  defp parse_timestamp(iso_string) do
+    {:ok, dt, _} = DateTime.from_iso8601(iso_string)
+    dt
+  end
+
+  defp get_api_key, do: System.get_env("ALPACA_API_KEY")
+  defp get_api_secret, do: System.get_env("ALPACA_API_SECRET")
 end

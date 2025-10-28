@@ -1,0 +1,70 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║                    MARKET DATA PROVIDER COMPARISON                         ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+┌─────────────────────┬──────────────────┬──────────────────┬──────────────────┐
+│ FEATURE             │ Alpha Vantage    │ Alpaca (Free)    │ TwelveData       │
+├─────────────────────┼──────────────────┼──────────────────┼──────────────────┤
+│ Historical Access   │ 20+ years ✓      │ 15 minutes ✗     │ 20+ years ✓      │
+│ Daily Rate Limit    │ 25 calls/day     │ 200 calls/min    │ 800 calls/day    │
+│ Per-Minute Limit    │ ~5 calls/min     │ 200 calls/min    │ 8 calls/min      │
+│ Date Range Control  │ Month-based      │ Full control     │ Full control     │
+│ Real-time Access    │ No ✗             │ Yes (15min) ⚠    │ Yes ✓            │
+│ All 6 Assets        │ Yes ✓            │ Yes ✓            │ Yes ✓            │
+│ Implementation      │ Complex          │ Moderate         │ Simple           │
+│ Single Provider     │ No (need 2)      │ No (need 2)      │ Yes ✓            │
+└─────────────────────┴──────────────────┴──────────────────┴──────────────────┘
+
+═══════════════════════════════════════════════════════════════════════════════
+
+RECOMMENDATION: ✅ Use TwelveData Exclusively
+
+RATIONALE:
+  • 32x more API calls per day (800 vs 25)
+  • Single provider for historical + real-time data
+  • Better date range control
+  • Simpler codebase (1 provider vs 2)
+  • Lower maintenance burden
+  • Ample capacity for development/testing
+
+═══════════════════════════════════════════════════════════════════════════════
+
+DAILY CAPACITY COMPARISON:
+
+Current (Alpha Vantage + Alpaca):
+  Baseline calculations:     6 calls  ✓ (uses 24% of Alpha Vantage limit)
+  Hourly snapshots (24hr):  24 calls  ✗ (exceeds Alpha Vantage limit)
+  Development testing:      50 calls  ✗ (far exceeds limit)
+  Total capacity:           25 calls/day
+
+TwelveData:
+  Baseline calculations:     6 calls  ✓ (uses 0.75% of limit)
+  Hourly snapshots (24hr):  24 calls  ✓ (uses 3% of limit)
+  Development testing:     100 calls  ✓ (uses 12.5% of limit)
+  Remaining capacity:      670 calls  (84% headroom!)
+  Total capacity:          800 calls/day
+
+═══════════════════════════════════════════════════════════════════════════════
+
+INTEGRATION EFFORT:
+
+  Implementation:       4-6 hours  (create TwelveDataClient)
+  Integration:          2-3 hours  (update config, test)
+  Cleanup:              1-2 hours  (archive old clients)
+  ─────────────────────────────────
+  TOTAL:                8-12 hours
+
+RISK LEVEL: LOW ✅ (validated with extensive API testing)
+
+═══════════════════════════════════════════════════════════════════════════════
+
+NEXT STEPS:
+
+  1. Review this report
+  2. Approve implementation
+  3. Create TwelveDataClient module
+  4. Run validation tests
+  5. Deploy and monitor
+  6. Archive old providers
+
+═══════════════════════════════════════════════════════════════════════════════
