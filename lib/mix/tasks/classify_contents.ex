@@ -171,7 +171,7 @@ defmodule Mix.Tasks.Classify.Contents do
           end
 
         # Show consensus + model agreement
-        agreement = classification.meta["agreement_rate"]
+        agreement = classification.meta["agreement_rate"] || classification.meta[:agreement_rate] || 1.0
         agreement_pct = Float.round(agreement * 100, 0)
 
         Mix.shell().info(
@@ -284,7 +284,7 @@ defmodule Mix.Tasks.Classify.Contents do
           results
           |> Enum.filter(&match?({:ok, _, _, _}, &1))
           |> Enum.map(fn {:ok, _, classification, _} ->
-            classification.meta["agreement_rate"]
+            classification.meta["agreement_rate"] || classification.meta[:agreement_rate] || 1.0
           end)
           |> Enum.sum()
           |> Kernel./(successful)

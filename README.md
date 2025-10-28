@@ -145,21 +145,31 @@ APIFY_PERSONAL_API_TOKEN=your_api_token_here
 
 ### Content Ingestion
 
-**Status**: 🚧 Ingestion code needs to be implemented
+**Status**: ✅ Complete - Unified ingestion pipeline ready
 
-To fetch content from Truth Social via Apify, you'll need to build the ingestion pipeline:
+Fetch and import content from Truth Social using a single command:
 
-1. **Create Apify Client** (`lib/volfefe_machine/ingestion/apify_client.ex`)
-2. **Create Mix Task** (`lib/mix/tasks/ingest_content.ex`)
-3. **Add HTTPoison dependency** to `mix.exs`
-
-See [Issue #43 (Phase 1)](https://github.com/razrfly/volfefe/issues/43) for complete implementation templates.
-
-Once built, you'll run:
 ```bash
-# Fetch latest Truth Social posts
-mix ingest.content --source truth_social --limit 100
+# Fetch 100 posts from a specific user
+mix ingest.content --source truth_social --username realDonaldTrump --limit 100
+
+# Fetch and auto-classify in one command
+mix ingest.content --source truth_social --username realDonaldTrump --limit 100 --auto-classify
+
+# Include replies in results
+mix ingest.content --source truth_social --username realDonaldTrump --limit 50 --include-replies
+
+# Preview what would be fetched (dry run)
+mix ingest.content --source truth_social --username realDonaldTrump --limit 10 --dry-run
 ```
+
+**Available Options**:
+- `--source, -s` - Content source (currently: `truth_social`)
+- `--username, -u` - Username/profile to fetch (required)
+- `--limit, -l` - Maximum posts to fetch (default: 100)
+- `--include-replies` - Include replies in results (default: false)
+- `--auto-classify` - Automatically classify after import (default: false)
+- `--dry-run` - Preview configuration without fetching (default: false)
 
 ---
 
@@ -170,8 +180,8 @@ mix ingest.content --source truth_social --limit 100
 | **Database Schema** | Assets, Contents, Classifications, ContentTargets | ✅ Complete |
 | **Multi-Model Classification** | 3 sentiment models + weighted consensus | ✅ Complete |
 | **NER Entity Extraction** | Extract organizations, locations, persons | ✅ Complete |
-| **Source Adapters** | Fetch content from external APIs/feeds | 🚧 Needs Implementation |
-| **Ingestion Pipeline** | Normalize and store content | 🚧 Needs Implementation |
+| **Apify Integration** | Fetch Truth Social posts via API | ✅ Complete |
+| **Ingestion Pipeline** | Unified fetch + import workflow | ✅ Complete |
 | **Asset Linking** | Match extracted entities to assets database | 📋 Phase 2 |
 | **Strategy Engine** | Rule-based trade decision logic | 📋 Phase 3 |
 | **Trade Executor** | Alpaca API integration | 📋 Phase 4 |
@@ -285,8 +295,8 @@ mix ingest.content --source truth_social --limit 100
 - [x] Weighted consensus algorithm
 - [x] NER entity extraction (BERT-base-NER)
 - [x] Classification mix task with batch processing
-- [ ] Content ingestion (Apify adapter) - **Next Step**
-- [ ] Content backup/seeding system ([Issue #45](https://github.com/razrfly/volfefe/issues/45))
+- [x] Content ingestion - Unified mix task ([Issue #46](https://github.com/razrfly/volfefe/issues/46))
+- [ ] Content backup/seeding system ([Issue #45](https://github.com/razrfly/volfefe/issues/45)) - **Next Step**
 
 ### Phase 2: Asset Linking _(In Progress)_
 - [ ] Entity → Asset matching logic ([Issue #42](https://github.com/razrfly/volfefe/issues/42))
@@ -391,7 +401,7 @@ Europe are worried about automotive sector stability."
 ## 📊 Example Pipeline Flow
 
 ### Current Workflow (Manual)
-1. **Manual Ingestion** - Build Apify adapter to fetch Truth Social posts
+1. **Fetch & Import** - `mix ingest.content --source truth_social --username USER --limit 100`
 2. **Content Storage** - Posts stored in PostgreSQL `contents` table
 3. **Multi-Model Classification** - Run `mix classify.contents --all --multi-model`
    - 3 sentiment models analyze text (DistilBERT, Twitter-RoBERTa, FinBERT)
