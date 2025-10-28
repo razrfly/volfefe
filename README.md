@@ -99,7 +99,7 @@ pip install -r requirements.txt
 mix phx.server
 ```
 
-Visit [`localhost:4000`](http://localhost:4000) to see the live dashboard.
+Visit [`localhost:4002`](http://localhost:4002) to see the live dashboard.
 
 ### Running Classification with Entity Extraction
 

@@ -1139,6 +1139,10 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
   # Entity Display Functions
   # ========================================
 
+  defp format_entity_confidence(nil), do: "N/A"
+  defp format_entity_confidence(c) when is_number(c), do: "#{Float.round(c, 2)}"
+  defp format_entity_confidence(_), do: "N/A"
+
   defp render_entity_badges(content) do
     entity_counts = Intelligence.get_entity_counts(content.id)
 
@@ -1149,22 +1153,22 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
       <div class="flex gap-1 flex-wrap">
         <%= if @entity_counts.org > 0 do %>
           <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800" title="Organizations">
-            🏢 {@entity_counts.org}
+            🏢 <%= @entity_counts.org %>
           </span>
         <% end %>
         <%= if @entity_counts.loc > 0 do %>
           <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800" title="Locations">
-            📍 {@entity_counts.loc}
+            📍 <%= @entity_counts.loc %>
           </span>
         <% end %>
         <%= if @entity_counts.per > 0 do %>
           <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800" title="People">
-            👤 {@entity_counts.per}
+            👤 <%= @entity_counts.per %>
           </span>
         <% end %>
         <%= if @entity_counts.misc > 0 do %>
           <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800" title="Miscellaneous">
-            🔖 {@entity_counts.misc}
+            🔖 <%= @entity_counts.misc %>
           </span>
         <% end %>
       </div>
@@ -1189,7 +1193,7 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
           </svg>
           Extracted Entities
           <span class="ml-2 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded font-medium">
-            {@entity_counts.total} found
+            <%= @entity_counts.total %> found
           </span>
         </h3>
 
@@ -1197,13 +1201,13 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
           <%= if @entity_counts.org > 0 do %>
             <div class="bg-white rounded-lg p-3 border border-blue-100">
               <h4 class="text-xs font-semibold text-blue-900 mb-2 flex items-center gap-1">
-                🏢 Organizations ({@entity_counts.org})
+                🏢 Organizations (<%= @entity_counts.org %>)
               </h4>
               <ul class="text-xs text-gray-700 space-y-1">
                 <%= for entity <- Enum.filter(@entity_data.extracted, &(&1["type"] == "ORG")) do %>
                   <li class="flex justify-between items-center">
-                    <span class="font-medium">{entity["text"]}</span>
-                    <span class="text-gray-500 text-[10px]">{Float.round(entity["confidence"], 2)}</span>
+                    <span class="font-medium"><%= entity["text"] %></span>
+                    <span class="text-gray-500 text-[10px]"><%= format_entity_confidence(entity["confidence"]) %></span>
                   </li>
                 <% end %>
               </ul>
@@ -1213,13 +1217,13 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
           <%= if @entity_counts.loc > 0 do %>
             <div class="bg-white rounded-lg p-3 border border-green-100">
               <h4 class="text-xs font-semibold text-green-900 mb-2 flex items-center gap-1">
-                📍 Locations ({@entity_counts.loc})
+                📍 Locations (<%= @entity_counts.loc %>)
               </h4>
               <ul class="text-xs text-gray-700 space-y-1">
                 <%= for entity <- Enum.filter(@entity_data.extracted, &(&1["type"] == "LOC")) do %>
                   <li class="flex justify-between items-center">
-                    <span class="font-medium">{entity["text"]}</span>
-                    <span class="text-gray-500 text-[10px]">{Float.round(entity["confidence"], 2)}</span>
+                    <span class="font-medium"><%= entity["text"] %></span>
+                    <span class="text-gray-500 text-[10px]"><%= format_entity_confidence(entity["confidence"]) %></span>
                   </li>
                 <% end %>
               </ul>
@@ -1229,13 +1233,13 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
           <%= if @entity_counts.per > 0 do %>
             <div class="bg-white rounded-lg p-3 border border-purple-100">
               <h4 class="text-xs font-semibold text-purple-900 mb-2 flex items-center gap-1">
-                👤 People ({@entity_counts.per})
+                👤 People (<%= @entity_counts.per %>)
               </h4>
               <ul class="text-xs text-gray-700 space-y-1">
                 <%= for entity <- Enum.filter(@entity_data.extracted, &(&1["type"] == "PER")) do %>
                   <li class="flex justify-between items-center">
-                    <span class="font-medium">{entity["text"]}</span>
-                    <span class="text-gray-500 text-[10px]">{Float.round(entity["confidence"], 2)}</span>
+                    <span class="font-medium"><%= entity["text"] %></span>
+                    <span class="text-gray-500 text-[10px]"><%= format_entity_confidence(entity["confidence"]) %></span>
                   </li>
                 <% end %>
               </ul>
@@ -1245,13 +1249,13 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
           <%= if @entity_counts.misc > 0 do %>
             <div class="bg-white rounded-lg p-3 border border-gray-200">
               <h4 class="text-xs font-semibold text-gray-900 mb-2 flex items-center gap-1">
-                🔖 Miscellaneous ({@entity_counts.misc})
+                🔖 Miscellaneous (<%= @entity_counts.misc %>)
               </h4>
               <ul class="text-xs text-gray-700 space-y-1">
                 <%= for entity <- Enum.filter(@entity_data.extracted, &(&1["type"] == "MISC")) do %>
                   <li class="flex justify-between items-center">
-                    <span class="font-medium">{entity["text"]}</span>
-                    <span class="text-gray-500 text-[10px]">{Float.round(entity["confidence"], 2)}</span>
+                    <span class="font-medium"><%= entity["text"] %></span>
+                    <span class="text-gray-500 text-[10px]"><%= format_entity_confidence(entity["confidence"]) %></span>
                   </li>
                 <% end %>
               </ul>
@@ -1259,7 +1263,7 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
           <% end %>
 
           <div class="pt-2 border-t border-blue-200 text-xs text-gray-500">
-            <p>Model: {@entity_data.model_id || "BERT-base-NER"}</p>
+            <p>Model: <%= @entity_data.model_id || "BERT-base-NER" %></p>
           </div>
         </div>
       </div>
