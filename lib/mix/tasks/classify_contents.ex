@@ -218,20 +218,41 @@ defmodule Mix.Tasks.Classify.Contents do
   defp display_entities(nil), do: :ok
   defp display_entities(%{"error" => _error}), do: Mix.shell().info("  🏷️  No entities extracted (NER model error)")
 
-  defp display_entities(%{extracted: entities, stats: stats} = _entities_data) when is_list(entities) do
-    if length(entities) > 0 do
-      Mix.shell().info("  🏷️  Entities: #{stats["total_entities"]} found (ORG: #{stats["by_type"]["ORG"]}, LOC: #{stats["by_type"]["LOC"]}, PER: #{stats["by_type"]["PER"]}, MISC: #{stats["by_type"]["MISC"]})")
+  # Support both string and atom keys without creating atoms from user input
+  defp display_entities(%{"extracted" => entities, "stats" => stats}) when is_list(entities),
+    do: display_entities_normalized(entities, stats)
+  defp display_entities(%{extracted: entities, stats: stats}) when is_list(entities),
+    do: display_entities_normalized(entities, stats)
+  defp display_entities(_), do: :ok
 
-      # Display top entities by type
+  defp display_entities_normalized(entities, stats) do
+    if length(entities) > 0 do
+      by_type = Map.get(stats, "by_type", %{})
+      totals = %{
+        org: Map.get(by_type, "ORG", 0),
+        loc: Map.get(by_type, "LOC", 0),
+        per: Map.get(by_type, "PER", 0),
+        misc: Map.get(by_type, "MISC", 0)
+      }
+      Mix.shell().info(
+        "  🏷️  Entities: #{Map.get(stats, "total_entities", length(entities))} found " <>
+        "(ORG: #{totals.org}, LOC: #{totals.loc}, PER: #{totals.per}, MISC: #{totals.misc})"
+      )
+
       entities
-      |> Enum.group_by(& &1.type)
+      |> Enum.group_by(fn e -> Map.get(e, :type) || Map.get(e, "type") end)
       |> Enum.each(fn {type, type_entities} ->
-        entity_names = type_entities
-          |> Enum.take(3)  # Show top 3 per type
-          |> Enum.map(& "#{&1.text} (#{Float.round(&1.confidence, 2)})")
+        entity_names =
+          type_entities
+          |> Enum.take(3)
+          |> Enum.map(fn e ->
+            text = Map.get(e, :text) || Map.get(e, "text") || "?"
+            conf = Map.get(e, :confidence) || Map.get(e, "confidence") || 0.0
+            "#{text} (#{Float.round(conf, 2)})"
+          end)
           |> Enum.join(", ")
 
-        if entity_names != "" do
+        if entity_names != "" and not is_nil(type) do
           Mix.shell().info("      #{type}: #{entity_names}")
         end
       end)
@@ -239,8 +260,6 @@ defmodule Mix.Tasks.Classify.Contents do
       Mix.shell().info("  🏷️  No entities found in text")
     end
   end
-
-  defp display_entities(_), do: :ok
 
   defp print_summary(results, multi_model) do
     total = length(results)

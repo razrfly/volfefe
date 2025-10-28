@@ -58,17 +58,21 @@ defmodule VolfefeMachine.Intelligence.MultiModelClient do
     # Pass text directly to Python script via stdin using System.cmd :input option
     # This is safer than building shell commands and avoids temp files
     try do
-      case System.cmd(python_cmd(), [script_path()], input: text, stderr_to_stdout: false) do
+      case System.cmd(python_cmd(), [script_path()],
+             input: text,
+             stderr_to_stdout: true,
+             timeout: 60_000
+           ) do
         {output, 0} ->
           {:ok, output}
 
-        {error_output, exit_code} ->
-          Logger.error("Multi-model classification failed (exit #{exit_code}): #{error_output}")
-          {:error, {:python_error, exit_code, error_output}}
+        {combined_output, exit_code} ->
+          Logger.error("Multi-model classification failed (exit #{exit_code}): #{combined_output}")
+          {:error, {:python_error, exit_code, combined_output}}
       end
     rescue
       e ->
-        Logger.error("Failed to run multi-model classification: #{inspect(e)}")
+        Logger.error("Failed to run multi-model classification:\n" <> Exception.format(:error, e, __STACKTRACE__))
         {:error, {:system_error, e}}
     end
   end
