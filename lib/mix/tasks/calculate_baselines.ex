@@ -16,7 +16,13 @@ defmodule Mix.Tasks.Calculate.Baselines do
       # Calculate for specific asset
       mix calculate.baselines --symbol SPY --lookback-days 60
 
-      # Recalculate (update existing)
+      # Calculate for multiple specific assets
+      mix calculate.baselines --symbols SPY,QQQ,GLD
+
+      # Skip recently updated baselines (within 24 hours)
+      mix calculate.baselines --all --check-freshness
+
+      # Recalculate all (update existing, ignore freshness)
       mix calculate.baselines --all --force
 
       # Dry run
@@ -27,6 +33,12 @@ defmodule Mix.Tasks.Calculate.Baselines do
       # After running, you can query the baseline stats:
       baseline = Repo.get_by(BaselineStats, asset_id: spy_id, window_minutes: 60)
       # Result: SPY typically moves ±0.3% per hour (z-score of 2.0 = 0.6% move)
+
+      # Update only stale baselines (older than 24 hours)
+      mix calculate.baselines --all --check-freshness
+
+      # Recalculate specific assets regardless of freshness
+      mix calculate.baselines --symbols SPY,QQQ --force
   """
 
   use Mix.Task
@@ -47,61 +59,80 @@ defmodule Mix.Tasks.Calculate.Baselines do
     Mix.Task.run("app.start")
 
     {opts, _, _} = OptionParser.parse(args,
-      switches: [all: :boolean, symbol: :string, lookback_days: :integer, force: :boolean, dry_run: :boolean],
+      switches: [
+        all: :boolean,
+        symbol: :string,
+        symbols: :string,
+        lookback_days: :integer,
+        force: :boolean,
+        check_freshness: :boolean,
+        dry_run: :boolean
+      ],
       aliases: [a: :all, s: :symbol, l: :lookback_days, f: :force, d: :dry_run]
     )
 
     lookback_days = opts[:lookback_days] || 60
+    check_freshness = opts[:check_freshness] || false
 
-    assets = if opts[:all] do
-      MarketData.list_active()
-    else
-      symbol = opts[:symbol]
-      if symbol do
-        case MarketData.get_by_symbol(symbol) do
+    assets = cond do
+      opts[:all] ->
+        MarketData.list_active()
+
+      opts[:symbols] ->
+        load_assets_by_symbols(opts[:symbols])
+
+      opts[:symbol] ->
+        case MarketData.get_by_symbol(opts[:symbol]) do
           {:ok, asset} -> [asset]
           {:error, :not_found} ->
-            Mix.shell().error("Asset not found: #{symbol}")
+            Mix.shell().error("Asset not found: #{opts[:symbol]}")
             System.halt(1)
         end
-      else
-        Mix.shell().error("Must specify --all or --symbol")
+
+      true ->
+        Mix.shell().error("Must specify --all, --symbol, or --symbols")
         print_usage()
         System.halt(1)
-      end
     end
 
     Mix.shell().info("\n📊 Calculating baselines for #{length(assets)} assets...")
-    Mix.shell().info("Lookback period: #{lookback_days} days\n")
+    Mix.shell().info("Lookback period: #{lookback_days} days")
+    if check_freshness, do: Mix.shell().info("Freshness check: enabled (skip if updated <24hrs)")
+    Mix.shell().info("")
 
     if opts[:dry_run] do
-      dry_run(assets, lookback_days)
+      dry_run(assets, lookback_days, check_freshness)
     else
-      calculate_all(assets, lookback_days, opts[:force] || false)
+      calculate_all(assets, lookback_days, opts[:force] || false, check_freshness)
     end
   end
 
-  defp calculate_all(assets, lookback_days, force) do
+  defp calculate_all(assets, lookback_days, force, check_freshness) do
     Enum.each(assets, fn asset ->
-      Mix.shell().info("[#{asset.symbol}] Fetching historical data...")
+      # Check if all baselines are fresh (if freshness checking enabled)
+      if check_freshness and not force and all_baselines_fresh?(asset.id) do
+        Mix.shell().info("[#{asset.symbol}] ⏭️  Skipped (all baselines fresh <24hrs)")
+      else
+        Mix.shell().info("[#{asset.symbol}] Fetching historical data...")
 
-      case fetch_historical_bars(asset.symbol, lookback_days) do
-        {:ok, [_ | _] = bars} ->
-          Mix.shell().info("  Found #{length(bars)} bars")
+        case fetch_historical_bars(asset.symbol, lookback_days) do
+          {:ok, [_ | _] = bars} ->
+            Mix.shell().info("  Found #{length(bars)} bars")
 
-          Enum.each(@time_windows, fn window_minutes ->
-            calculate_and_store_baseline(asset, bars, window_minutes, force)
-          end)
+            Enum.each(@time_windows, fn window_minutes ->
+              calculate_and_store_baseline(asset, bars, window_minutes, force, check_freshness)
+            end)
 
-        {:ok, []} ->
-          Mix.shell().error("  ❌ No bars returned")
+          {:ok, []} ->
+            Mix.shell().error("  ❌ No bars returned")
 
-        {:error, reason} ->
-          Mix.shell().error("  ❌ Failed: #{reason}")
+          {:error, reason} ->
+            Mix.shell().error("  ❌ Failed: #{reason}")
+        end
+
+        # Rate limiting
+        Process.sleep(200)
       end
-
-      # Rate limiting
-      Process.sleep(200)
     end)
 
     print_summary()
@@ -116,13 +147,13 @@ defmodule Mix.Tasks.Calculate.Baselines do
     @data_provider.get_bars(symbol, start_date, end_date, timeframe: "1Hour")
   end
 
-  defp calculate_and_store_baseline(asset, bars, window_minutes, force) do
+  defp calculate_and_store_baseline(asset, bars, window_minutes, force, check_freshness) do
     # Calculate rolling returns for this window
     returns = calculate_rolling_returns(bars, window_minutes)
     volumes = Enum.map(bars, & &1.volume)
 
     if length(returns) < 10 do
-      Mix.shell().info("  ⏭️  #{window_minutes}min: Insufficient data (#{length(returns)} samples)")
+      Mix.shell().info("  ⏭️  #{format_window(window_minutes)}: Insufficient data (#{length(returns)} samples)")
     else
       stats = %{
       asset_id: asset.id,
@@ -151,13 +182,18 @@ defmodule Mix.Tasks.Calculate.Baselines do
       existing when force ->
         case update_baseline_stats(existing, stats) do
           {:ok, _} ->
-            Mix.shell().info("  🔄 #{format_window(window_minutes)}: Updated")
+            Mix.shell().info("  🔄 #{format_window(window_minutes)}: Updated (forced)")
           {:error, changeset} ->
             Mix.shell().error("  ❌ #{format_window(window_minutes)}: #{inspect(changeset.errors)}")
         end
 
-      _existing ->
-        Mix.shell().info("  ⏭️  #{format_window(window_minutes)}: Skipped (exists, use --force to update)")
+      existing ->
+        # Check freshness if enabled
+        if check_freshness and baseline_is_fresh?(existing) do
+          Mix.shell().info("  ⏭️  #{format_window(window_minutes)}: Skipped (fresh, updated #{format_age(existing.updated_at)})")
+        else
+          Mix.shell().info("  ⏭️  #{format_window(window_minutes)}: Skipped (exists, use --force to update)")
+        end
       end
     end
   end
@@ -229,17 +265,71 @@ defmodule Mix.Tasks.Calculate.Baselines do
     |> Repo.update()
   end
 
+  # Helper functions
+
+  defp load_assets_by_symbols(symbols_string) do
+    symbols = String.split(symbols_string, ",") |> Enum.map(&String.trim/1)
+
+    Enum.map(symbols, fn symbol ->
+      case MarketData.get_by_symbol(symbol) do
+        {:ok, asset} ->
+          asset
+        {:error, :not_found} ->
+          Mix.shell().error("Asset not found: #{symbol}")
+          nil
+      end
+    end)
+    |> Enum.reject(&is_nil/1)
+  end
+
+  defp all_baselines_fresh?(asset_id) do
+    # Check if all time windows have fresh baselines (updated within 24 hours)
+    cutoff = DateTime.add(DateTime.utc_now(), -86400, :second) # 24 hours ago
+
+    fresh_count = from(b in BaselineStats,
+      where: b.asset_id == ^asset_id and b.updated_at > ^cutoff,
+      select: count(b.id)
+    ) |> Repo.one()
+
+    fresh_count == length(@time_windows)
+  end
+
+  defp baseline_is_fresh?(baseline) do
+    # Check if baseline was updated within last 24 hours
+    cutoff = DateTime.add(DateTime.utc_now(), -86400, :second)
+    DateTime.compare(baseline.updated_at, cutoff) == :gt
+  end
+
+  defp format_age(datetime) do
+    now = DateTime.utc_now()
+    diff_seconds = DateTime.diff(now, datetime)
+
+    cond do
+      diff_seconds < 3600 ->
+        minutes = div(diff_seconds, 60)
+        "#{minutes}m ago"
+      diff_seconds < 86400 ->
+        hours = div(diff_seconds, 3600)
+        "#{hours}h ago"
+      true ->
+        days = div(diff_seconds, 86400)
+        "#{days}d ago"
+    end
+  end
+
   # Display functions
 
-  defp dry_run(assets, lookback_days) do
+  defp dry_run(assets, lookback_days, check_freshness) do
     Mix.shell().info("\n🔍 DRY RUN - Would calculate baselines for:\n")
 
     Enum.each(assets, fn asset ->
-      Mix.shell().info("  #{asset.symbol}: #{asset.name}")
+      fresh_status = if check_freshness and all_baselines_fresh?(asset.id), do: " (FRESH - would skip)", else: ""
+      Mix.shell().info("  #{asset.symbol}: #{asset.name}#{fresh_status}")
       Mix.shell().info("    Windows: #{Enum.map_join(@time_windows, ", ", &format_window/1)}")
     end)
 
     Mix.shell().info("\nLookback period: #{lookback_days} days")
+    if check_freshness, do: Mix.shell().info("Freshness check: enabled (skip if updated <24hrs)")
     Mix.shell().info("Expected API calls: #{length(assets)} assets × 1 historical fetch each")
     Mix.shell().info("\nRun without --dry-run to calculate.\n")
   end
@@ -273,10 +363,21 @@ defmodule Mix.Tasks.Calculate.Baselines do
     Mix.shell().info("""
 
     Usage:
-      mix calculate.baselines --all
-      mix calculate.baselines --symbol SPY --lookback-days 60
-      mix calculate.baselines --all --force
-      mix calculate.baselines --symbol SPY --dry-run
+      mix calculate.baselines --all                            # All assets
+      mix calculate.baselines --symbol SPY                     # Single asset
+      mix calculate.baselines --symbols SPY,QQQ,GLD            # Multiple assets
+      mix calculate.baselines --all --check-freshness          # Skip fresh (<24hrs)
+      mix calculate.baselines --all --force                    # Recalculate all
+      mix calculate.baselines --symbol SPY --dry-run           # Preview
+
+    Options:
+      --all, -a                All active assets
+      --symbol, -s <SYMBOL>    Single asset symbol
+      --symbols <LIST>         Comma-separated asset symbols
+      --lookback-days, -l <N>  Lookback period (default: 60)
+      --check-freshness        Skip baselines updated within 24 hours
+      --force, -f              Force recalculation even if exists
+      --dry-run, -d            Preview without calculating
     """)
   end
 

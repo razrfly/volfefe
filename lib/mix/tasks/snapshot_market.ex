@@ -16,8 +16,23 @@ defmodule Mix.Tasks.Snapshot.Market do
 
   ## Usage
 
-      # Capture snapshots for specific content
+      # Single content
       mix snapshot.market --content-id 123
+
+      # Multiple specific content IDs
+      mix snapshot.market --ids 1,2,3,4
+
+      # All content published on a specific date
+      mix snapshot.market --date 2025-10-28
+
+      # Content published in a date range
+      mix snapshot.market --date-range 2025-10-01 2025-10-31
+
+      # All classified content
+      mix snapshot.market --all
+
+      # Only content missing complete snapshots
+      mix snapshot.market --missing
 
       # Dry run (show what would be captured)
       mix snapshot.market --content-id 123 --dry-run
@@ -29,7 +44,19 @@ defmodule Mix.Tasks.Snapshot.Market do
 
       # Capture all snapshots for content #1
       mix snapshot.market --content-id 1
-      # => Creates 24 snapshots (6 assets × 4 windows)
+      # => Creates 28 snapshots (7 assets × 4 windows)
+
+      # Capture for multiple content items
+      mix snapshot.market --ids 165,166,167
+      # => Processes 3 content items sequentially
+
+      # Capture all October 2025 content
+      mix snapshot.market --date-range 2025-10-01 2025-10-31
+      # => Finds all content in date range and captures snapshots
+
+      # Find and capture missing snapshots
+      mix snapshot.market --missing
+      # => Only processes content without complete snapshot coverage
 
       # Preview what would be captured
       mix snapshot.market --content-id 1 --dry-run
@@ -51,30 +78,62 @@ defmodule Mix.Tasks.Snapshot.Market do
     Mix.Task.run("app.start")
 
     {opts, _, _} = OptionParser.parse(args,
-      switches: [content_id: :integer, dry_run: :boolean, force: :boolean],
+      switches: [
+        content_id: :integer,
+        ids: :string,
+        date: :string,
+        date_range: :string,
+        all: :boolean,
+        missing: :boolean,
+        dry_run: :boolean,
+        force: :boolean
+      ],
       aliases: [c: :content_id, d: :dry_run, f: :force]
     )
 
-    content_id = opts[:content_id]
-
-    unless content_id do
-      Mix.shell().error("Error: --content-id required")
-      print_usage()
-      System.halt(1)
-    end
-
-    # Load content
-    case load_content(content_id) do
-      {:ok, content} ->
-        if opts[:dry_run] do
-          dry_run(content)
-        else
-          capture_snapshots(content, opts[:force] || false)
+    # Determine content selection mode
+    content_list = cond do
+      opts[:content_id] ->
+        case load_content(opts[:content_id]) do
+          {:ok, content} -> [content]
+          {:error, :not_found} ->
+            Mix.shell().error("❌ Content not found: #{opts[:content_id]}")
+            System.halt(1)
         end
 
-      {:error, :not_found} ->
-        Mix.shell().error("❌ Content not found: #{content_id}")
+      opts[:ids] ->
+        load_content_by_ids(opts[:ids])
+
+      opts[:date] ->
+        load_content_by_date(opts[:date])
+
+      opts[:date_range] ->
+        load_content_by_date_range(opts[:date_range])
+
+      opts[:all] ->
+        load_all_classified_content()
+
+      opts[:missing] ->
+        load_content_missing_snapshots()
+
+      true ->
+        Mix.shell().error("Error: Must specify one of: --content-id, --ids, --date, --date-range, --all, --missing")
+        print_usage()
         System.halt(1)
+    end
+
+    if Enum.empty?(content_list) do
+      Mix.shell().info("\n✅ No content found matching criteria\n")
+      System.halt(0)
+    end
+
+    # Show summary
+    Mix.shell().info("\n📸 Found #{length(content_list)} content item(s) to process\n")
+
+    if opts[:dry_run] do
+      dry_run_batch(content_list)
+    else
+      capture_batch(content_list, opts[:force] || false)
     end
   end
 
@@ -283,41 +342,6 @@ defmodule Mix.Tasks.Snapshot.Market do
     end
   end
 
-  defp dry_run(content) do
-    Mix.shell().info("\n🔍 DRY RUN - Would capture snapshots for content ##{content.id}\n")
-
-    # Calculate windows
-    windows = Helpers.calculate_snapshot_windows(content.published_at)
-
-    Mix.shell().info("Published: #{content.published_at}")
-    Mix.shell().info("Author: #{content.author}\n")
-
-    Mix.shell().info("Snapshot Windows:")
-    Mix.shell().info("  before:     #{windows.before}")
-    Mix.shell().info("  1hr_after:  #{windows.after_1hr}")
-    Mix.shell().info("  4hr_after:  #{windows.after_4hr}")
-    Mix.shell().info("  24hr_after: #{windows.after_24hr}\n")
-
-    # Calculate contamination
-    {isolation_score, nearby_ids} =
-      Helpers.calculate_isolation_score(content.id, content.published_at, 4)
-
-    Mix.shell().info("Contamination Analysis:")
-    Mix.shell().info("  Isolation Score: #{isolation_score}")
-    Mix.shell().info("  Nearby Content: #{length(nearby_ids)} messages within ±4hr\n")
-
-    # Show assets
-    assets = MarketData.list_active()
-    Mix.shell().info("Assets (#{length(assets)}):")
-
-    Enum.each(assets, fn asset ->
-      Mix.shell().info("  #{asset.symbol}: #{asset.name}")
-    end)
-
-    Mix.shell().info("\nWould create #{length(assets) * 4} snapshots (#{length(assets)} assets × 4 windows)")
-    Mix.shell().info("\nRun without --dry-run to capture.\n")
-  end
-
   defp print_summary(results, asset_count) do
     Mix.shell().info("\n" <> String.duplicate("=", 60))
     Mix.shell().info("📸 SNAPSHOT CAPTURE SUMMARY")
@@ -347,6 +371,145 @@ defmodule Mix.Tasks.Snapshot.Market do
     end
   end
 
+  defp load_content_by_ids(ids_string) do
+    ids =
+      ids_string
+      |> String.split(",")
+      |> Enum.map(&String.trim/1)
+      |> Enum.map(&String.to_integer/1)
+
+    import Ecto.Query
+
+    from(c in Content.Content,
+      where: c.id in ^ids,
+      order_by: [asc: c.published_at]
+    )
+    |> Repo.all()
+  end
+
+  defp load_content_by_date(date_string) do
+    import Ecto.Query
+
+    case Date.from_iso8601(date_string) do
+      {:ok, date} ->
+        start_datetime = DateTime.new!(date, ~T[00:00:00], "Etc/UTC")
+        end_datetime = DateTime.new!(date, ~T[23:59:59], "Etc/UTC")
+
+        from(c in Content.Content,
+          where: c.published_at >= ^start_datetime and c.published_at <= ^end_datetime,
+          where: c.classified == true,
+          order_by: [asc: c.published_at]
+        )
+        |> Repo.all()
+
+      {:error, _} ->
+        Mix.shell().error("Invalid date format: #{date_string}. Use YYYY-MM-DD")
+        System.halt(1)
+    end
+  end
+
+  defp load_content_by_date_range(range_string) do
+    import Ecto.Query
+
+    case String.split(range_string, " ") do
+      [start_str, end_str] ->
+        with {:ok, start_date} <- Date.from_iso8601(start_str),
+             {:ok, end_date} <- Date.from_iso8601(end_str) do
+          start_datetime = DateTime.new!(start_date, ~T[00:00:00], "Etc/UTC")
+          end_datetime = DateTime.new!(end_date, ~T[23:59:59], "Etc/UTC")
+
+          from(c in Content.Content,
+            where: c.published_at >= ^start_datetime and c.published_at <= ^end_datetime,
+            where: c.classified == true,
+            order_by: [asc: c.published_at]
+          )
+          |> Repo.all()
+        else
+          {:error, _} ->
+            Mix.shell().error("Invalid date format. Use: YYYY-MM-DD YYYY-MM-DD")
+            System.halt(1)
+        end
+
+      _ ->
+        Mix.shell().error("Invalid date range format. Use: YYYY-MM-DD YYYY-MM-DD")
+        System.halt(1)
+    end
+  end
+
+  defp load_all_classified_content do
+    import Ecto.Query
+
+    from(c in Content.Content,
+      where: c.classified == true,
+      order_by: [asc: c.published_at]
+    )
+    |> Repo.all()
+  end
+
+  defp load_content_missing_snapshots do
+    import Ecto.Query
+
+    # Get count of assets (should have 4 snapshots per asset)
+    asset_count = Repo.aggregate(MarketData.Asset, :count, :id)
+    expected_snapshots = asset_count * 4
+
+    # Find content with incomplete snapshots
+    incomplete_ids = from(c in Content.Content,
+      left_join: s in Snapshot, on: s.content_id == c.id,
+      where: c.classified == true,
+      group_by: c.id,
+      having: count(s.id) < ^expected_snapshots,
+      select: c.id
+    ) |> Repo.all()
+
+    # Also include content with no snapshots at all
+    no_snapshots = from(c in Content.Content,
+      left_join: s in Snapshot, on: s.content_id == c.id,
+      where: c.classified == true and is_nil(s.id),
+      select: c.id
+    ) |> Repo.all()
+
+    missing_ids = Enum.uniq(incomplete_ids ++ no_snapshots)
+
+    from(c in Content.Content,
+      where: c.id in ^missing_ids,
+      order_by: [asc: c.published_at]
+    )
+    |> Repo.all()
+  end
+
+  defp capture_batch(content_list, force) do
+    Mix.shell().info("Processing #{length(content_list)} content item(s)...\n")
+
+    Enum.each(content_list, fn content ->
+      capture_snapshots(content, force)
+      # Rate limiting between content items
+      Process.sleep(200)
+    end)
+  end
+
+  defp dry_run_batch(content_list) do
+    Mix.shell().info("🔍 DRY RUN - Would capture snapshots for #{length(content_list)} content item(s)\n")
+
+    Enum.take(content_list, 5)
+    |> Enum.each(fn content ->
+      Mix.shell().info("Content ##{content.id}:")
+      Mix.shell().info("  Published: #{content.published_at}")
+      Mix.shell().info("  Author: #{content.author}")
+      Mix.shell().info("")
+    end)
+
+    if length(content_list) > 5 do
+      Mix.shell().info("... and #{length(content_list) - 5} more\n")
+    end
+
+    assets = MarketData.list_active()
+    total_snapshots = length(content_list) * length(assets) * 4
+
+    Mix.shell().info("Would create ~#{total_snapshots} snapshots (#{length(content_list)} content × #{length(assets)} assets × 4 windows)")
+    Mix.shell().info("\nRun without --dry-run to capture.\n")
+  end
+
   defp format_z(nil), do: "N/A"
   defp format_z(z_score) do
     z_score
@@ -359,9 +522,22 @@ defmodule Mix.Tasks.Snapshot.Market do
     Mix.shell().info("""
 
     Usage:
-      mix snapshot.market --content-id <id>
-      mix snapshot.market --content-id 1 --dry-run
-      mix snapshot.market --content-id 1 --force
+      mix snapshot.market --content-id <id>           # Single content
+      mix snapshot.market --ids 1,2,3                 # Multiple content IDs
+      mix snapshot.market --date 2025-10-28           # All content on date
+      mix snapshot.market --date-range START END      # Content in date range
+      mix snapshot.market --all                       # All classified content
+      mix snapshot.market --missing                   # Content missing snapshots
+
+    Options:
+      --dry-run, -d    Show what would be captured without capturing
+      --force, -f      Recapture existing snapshots (overwrite)
+
+    Examples:
+      mix snapshot.market --ids 165,166,167
+      mix snapshot.market --date 2025-10-28 --dry-run
+      mix snapshot.market --date-range 2025-10-01 2025-10-31
+      mix snapshot.market --missing --force
     """)
   end
 
