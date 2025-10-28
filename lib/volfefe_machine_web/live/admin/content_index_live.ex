@@ -298,6 +298,9 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
                 <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="min-width: 140px">
                   Confidence
                 </th>
+                <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="min-width: 120px">
+                  Entities
+                </th>
                 <th class="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="min-width: 100px">
                   Status
                 </th>
@@ -348,6 +351,9 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
                     <% else %>
                       <span class="text-xs text-gray-400">-</span>
                     <% end %>
+                  </td>
+                  <td class="px-4 md:px-6 py-3 md:py-4 whitespace-nowrap">
+                    <%= render_entity_badges(content) %>
                   </td>
                   <td class="px-4 md:px-6 py-3 md:py-4 whitespace-nowrap">
                     <%= if content.classified do %>
@@ -552,6 +558,9 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
                 </div>
               <% end %>
 
+              <!-- Extracted Entities Section -->
+              <%= render_entity_details(@selected_content) %>
+
               <!-- Future Features Placeholder -->
               <div class="opacity-60">
                 <h3 class="text-sm font-semibold text-gray-900 uppercase tracking-wider flex items-center gap-2 mb-3">
@@ -562,14 +571,6 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
                   <span class="ml-2 px-2 py-0.5 bg-gray-200 text-gray-600 text-xs rounded">Coming Soon</span>
                 </h3>
                 <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 space-y-4">
-                  <div>
-                    <h4 class="text-xs font-semibold text-gray-700 mb-2">🏢 Extracted Entities</h4>
-                    <ul class="text-xs text-gray-500 space-y-1">
-                      <li>• Companies: [Pending]</li>
-                      <li>• Locations: [Pending]</li>
-                      <li>• People: [Pending]</li>
-                    </ul>
-                  </div>
                   <div>
                     <h4 class="text-xs font-semibold text-gray-700 mb-2">📈 Trading Signals</h4>
                     <ul class="text-xs text-gray-500 space-y-1">
@@ -1133,4 +1134,148 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
 
   defp format_latency(ms) when ms < 1000, do: "#{ms}ms"
   defp format_latency(ms), do: "#{Float.round(ms / 1000, 2)}s"
+
+  # ========================================
+  # Entity Display Functions
+  # ========================================
+
+  defp render_entity_badges(content) do
+    entity_counts = Intelligence.get_entity_counts(content.id)
+
+    assigns = %{entity_counts: entity_counts}
+
+    ~H"""
+    <%= if @entity_counts.total > 0 do %>
+      <div class="flex gap-1 flex-wrap">
+        <%= if @entity_counts.org > 0 do %>
+          <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800" title="Organizations">
+            🏢 {@entity_counts.org}
+          </span>
+        <% end %>
+        <%= if @entity_counts.loc > 0 do %>
+          <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800" title="Locations">
+            📍 {@entity_counts.loc}
+          </span>
+        <% end %>
+        <%= if @entity_counts.per > 0 do %>
+          <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800" title="People">
+            👤 {@entity_counts.per}
+          </span>
+        <% end %>
+        <%= if @entity_counts.misc > 0 do %>
+          <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800" title="Miscellaneous">
+            🔖 {@entity_counts.misc}
+          </span>
+        <% end %>
+      </div>
+    <% else %>
+      <span class="text-xs text-gray-400">-</span>
+    <% end %>
+    """
+  end
+
+  defp render_entity_details(content) do
+    entity_data = Intelligence.get_entity_data(content.id)
+    entity_counts = Intelligence.get_entity_counts(content.id)
+
+    assigns = %{entity_data: entity_data, entity_counts: entity_counts}
+
+    ~H"""
+    <%= if @entity_data do %>
+      <div>
+        <h3 class="text-sm font-semibold text-gray-900 uppercase tracking-wider flex items-center gap-2 mb-3">
+          <svg class="h-5 w-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+          </svg>
+          Extracted Entities
+          <span class="ml-2 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded font-medium">
+            {@entity_counts.total} found
+          </span>
+        </h3>
+
+        <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200 space-y-3">
+          <%= if @entity_counts.org > 0 do %>
+            <div class="bg-white rounded-lg p-3 border border-blue-100">
+              <h4 class="text-xs font-semibold text-blue-900 mb-2 flex items-center gap-1">
+                🏢 Organizations ({@entity_counts.org})
+              </h4>
+              <ul class="text-xs text-gray-700 space-y-1">
+                <%= for entity <- Enum.filter(@entity_data.extracted, &(&1["type"] == "ORG")) do %>
+                  <li class="flex justify-between items-center">
+                    <span class="font-medium">{entity["text"]}</span>
+                    <span class="text-gray-500 text-[10px]">{Float.round(entity["confidence"], 2)}</span>
+                  </li>
+                <% end %>
+              </ul>
+            </div>
+          <% end %>
+
+          <%= if @entity_counts.loc > 0 do %>
+            <div class="bg-white rounded-lg p-3 border border-green-100">
+              <h4 class="text-xs font-semibold text-green-900 mb-2 flex items-center gap-1">
+                📍 Locations ({@entity_counts.loc})
+              </h4>
+              <ul class="text-xs text-gray-700 space-y-1">
+                <%= for entity <- Enum.filter(@entity_data.extracted, &(&1["type"] == "LOC")) do %>
+                  <li class="flex justify-between items-center">
+                    <span class="font-medium">{entity["text"]}</span>
+                    <span class="text-gray-500 text-[10px]">{Float.round(entity["confidence"], 2)}</span>
+                  </li>
+                <% end %>
+              </ul>
+            </div>
+          <% end %>
+
+          <%= if @entity_counts.per > 0 do %>
+            <div class="bg-white rounded-lg p-3 border border-purple-100">
+              <h4 class="text-xs font-semibold text-purple-900 mb-2 flex items-center gap-1">
+                👤 People ({@entity_counts.per})
+              </h4>
+              <ul class="text-xs text-gray-700 space-y-1">
+                <%= for entity <- Enum.filter(@entity_data.extracted, &(&1["type"] == "PER")) do %>
+                  <li class="flex justify-between items-center">
+                    <span class="font-medium">{entity["text"]}</span>
+                    <span class="text-gray-500 text-[10px]">{Float.round(entity["confidence"], 2)}</span>
+                  </li>
+                <% end %>
+              </ul>
+            </div>
+          <% end %>
+
+          <%= if @entity_counts.misc > 0 do %>
+            <div class="bg-white rounded-lg p-3 border border-gray-200">
+              <h4 class="text-xs font-semibold text-gray-900 mb-2 flex items-center gap-1">
+                🔖 Miscellaneous ({@entity_counts.misc})
+              </h4>
+              <ul class="text-xs text-gray-700 space-y-1">
+                <%= for entity <- Enum.filter(@entity_data.extracted, &(&1["type"] == "MISC")) do %>
+                  <li class="flex justify-between items-center">
+                    <span class="font-medium">{entity["text"]}</span>
+                    <span class="text-gray-500 text-[10px]">{Float.round(entity["confidence"], 2)}</span>
+                  </li>
+                <% end %>
+              </ul>
+            </div>
+          <% end %>
+
+          <div class="pt-2 border-t border-blue-200 text-xs text-gray-500">
+            <p>Model: {@entity_data.model_id || "BERT-base-NER"}</p>
+          </div>
+        </div>
+      </div>
+    <% else %>
+      <div>
+        <h3 class="text-sm font-semibold text-gray-900 uppercase tracking-wider flex items-center gap-2 mb-3">
+          <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+          </svg>
+          Extracted Entities
+        </h3>
+        <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+          <p class="text-xs text-gray-500">No entities extracted for this content.</p>
+        </div>
+      </div>
+    <% end %>
+    """
+  end
 end

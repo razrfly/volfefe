@@ -114,13 +114,10 @@ defmodule VolfefeMachine.Ingestion.Importer do
   # Private Functions
 
   defp get_source(source_name) do
-    case Content.get_source_by_name!(source_name) do
-      nil ->
-        {:error, {:source_not_found, source_name}}
-
-      source ->
-        {:ok, source}
-    end
+    {:ok, Content.get_source_by_name!(source_name)}
+  rescue
+    Ecto.NoResultsError ->
+      {:error, {:source_not_found, source_name}}
   end
 
   defp import_all_posts(posts, source) do

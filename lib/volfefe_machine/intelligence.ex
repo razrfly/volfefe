@@ -203,14 +203,15 @@ defmodule VolfefeMachine.Intelligence do
       # If consensus storage fails, model_classifications are rolled back
       case Repo.transaction(fn ->
         with {:ok, model_classifications} <- store_model_classifications(content_id, multi_results),
-             {:ok, consensus} <- calculate_and_store_consensus(content_id, model_classifications) do
+             {:ok, consensus} <- calculate_and_store_consensus(content_id, model_classifications, multi_results.entities) do
           %{
             consensus: consensus,
             model_results: model_classifications,
             metadata: %{
               total_latency_ms: multi_results.total_latency_ms,
               models_used: multi_results.models_used,
-              successful_models: multi_results.successful_models
+              successful_models: multi_results.successful_models,
+              entities: multi_results.entities
             }
           }
         else
@@ -533,7 +534,7 @@ defmodule VolfefeMachine.Intelligence do
     end
   end
 
-  defp calculate_and_store_consensus(content_id, model_classifications) do
+  defp calculate_and_store_consensus(content_id, model_classifications, entities) do
     # Convert ModelClassification structs to maps for Consensus module
     model_results =
       Enum.map(model_classifications, fn mc ->
@@ -546,13 +547,16 @@ defmodule VolfefeMachine.Intelligence do
 
     case Consensus.calculate(model_results) do
       {:ok, consensus_result} ->
+        # Add entities to consensus meta (merge with sentiment consensus metadata)
+        meta_with_entities = Map.put(consensus_result.meta, "entities", entities)
+
         # Store or update consensus classification using upsert to avoid race conditions
         attrs = %{
           content_id: content_id,
           sentiment: consensus_result.sentiment,
           confidence: consensus_result.confidence,
           model_version: consensus_result.model_version,
-          meta: consensus_result.meta
+          meta: meta_with_entities
         }
 
         # Use upsert with on_conflict to handle concurrent inserts elegantly
@@ -679,5 +683,71 @@ defmodule VolfefeMachine.Intelligence do
       }
     )
     |> Repo.one()
+  end
+
+  # ============================================================================
+  # Entity Extraction Helpers
+  # ============================================================================
+
+  @doc """
+  Get entity counts from a classification.
+
+  Returns a map with counts by entity type (ORG, LOC, PER, MISC).
+  Returns zero counts if no entities or no classification exists.
+
+  ## Examples
+
+      iex> get_entity_counts(content_id)
+      %{org: 1, loc: 5, per: 4, misc: 2, total: 12}
+
+      iex> get_entity_counts(content_with_no_classification)
+      %{org: 0, loc: 0, per: 0, misc: 0, total: 0}
+  """
+  def get_entity_counts(content_id) do
+    case get_classification_by_content(content_id) do
+      %{meta: %{"entities" => %{"stats" => %{"by_type" => counts, "total_entities" => total}}}} ->
+        %{
+          org: counts["ORG"] || 0,
+          loc: counts["LOC"] || 0,
+          per: counts["PER"] || 0,
+          misc: counts["MISC"] || 0,
+          total: total || 0
+        }
+
+      _ ->
+        %{org: 0, loc: 0, per: 0, misc: 0, total: 0}
+    end
+  end
+
+  @doc """
+  Get full entity data from a classification.
+
+  Returns the complete entity extraction data including extracted entities,
+  stats, and metadata. Returns nil if no entities exist.
+
+  ## Examples
+
+      iex> get_entity_data(content_id)
+      %{
+        extracted: [%{text: "Tesla", type: "ORG", confidence: 0.95, ...}],
+        stats: %{"total_entities" => 12, "by_type" => %{"ORG" => 1, ...}},
+        meta: %{...}
+      }
+  """
+  def get_entity_data(content_id) do
+    case get_classification_by_content(content_id) do
+      %{meta: %{"entities" => entities}} when is_map(entities) ->
+        # Convert string keys to atom keys for easier template access
+        %{
+          extracted: entities["extracted"] || [],
+          stats: entities["stats"] || %{},
+          meta: entities["meta"] || %{},
+          model_id: entities["model_id"],
+          model_version: entities["model_version"]
+        }
+
+      _ ->
+        nil
+    end
   end
 end
