@@ -335,7 +335,7 @@ defmodule Mix.Tasks.Snapshot.Market do
     end
 
     # Query actual count from database
-    total = Repo.aggregate(Snapshot, :count)
+    total = Repo.aggregate(Snapshot, :count, :id)
     Mix.shell().info("\nTotal snapshots in database: #{total}")
     Mix.shell().info("\n✅ Snapshot capture complete!\n")
   end
