@@ -1,0 +1,166 @@
+defmodule VolfefeMachine.MarketData.TwelveDataClient do
+  @moduledoc """
+  TwelveData market data client for both historical and real-time market data.
+
+  **Advantages over current setup**:
+  - Single provider for both historical (60+ days) and real-time data
+  - Better rate limits: 8 calls/minute, 800/day vs Alpha Vantage 25/day
+  - More flexible date ranges with start_date/end_date parameters
+  - Consistent data format across all time periods
+
+  **Rate Limits (Free Tier)**:
+  - **Per minute**: 8 API credits (1 credit per symbol query)
+  - **Daily**: 800 API credits/day
+  - **Historical data**: Full history available (20+ years)
+  - **Timeframes**: 1min, 5min, 15min, 30min, 1h, 4h, 1day, 1week, 1month
+
+  ## Configuration
+
+      # .env
+      TWELVE_DATA_API_KEY=your_api_key
+
+  ## Usage Strategy
+
+  For baseline calculations (6 assets × 60 days):
+  - 6 API calls total (1 per asset)
+  - Takes ~90 seconds with rate limiting (1 call per 15s to stay safe)
+  - Well within daily limit of 800 calls
+
+  For real-time snapshots:
+  - 1 API call per snapshot
+  - Can handle frequent snapshots throughout the day
+  """
+
+  @behaviour VolfefeMachine.MarketData.MarketDataProvider
+
+  @base_url "https://api.twelvedata.com"
+
+  @impl true
+  def get_bars(symbol, start_date, end_date, opts \\ []) do
+    timeframe = Keyword.get(opts, :timeframe, "1Hour")
+    interval = map_timeframe(timeframe)
+
+    # Format dates as YYYY-MM-DD
+    start_str = Calendar.strftime(start_date, "%Y-%m-%d")
+    end_str = Calendar.strftime(end_date, "%Y-%m-%d")
+
+    url = "#{@base_url}/time_series?symbol=#{symbol}&interval=#{interval}&start_date=#{start_str}&end_date=#{end_str}&apikey=#{get_api_key()}"
+
+    case HTTPoison.get(url) do
+      {:ok, %HTTPoison.Response{status_code: 200, body: body}} ->
+        parse_response(body)
+
+      {:ok, %HTTPoison.Response{status_code: 429}} ->
+        {:error, "Rate limit exceeded - wait for next minute"}
+
+      {:ok, %HTTPoison.Response{status_code: code}} ->
+        {:error, "TwelveData API returned #{code}"}
+
+      {:error, %HTTPoison.Error{reason: reason}} ->
+        {:error, "HTTP request failed: #{inspect(reason)}"}
+    end
+  end
+
+  @impl true
+  def get_bar(symbol, timestamp, timeframe \\ "1Hour") do
+    interval = map_timeframe(timeframe)
+
+    # Get bars for 1 day window around timestamp
+    start_date = DateTime.add(timestamp, -43200, :second) # 12 hours before
+    end_date = DateTime.add(timestamp, 43200, :second)    # 12 hours after
+
+    case get_bars(symbol, start_date, end_date, timeframe: timeframe) do
+      {:ok, bars} when length(bars) > 0 ->
+        # Find closest bar to target timestamp
+        bar = Enum.min_by(bars, fn bar ->
+          abs(DateTime.diff(bar.timestamp, timestamp))
+        end)
+        {:ok, bar}
+
+      {:ok, []} ->
+        {:error, "No data available for this time period"}
+
+      error ->
+        error
+    end
+  end
+
+  # Private functions
+
+  defp parse_response(body) do
+    case Jason.decode(body) do
+      {:ok, %{"status" => "error", "message" => message}} ->
+        {:error, message}
+
+      {:ok, %{"values" => values, "status" => "ok"}} ->
+        bars = Enum.map(values, &parse_bar/1)
+        |> Enum.reverse() # TwelveData returns newest first
+        {:ok, bars}
+
+      {:ok, _other} ->
+        {:error, "Unexpected response format from TwelveData"}
+
+      {:error, reason} ->
+        {:error, "JSON parsing failed: #{inspect(reason)}"}
+    end
+  end
+
+  defp parse_bar(data) do
+    %{
+      timestamp: parse_timestamp(data["datetime"]),
+      open: Decimal.new(data["open"]),
+      high: Decimal.new(data["high"]),
+      low: Decimal.new(data["low"]),
+      close: Decimal.new(data["close"]),
+      volume: String.to_integer(data["volume"])
+    }
+  end
+
+  defp parse_timestamp(datetime_str) do
+    # TwelveData returns: "2025-10-28 14:30:00"
+    # Already in America/New_York timezone
+    case NaiveDateTime.from_iso8601(datetime_str) do
+      {:ok, naive_dt} ->
+        # Convert from ET to UTC (simplified - doesn't handle DST)
+        DateTime.from_naive!(naive_dt, "America/New_York")
+        |> DateTime.shift_zone!("Etc/UTC")
+
+      {:error, _} ->
+        raise "Failed to parse timestamp: #{datetime_str}"
+    end
+  end
+
+  defp map_timeframe(timeframe) do
+    case timeframe do
+      "1Hour" -> "1h"
+      "1Min" -> "1min"
+      "5Min" -> "5min"
+      "15Min" -> "15min"
+      "30Min" -> "30min"
+      "1Day" -> "1day"
+      other -> other # Pass through if already in TwelveData format
+    end
+  end
+
+  defp get_api_key do
+    System.get_env("TWELVE_DATA_API_KEY") ||
+      raise "TWELVE_DATA_API_KEY environment variable not set"
+  end
+
+  @doc """
+  Check API usage and rate limit status.
+
+  Returns current usage information for monitoring.
+  """
+  def check_usage do
+    url = "#{@base_url}/api_usage?apikey=#{get_api_key()}"
+
+    case HTTPoison.get(url) do
+      {:ok, %HTTPoison.Response{status_code: 200, body: body}} ->
+        Jason.decode(body)
+
+      error ->
+        error
+    end
+  end
+end

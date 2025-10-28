@@ -22,7 +22,7 @@ defmodule VolfefeMachine.MarketData do
 
   import Ecto.Query
   alias VolfefeMachine.Repo
-  alias VolfefeMachine.MarketData.Asset
+  alias VolfefeMachine.MarketData.{Asset, Snapshot}
 
   @doc """
   Gets an asset by its ticker symbol.
@@ -200,6 +200,119 @@ defmodule VolfefeMachine.MarketData do
     case Keyword.get(opts, :limit) do
       nil -> query
       limit -> from(a in query, limit: ^limit)
+    end
+  end
+
+  @doc """
+  Gets impact summary for a content posting.
+
+  Returns aggregate metrics from all market snapshots for the content:
+  - Maximum z-score across all assets and windows
+  - Highest significance level
+  - Isolation score
+  - Asset-specific impacts
+
+  ## Parameters
+
+  - `content_id` - Content ID
+
+  ## Returns
+
+  - `{:ok, summary}` - Map with impact metrics
+  - `{:error, :no_snapshots}` - No snapshots found
+
+  ## Summary Map
+
+  - `:max_z_score` - Highest absolute z-score
+  - `:significance` - "high", "moderate", or "noise"
+  - `:isolation_score` - Contamination score (0.0-1.0)
+  - `:snapshot_count` - Total snapshots captured
+  - `:assets` - List of asset impacts with symbols and z-scores
+
+  ## Examples
+
+      iex> MarketData.get_impact_summary(123)
+      {:ok, %{
+        max_z_score: 2.68,
+        significance: "high",
+        isolation_score: 1.0,
+        snapshot_count: 24,
+        assets: [
+          %{symbol: "SPY", max_z_score: 2.68, window: "1hr_after"},
+          %{symbol: "QQQ", max_z_score: 1.85, window: "4hr_after"}
+        ]
+      }}
+  """
+  def get_impact_summary(content_id) do
+    snapshots =
+      from(s in Snapshot,
+        where: s.content_id == ^content_id,
+        preload: [:asset]
+      )
+      |> Repo.all()
+
+    case snapshots do
+      [] ->
+        {:error, :no_snapshots}
+
+      snapshots ->
+        # Get max z-score across all snapshots
+        max_z_score =
+          snapshots
+          |> Enum.map(& &1.z_score)
+          |> Enum.reject(&is_nil/1)
+          |> Enum.map(&Decimal.to_float/1)
+          |> Enum.map(&abs/1)
+          |> Enum.max(fn -> 0.0 end)
+
+        # Determine overall significance
+        significance =
+          cond do
+            max_z_score >= 2.0 -> "high"
+            max_z_score >= 1.0 -> "moderate"
+            true -> "noise"
+          end
+
+        # Get isolation score (same for all snapshots)
+        isolation_score =
+          case List.first(snapshots) do
+            nil -> Decimal.new("0.0")
+            snapshot -> snapshot.isolation_score || Decimal.new("0.0")
+          end
+
+        # Group by asset and get max z-score per asset
+        asset_impacts =
+          snapshots
+          |> Enum.group_by(& &1.asset_id)
+          |> Enum.map(fn {_asset_id, asset_snapshots} ->
+            # Find snapshot with max absolute z-score
+            snapshots_with_z = Enum.reject(asset_snapshots, &is_nil(&1.z_score))
+
+            max_snapshot =
+              if length(snapshots_with_z) > 0 do
+                Enum.max_by(snapshots_with_z, fn s -> abs(Decimal.to_float(s.z_score)) end)
+              else
+                List.first(asset_snapshots)
+              end
+
+            %{
+              symbol: max_snapshot.asset.symbol,
+              max_z_score: if(max_snapshot.z_score, do: Decimal.to_float(max_snapshot.z_score), else: 0.0),
+              window: max_snapshot.window_type,
+              significance: max_snapshot.significance_level || "noise"
+            }
+          end)
+          |> Enum.sort_by(& abs(&1.max_z_score), :desc)
+
+        summary = %{
+          max_z_score: max_z_score,
+          significance: significance,
+          isolation_score: Decimal.to_float(isolation_score),
+          snapshot_count: length(snapshots),
+          assets: asset_impacts
+        }
+
+        {:ok, summary}
     end
   end
 end
