@@ -1,0 +1,321 @@
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <!-- Header -->
+  <div class="mb-8">
+    <div class="flex items-center justify-between">
+      <div>
+        <h1 class="text-3xl font-bold text-gray-900">ML Job Dashboard</h1>
+        <p class="mt-2 text-sm text-gray-600">
+          Monitor and manage machine learning reprocessing jobs
+        </p>
+      </div>
+      <button
+        phx-click="clear_all_classifications"
+        data-confirm="Are you sure? This will delete ALL classifications (both consensus and individual model results). Content will not be affected."
+        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+      >
+        🗑️ Clear All Classifications
+      </button>
+    </div>
+  </div>
+
+  <!-- Queue Statistics -->
+  <div class="mb-8">
+    <h2 class="text-xl font-semibold text-gray-900 mb-4">Queue Health</h2>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <%= for queue <- @queue_stats do %>
+        <div class="bg-white shadow rounded-lg p-6 border border-gray-200">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-medium text-gray-900">
+              <%= queue_status_icon(queue) %> <%= queue.name %>
+            </h3>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3 text-sm">
+            <div class="flex justify-between">
+              <span class="text-gray-600">Available:</span>
+              <span class="font-medium text-blue-600"><%= queue.available %></span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-600">Executing:</span>
+              <span class="font-medium text-yellow-600"><%= queue.executing %></span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-600">Completed (24h):</span>
+              <span class="font-medium text-green-600"><%= queue.completed %></span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-600">Retryable:</span>
+              <span class="font-medium text-orange-600"><%= queue.retryable %></span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-600">Scheduled:</span>
+              <span class="font-medium text-purple-600"><%= queue.scheduled %></span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-600">Discarded:</span>
+              <span class="font-medium text-red-600"><%= queue.discarded %></span>
+            </div>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  </div>
+
+  <!-- Reprocessing Form -->
+  <div class="mb-8">
+    <div class="bg-white shadow rounded-lg p-6 border border-gray-200">
+      <h2 class="text-xl font-semibold text-gray-900 mb-4">Enqueue Reprocessing Job</h2>
+
+      <.form for={@form} phx-submit="enqueue_reprocess" class="space-y-4">
+        <!-- Model Type Selection -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Model Type</label>
+          <select
+            name="reprocess[model_type]"
+            phx-change="update_model_type"
+            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+          >
+            <option value="all" selected={@model_type == :all}>All Models</option>
+            <option value="sentiment" selected={@model_type == :sentiment}>Sentiment Only</option>
+            <option value="ner" selected={@model_type == :ner}>NER Only</option>
+          </select>
+        </div>
+
+        <!-- Specific Model Selection -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">
+            Specific Model (optional)
+          </label>
+          <select
+            name="reprocess[model]"
+            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+          >
+            <option value="">All in category</option>
+            <%= for model <- available_models(@model_type) do %>
+              <option value={model.id}><%= model.name %> (<%= model.id %>)</option>
+            <% end %>
+          </select>
+          <p class="mt-1 text-xs text-gray-500">
+            Leave blank to run all models in the selected category
+          </p>
+        </div>
+
+        <!-- Content Scope -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Content Scope</label>
+          <select
+            name="reprocess[content_scope]"
+            phx-change="update_content_scope"
+            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+          >
+            <option value="unclassified" selected={@content_scope == :unclassified}>
+              Unclassified Only
+            </option>
+            <option value="all" selected={@content_scope == :all}>All Content</option>
+            <option value="ids" selected={@content_scope == :ids}>Specific IDs</option>
+          </select>
+        </div>
+
+        <!-- Content IDs (conditional) -->
+        <%= if @content_scope == :ids do %>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              Content IDs (comma-separated)
+            </label>
+            <input
+              type="text"
+              name="reprocess[content_ids]"
+              placeholder="1,2,3,4,5"
+              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            />
+          </div>
+        <% end %>
+
+        <!-- Limit (conditional) -->
+        <%= if @content_scope == :unclassified do %>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Limit</label>
+            <input
+              type="number"
+              name="reprocess[limit]"
+              value="10"
+              min="1"
+              max="1000"
+              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            />
+            <p class="mt-1 text-xs text-gray-500">
+              Maximum number of items to process
+            </p>
+          </div>
+        <% end %>
+
+        <!-- Force Checkbox -->
+        <div class="flex items-center">
+          <input
+            type="checkbox"
+            name="reprocess[force]"
+            value="true"
+            id="force-checkbox"
+            class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+          />
+          <label for="force-checkbox" class="ml-2 block text-sm text-gray-700">
+            Force reprocess (overwrite existing classifications)
+          </label>
+        </div>
+
+        <!-- Submit Button -->
+        <div class="flex justify-end">
+          <button
+            type="submit"
+            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          >
+            🚀 Enqueue Jobs
+          </button>
+        </div>
+      </.form>
+    </div>
+  </div>
+
+  <!-- Model Registry -->
+  <div class="mb-8">
+    <div class="bg-white shadow rounded-lg p-6 border border-gray-200">
+      <h2 class="text-xl font-semibold text-gray-900 mb-4">Model Registry</h2>
+
+      <div class="space-y-3">
+        <%= for model <- @models do %>
+          <div class="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+            <div>
+              <span class="font-medium text-gray-900"><%= model.name %></span>
+              <span class="ml-2 text-sm text-gray-500">(<%= model.id %>)</span>
+            </div>
+            <div class="flex items-center space-x-4">
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                <%= model.type %>
+              </span>
+              <%= if model.type == "sentiment" do %>
+                <span class="text-sm text-gray-600">Weight: <%= model.weight %></span>
+              <% end %>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Jobs -->
+  <div>
+    <div class="bg-white shadow rounded-lg border border-gray-200">
+      <div class="px-6 py-4 border-b border-gray-200">
+        <h2 class="text-xl font-semibold text-gray-900">Recent Jobs</h2>
+        <p class="mt-1 text-sm text-gray-600">
+          Last 20 jobs across all ML queues (updates every 3 seconds)
+        </p>
+      </div>
+
+      <div class="divide-y divide-gray-200">
+        <%= if length(@recent_jobs) == 0 do %>
+          <div class="px-6 py-8 text-center text-gray-500">
+            No jobs found. Enqueue a reprocessing job to get started.
+          </div>
+        <% else %>
+          <%= for job <- @recent_jobs do %>
+            <div class="px-6 py-4 hover:bg-gray-50">
+              <div class="flex items-start justify-between">
+                <div class="flex-1 min-w-0">
+                  <!-- Job Header -->
+                  <div class="flex items-center space-x-3 mb-2">
+                    <span class="text-xl"><%= state_icon(job.state) %></span>
+                    <span class={[
+                      "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium",
+                      state_badge_class(job.state)
+                    ]}>
+                      <%= job.state %>
+                    </span>
+                    <span class="font-medium text-gray-900">
+                      #<%= job.id %> - <%= worker_name(job.worker) %>
+                    </span>
+                    <span class="text-sm text-gray-500">
+                      <%= job.queue %>
+                    </span>
+                  </div>
+
+                  <!-- Job Details -->
+                  <div class="text-sm text-gray-600 space-y-1">
+                    <div>
+                      <span class="font-medium">Content:</span>
+                      <%= job_content_info(job.args) %>
+                    </div>
+                    <div>
+                      <span class="font-medium">Scheduled:</span>
+                      <%= format_datetime(job.scheduled_at) %>
+                      <span class="text-gray-400">(<%= relative_time(job.inserted_at) %>)</span>
+                    </div>
+                    <%= if job.attempt > 0 do %>
+                      <div>
+                        <span class="font-medium">Attempts:</span>
+                        <%= job.attempt %> / <%= job.max_attempts %>
+                      </div>
+                    <% end %>
+                    <%= if job.state == "executing" && job.attempted_at do %>
+                      <div class="text-yellow-600">
+                        ⏱️ Started: <%= format_datetime(job.attempted_at) %>
+                        (<%= relative_time(job.attempted_at) %>)
+                      </div>
+                    <% end %>
+                    <%= if job.state == "completed" && job.completed_at do %>
+                      <div class="text-green-600">
+                        ✅ Completed: <%= format_datetime(job.completed_at) %>
+                        (<%= relative_time(job.completed_at) %>)
+                      </div>
+                    <% end %>
+                    <%= if job.state in ["retryable", "discarded"] && job.errors do %>
+                      <% latest_error = List.first(job.errors) %>
+                      <%= if latest_error do %>
+                        <div class="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-800">
+                          <span class="font-medium">Error:</span>
+                          <%= String.slice(latest_error["error"] || "Unknown error", 0..200) %>
+                        </div>
+                      <% end %>
+                    <% end %>
+                  </div>
+                </div>
+
+                <!-- Job Actions -->
+                <div class="ml-4 flex-shrink-0 flex space-x-2">
+                  <%= if job.state in ["retryable", "discarded"] do %>
+                    <button
+                      phx-click="retry_job"
+                      phx-value-id={job.id}
+                      class="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    >
+                      🔁 Retry
+                    </button>
+                  <% end %>
+                  <%= if job.state in ["available", "scheduled", "retryable"] do %>
+                    <button
+                      phx-click="cancel_job"
+                      phx-value-id={job.id}
+                      class="inline-flex items-center px-3 py-1 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                    >
+                      🚫 Cancel
+                    </button>
+                  <% end %>
+                </div>
+              </div>
+            </div>
+          <% end %>
+        <% end %>
+      </div>
+
+      <!-- Footer with Link to Oban Web -->
+      <div class="px-6 py-4 bg-gray-50 border-t border-gray-200">
+        <p class="text-sm text-gray-600">
+          For advanced job management and full history, visit the
+          <a href="/admin/oban" class="text-indigo-600 hover:text-indigo-700 font-medium">
+            Oban Web Dashboard →
+          </a>
+        </p>
+      </div>
+    </div>
+  </div>
+</div>

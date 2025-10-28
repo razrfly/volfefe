@@ -60,6 +60,20 @@ config :logger, :default_formatter,
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 
+# Configure Oban for background job processing
+config :volfefe_machine, Oban,
+  engine: Oban.Engines.Basic,
+  repo: VolfefeMachine.Repo,
+  queues: [
+    ml_sentiment: 10,
+    ml_ner: 10,
+    ml_batch: 5
+  ],
+  plugins: [
+    {Oban.Plugins.Pruner, max_age: 60 * 60 * 24 * 7},
+    {Oban.Plugins.Lifeline, rescue_after: :timer.minutes(30)}
+  ]
+
 # Import ML models configuration
 import_config "ml_models.exs"
 

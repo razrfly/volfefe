@@ -10,6 +10,7 @@ defmodule VolfefeMachine.Application do
     children = [
       VolfefeMachineWeb.Telemetry,
       VolfefeMachine.Repo,
+      {Oban, Application.fetch_env!(:volfefe_machine, Oban)},
       {DNSCluster, query: Application.get_env(:volfefe_machine, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: VolfefeMachine.PubSub},
       # Start a worker by calling: VolfefeMachine.Worker.start_link(arg)

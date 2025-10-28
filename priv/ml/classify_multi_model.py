@@ -190,8 +190,9 @@ def extract_entities(ner_pipeline, text):
             context = extract_context_window(text, entity["start"], entity["end"])
 
             # Build entity record (convert numpy types to Python types for JSON serialization)
+            # Extract text directly from source to avoid WordPiece tokenization artifacts (## prefixes)
             entity_record = {
-                "text": str(entity["word"]),
+                "text": text[entity["start"]:entity["end"]],
                 "type": str(entity_type),
                 "confidence": round(float(entity["score"]), 4),
                 "start": int(entity["start"]),
