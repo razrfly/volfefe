@@ -61,8 +61,6 @@ defmodule VolfefeMachineWeb.Layouts do
         {render_slot(@inner_block)}
       </div>
     </main>
-
-    <LiveToast.toast_group flash={@flash} connected={true} kinds={[:info, :error, :success, :warning]} toasts_sync={assigns[:toasts_sync]} />
     """
   end
 
