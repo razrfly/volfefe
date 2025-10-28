@@ -320,4 +320,15 @@
   </div>
 </div>
 
+<%!--
+  LiveToast component must be placed in the LiveView template, not in the root layout.
+
+  Why? The root layout (root.html.heex) serves BOTH LiveView requests and regular
+  controller requests. LiveToast's toast_group conditionally renders a LiveComponent
+  when connected=true, but LiveComponents cannot be rendered in templates that serve
+  non-LiveView requests (this causes "cannot convert component to HTML" errors).
+
+  By placing it here in the LiveView template, we ensure the LiveComponent only
+  renders in a LiveView context where it's safe to use.
+--%>
 <LiveToast.toast_group flash={@flash} connected={true} kinds={[:info, :error, :success, :warning]} toasts_sync={assigns[:toasts_sync]} />

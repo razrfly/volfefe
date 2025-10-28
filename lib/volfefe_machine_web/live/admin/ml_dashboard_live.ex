@@ -228,8 +228,14 @@ defmodule VolfefeMachineWeb.Admin.MLDashboardLive do
     # Add limit if not processing all
     opts =
       if !Keyword.get(opts, :all) && !Keyword.has_key?(opts, :content_ids) do
-        {parsed, _} = Integer.parse(params["limit"] || "10")
-        limit = (parsed || 10) |> max(1) |> min(1000)
+        limit =
+          case Integer.parse(params["limit"] || "10") do
+            {parsed, _} -> parsed
+            :error -> 10
+          end
+          |> max(1)
+          |> min(1000)
+
         Keyword.put(opts, :limit, limit)
       else
         opts
