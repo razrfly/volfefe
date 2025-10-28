@@ -1,13 +1,13 @@
 defmodule Mix.Tasks.Classify.Contents do
   @moduledoc """
-  Classifies unclassified content items using sentiment analysis models.
+  Classifies unclassified content items using sentiment analysis + entity extraction models.
 
   ## Usage
 
       # Classify first 10 unclassified items (single model - FinBERT)
       mix classify.contents --limit 10
 
-      # Classify using ALL models (multi-model with consensus)
+      # Classify using ALL models (3 sentiment + 1 NER with consensus)
       mix classify.contents --limit 10 --multi-model
 
       # Classify all unclassified items with multi-model
@@ -18,6 +18,12 @@ defmodule Mix.Tasks.Classify.Contents do
 
       # Show what would be classified without running
       mix classify.contents --limit 10 --dry-run
+
+  ## Models
+
+  Multi-model mode runs 4 models total:
+    * **3 Sentiment Models**: DistilBERT, Twitter-RoBERTa, FinBERT (weighted consensus)
+    * **1 NER Model**: BERT-base-NER (extracts ORG, LOC, PER, MISC entities)
 
   ## Options
 
@@ -32,7 +38,7 @@ defmodule Mix.Tasks.Classify.Contents do
       # Start small for testing with single model
       mix classify.contents --limit 5
 
-      # Test multi-model approach
+      # Test multi-model approach with entity extraction
       mix classify.contents --limit 5 --multi-model
 
       # Process all with multi-model after validation
@@ -44,7 +50,7 @@ defmodule Mix.Tasks.Classify.Contents do
   alias VolfefeMachine.{Content, Intelligence, Repo}
   import Ecto.Query
 
-  @shortdoc "Classifies content items using sentiment analysis (single or multi-model)"
+  @shortdoc "Classifies content using sentiment analysis + entity extraction (single or multi-model)"
 
   @impl Mix.Task
   def run(args) do
@@ -65,10 +71,10 @@ defmodule Mix.Tasks.Classify.Contents do
     if Enum.empty?(content_ids) do
       Mix.shell().info("\n✅ No content items to classify.\n")
     else
-      mode_name = if opts[:multi_model], do: "Multi-Model (Consensus)", else: "Single Model (FinBERT)"
+      mode_name = if opts[:multi_model], do: "Multi-Model (3 Sentiment + 1 NER)", else: "Single Model (FinBERT)"
 
       Mix.shell().info("\n" <> String.duplicate("=", 80))
-      Mix.shell().info("🔄 Sentiment Classification - #{mode_name}")
+      Mix.shell().info("🔄 Classification Pipeline - #{mode_name}")
       Mix.shell().info(String.duplicate("=", 80))
       Mix.shell().info("Found #{length(content_ids)} content items to classify.\n")
 
@@ -159,7 +165,7 @@ defmodule Mix.Tasks.Classify.Contents do
 
     case result do
       # Multi-model result
-      {:ok, %{consensus: classification, model_results: model_results, metadata: _metadata}} ->
+      {:ok, %{consensus: classification, model_results: model_results, metadata: metadata}} ->
         # Mark content as classified
         Content.mark_as_classified(content_id)
 
@@ -175,8 +181,13 @@ defmodule Mix.Tasks.Classify.Contents do
         agreement_pct = Float.round(agreement * 100, 0)
 
         Mix.shell().info(
-          "  ✅ #{sentiment_emoji} #{classification.sentiment} (#{Float.round(classification.confidence, 2)}) | Agreement: #{agreement_pct}% | #{length(model_results)} models - #{elapsed}ms\n"
+          "  ✅ #{sentiment_emoji} #{classification.sentiment} (#{Float.round(classification.confidence, 2)}) | Agreement: #{agreement_pct}% | #{length(model_results)} sentiment models - #{elapsed}ms"
         )
+
+        # Display extracted entities if available
+        display_entities(metadata[:entities] || metadata["entities"])
+
+        Mix.shell().info("")
 
         {:ok, content_id, classification, model_results}
 
@@ -203,6 +214,33 @@ defmodule Mix.Tasks.Classify.Contents do
         {:error, content_id, reason}
     end
   end
+
+  defp display_entities(nil), do: :ok
+  defp display_entities(%{"error" => _error}), do: Mix.shell().info("  🏷️  No entities extracted (NER model error)")
+
+  defp display_entities(%{extracted: entities, stats: stats} = _entities_data) when is_list(entities) do
+    if length(entities) > 0 do
+      Mix.shell().info("  🏷️  Entities: #{stats["total_entities"]} found (ORG: #{stats["by_type"]["ORG"]}, LOC: #{stats["by_type"]["LOC"]}, PER: #{stats["by_type"]["PER"]}, MISC: #{stats["by_type"]["MISC"]})")
+
+      # Display top entities by type
+      entities
+      |> Enum.group_by(& &1.type)
+      |> Enum.each(fn {type, type_entities} ->
+        entity_names = type_entities
+          |> Enum.take(3)  # Show top 3 per type
+          |> Enum.map(& "#{&1.text} (#{Float.round(&1.confidence, 2)})")
+          |> Enum.join(", ")
+
+        if entity_names != "" do
+          Mix.shell().info("      #{type}: #{entity_names}")
+        end
+      end)
+    else
+      Mix.shell().info("  🏷️  No entities found in text")
+    end
+  end
+
+  defp display_entities(_), do: :ok
 
   defp print_summary(results, multi_model) do
     total = length(results)

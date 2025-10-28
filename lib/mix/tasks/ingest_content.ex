@@ -12,9 +12,6 @@ defmodule Mix.Tasks.Ingest.Content do
       # Include replies in results
       mix ingest.content --source truth_social --username realDonaldTrump --limit 50 --include-replies
 
-      # Auto-classify after import
-      mix ingest.content --source truth_social --username realDonaldTrump --limit 100 --auto-classify
-
       # Dry run to see what would be fetched
       mix ingest.content --source truth_social --username realDonaldTrump --limit 10 --dry-run
 
@@ -24,7 +21,6 @@ defmodule Mix.Tasks.Ingest.Content do
     * `--username` - Username/profile to fetch (e.g., "realDonaldTrump")
     * `--limit` - Maximum number of posts to fetch (default: 100)
     * `--include-replies` - Include replies in results (default: false)
-    * `--auto-classify` - Automatically classify imported content (default: false)
     * `--dry-run` - Show what would be fetched without importing
 
   ## Examples
@@ -32,8 +28,8 @@ defmodule Mix.Tasks.Ingest.Content do
       # Quick test with 10 posts
       mix ingest.content --source truth_social --username realDonaldTrump --limit 10
 
-      # Production run with auto-classification
-      mix ingest.content --source truth_social --username realDonaldTrump --limit 500 --auto-classify
+      # Production run with more posts
+      mix ingest.content --source truth_social --username realDonaldTrump --limit 500
   """
 
   use Mix.Task
@@ -60,7 +56,6 @@ defmodule Mix.Tasks.Ingest.Content do
           username: :string,
           limit: :integer,
           include_replies: :boolean,
-          auto_classify: :boolean,
           dry_run: :boolean
         ],
         aliases: [
@@ -68,7 +63,6 @@ defmodule Mix.Tasks.Ingest.Content do
           u: :username,
           l: :limit,
           r: :include_replies,
-          c: :auto_classify,
           d: :dry_run
         ]
       )
@@ -97,7 +91,6 @@ defmodule Mix.Tasks.Ingest.Content do
     username = Keyword.get(opts, :username)
     limit = Keyword.get(opts, :limit, 100)
     include_replies = Keyword.get(opts, :include_replies, false)
-    auto_classify = Keyword.get(opts, :auto_classify, false)
     dry_run = Keyword.get(opts, :dry_run, false)
 
     cond do
@@ -123,7 +116,6 @@ defmodule Mix.Tasks.Ingest.Content do
            username: username,
            limit: limit,
            include_replies: include_replies,
-           auto_classify: auto_classify,
            dry_run: dry_run
          }}
     end
@@ -189,11 +181,6 @@ defmodule Mix.Tasks.Ingest.Content do
             import_time = System.monotonic_time(:millisecond) - import_start
             print_import_stats(stats, import_time)
 
-            # Step 3: Optional auto-classification
-            if config.auto_classify and stats.imported > 0 do
-              run_auto_classify()
-            end
-
             total_time = System.monotonic_time(:millisecond) - start_time
             print_summary(stats, total_time)
 
@@ -233,14 +220,6 @@ defmodule Mix.Tasks.Ingest.Content do
     end
   end
 
-  defp run_auto_classify do
-    Mix.shell().info("\n🤖 STEP 3: Auto-classifying imported content...\n")
-    Mix.shell().info("Running: mix classify.contents --all --multi-model\n")
-
-    # Run classification task
-    Mix.Task.run("classify.contents", ["--all", "--multi-model"])
-  end
-
   defp print_header(config) do
     Mix.shell().info("\n" <> String.duplicate("=", 80))
     Mix.shell().info("📥 Content Ingestion - #{String.upcase(config.source)}")
@@ -248,10 +227,6 @@ defmodule Mix.Tasks.Ingest.Content do
     Mix.shell().info("Username: @#{config.username}")
     Mix.shell().info("Max posts: #{config.limit}")
     Mix.shell().info("Include replies: #{config.include_replies}")
-
-    if config.auto_classify do
-      Mix.shell().info("Auto-classify: enabled")
-    end
   end
 
   defp print_import_stats(stats, import_time) do
@@ -288,7 +263,6 @@ defmodule Mix.Tasks.Ingest.Content do
     Mix.shell().info("Options:")
     Mix.shell().info("  --limit, -l         Max posts to fetch (default: 100)")
     Mix.shell().info("  --include-replies   Include replies (default: false)")
-    Mix.shell().info("  --auto-classify     Auto-classify after import (default: false)")
     Mix.shell().info("  --dry-run           Preview without importing (default: false)\n")
     Mix.shell().info("Examples:")
 
@@ -297,7 +271,7 @@ defmodule Mix.Tasks.Ingest.Content do
     )
 
     Mix.shell().info(
-      "  mix ingest.content -s truth_social -u realDonaldTrump -l 50 --auto-classify"
+      "  mix ingest.content -s truth_social -u realDonaldTrump -l 50 --include-replies"
     )
 
     Mix.shell().info("")

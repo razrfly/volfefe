@@ -55,29 +55,19 @@ defmodule VolfefeMachine.Intelligence.MultiModelClient do
   end
 
   defp run_classification(text) do
-    # Write text to temp file and pass via stdin redirect
-    # System.cmd doesn't support :input/:stdin options in Elixir 1.18
-    temp_file = Path.join(System.tmp_dir!(), "volfefe_input_#{:rand.uniform(999999)}.txt")
-
+    # Pass text directly to Python script via stdin using System.cmd :input option
+    # This is safer than building shell commands and avoids temp files
     try do
-      File.write!(temp_file, text)
-
-      # Use shell to pipe file to python script
-      cmd = "cat #{temp_file} | #{python_cmd()} #{script_path()}"
-
-      case System.cmd("sh", ["-c", cmd], stderr_to_stdout: false) do
+      case System.cmd(python_cmd(), [script_path()], input: text, stderr_to_stdout: false) do
         {output, 0} ->
-          File.rm(temp_file)
           {:ok, output}
 
         {error_output, exit_code} ->
-          File.rm(temp_file)
           Logger.error("Multi-model classification failed (exit #{exit_code}): #{error_output}")
           {:error, {:python_error, exit_code, error_output}}
       end
     rescue
       e ->
-        if File.exists?(temp_file), do: File.rm(temp_file)
         Logger.error("Failed to run multi-model classification: #{inspect(e)}")
         {:error, {:system_error, e}}
     end

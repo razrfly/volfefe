@@ -153,9 +153,6 @@ Fetch and import content from Truth Social using a single command:
 # Fetch 100 posts from a specific user
 mix ingest.content --source truth_social --username realDonaldTrump --limit 100
 
-# Fetch and auto-classify in one command
-mix ingest.content --source truth_social --username realDonaldTrump --limit 100 --auto-classify
-
 # Include replies in results
 mix ingest.content --source truth_social --username realDonaldTrump --limit 50 --include-replies
 
@@ -168,7 +165,6 @@ mix ingest.content --source truth_social --username realDonaldTrump --limit 10 -
 - `--username, -u` - Username/profile to fetch (required)
 - `--limit, -l` - Maximum posts to fetch (default: 100)
 - `--include-replies` - Include replies in results (default: false)
-- `--auto-classify` - Automatically classify after import (default: false)
 - `--dry-run` - Preview configuration without fetching (default: false)
 
 ---
