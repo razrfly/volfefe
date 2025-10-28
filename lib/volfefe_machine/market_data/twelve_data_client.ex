@@ -173,12 +173,11 @@ defmodule VolfefeMachine.MarketData.TwelveDataClient do
 
         # Calculate volume context if baseline available
         {volume_vs_avg, volume_z_score} =
-          if baseline do
-            vol_ratio = Helpers.calculate_volume_ratio(bar.volume, baseline.mean_volume)
-            vol_z = calculate_volume_z_score(bar.volume, baseline)
-            {vol_ratio, vol_z}
+          with %{mean_volume: mv, volume_std_dev: vsd} <- baseline,
+               true <- not is_nil(mv) and not is_nil(vsd) and vsd != 0 do
+            {Helpers.calculate_volume_ratio(bar.volume, mv), calculate_volume_z_score(bar.volume, baseline)}
           else
-            {nil, nil}
+            _ -> {nil, nil}
           end
 
         # Build snapshot attributes

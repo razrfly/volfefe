@@ -88,7 +88,7 @@ defmodule Mix.Tasks.Fetch.Assets do
     end)
 
     unless dry_run do
-      count = Repo.aggregate(Asset, :count)
+      count = Repo.aggregate(Asset, :count, :id)
       Mix.shell().info("\n✅ Total assets in database: #{count}\n")
     end
   end

@@ -2,7 +2,9 @@
 # TwelveData API Research Test Script
 # Tests all requirements for market data integration
 
-API_KEY="1949ee4a31a64711874dcd22c08f54c8"
+set -Eeuo pipefail
+
+API_KEY="${TWELVE_DATA_API_KEY:?TWELVE_DATA_API_KEY environment variable not set}"
 BASE_URL="https://api.twelvedata.com"
 
 echo "=========================================="

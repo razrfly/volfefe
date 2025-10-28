@@ -245,7 +245,7 @@ defmodule Mix.Tasks.Calculate.Baselines do
   end
 
   defp print_summary do
-    count = Repo.aggregate(BaselineStats, :count)
+    count = Repo.aggregate(BaselineStats, :count, :id)
 
     Mix.shell().info("\n" <> String.duplicate("=", 60))
     Mix.shell().info("📊 BASELINE CALCULATION SUMMARY")
@@ -257,7 +257,7 @@ defmodule Mix.Tasks.Calculate.Baselines do
 
   defp count_assets do
     from(a in MarketData.Asset, where: a.status == :active and a.tradable == true)
-    |> Repo.aggregate(:count)
+    |> Repo.aggregate(:count, :id)
   end
 
   defp format_window(60), do: "1hr"
