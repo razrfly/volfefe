@@ -5,12 +5,6 @@ defmodule VolfefeMachineWeb.Layouts do
   """
   use VolfefeMachineWeb, :html
 
-  # Embed all files in layouts/* within this module.
-  # The default root.html.heex file contains the HTML
-  # skeleton of your application, namely HTML headers
-  # and other static content.
-  embed_templates "layouts/*"
-
   @doc """
   Renders your app layout.
 
@@ -68,9 +62,15 @@ defmodule VolfefeMachineWeb.Layouts do
       </div>
     </main>
 
-    <.flash_group flash={@flash} />
+    <LiveToast.toast_group flash={@flash} connected={true} kinds={[:info, :error, :success, :warning]} toasts_sync={assigns[:toasts_sync]} />
     """
   end
+
+  # Embed all files in layouts/* within this module.
+  # The default root.html.heex file contains the HTML
+  # skeleton of your application, namely HTML headers
+  # and other static content.
+  embed_templates "layouts/*"
 
   @doc """
   Shows the flash group with standard titles and content.

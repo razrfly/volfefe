@@ -123,12 +123,13 @@ defmodule Mix.Tasks.Ml.Status do
   defp validate_and_normalize_opts(opts) do
     with {:ok, queue} <- validate_queue(opts[:queue]),
          {:ok, state} <- validate_state(opts[:state]),
-         {:ok, worker} <- validate_worker(opts[:worker]) do
+         {:ok, worker} <- validate_worker(opts[:worker]),
+         {:ok, limit} <- validate_limit(opts[:limit], opts[:all]) do
       normalized = [
         queue: queue,
         state: state,
         worker: worker,
-        limit: if(opts[:all], do: nil, else: opts[:limit] || 20)
+        limit: limit
       ]
 
       {:ok, normalized}
@@ -146,6 +147,12 @@ defmodule Mix.Tasks.Ml.Status do
   defp validate_worker(nil), do: {:ok, nil}
   defp validate_worker(worker) when worker in @valid_workers, do: {:ok, worker}
   defp validate_worker(worker), do: {:error, "Invalid worker '#{worker}'. Must be: #{Enum.join(@valid_workers, ", ")}"}
+
+  defp validate_limit(_limit, true), do: {:ok, nil}
+  defp validate_limit(nil, _all), do: {:ok, 20}
+  defp validate_limit(limit, _all) when is_integer(limit) and limit > 0, do: {:ok, limit}
+  defp validate_limit(_other, _all),
+    do: {:error, "Invalid --limit. Must be a positive integer or use --all."}
 
   defp print_header(opts) do
     Mix.shell().info("\n" <> String.duplicate("=", 80))
@@ -253,12 +260,10 @@ defmodule Mix.Tasks.Ml.Status do
       Mix.shell().info("   ✅ Completed: #{format_datetime(job.completed_at)}")
     end
 
-    if job.state in ["retryable", "discarded"] and job.errors do
+    if job.state in ["retryable", "discarded"] and match?([_|_], job.errors) do
       latest_error = List.first(job.errors)
-      if latest_error do
-        error_msg = latest_error["error"] || "Unknown error"
-        Mix.shell().info("   ❌ Error: #{String.slice(error_msg, 0..80)}")
-      end
+      error_msg = Map.get(latest_error, "error") || Map.get(latest_error, :error) || "Unknown error"
+      Mix.shell().info("   ❌ Error: #{String.slice(error_msg, 0, 80)}")
     end
 
     Mix.shell().info("")

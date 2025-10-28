@@ -74,6 +74,12 @@ config :volfefe_machine, Oban,
     {Oban.Plugins.Lifeline, rescue_after: :timer.minutes(30)}
   ]
 
+# Configure LiveToast for toast notifications
+config :live_toast,
+  duration: 4000,
+  max_toasts: 5,
+  kinds: [:info, :error, :success, :warning]
+
 # Import ML models configuration
 import_config "ml_models.exs"
 

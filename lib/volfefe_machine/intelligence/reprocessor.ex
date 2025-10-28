@@ -180,20 +180,22 @@ defmodule VolfefeMachine.Intelligence.Reprocessor do
   # Private functions
 
   defp base_content_query(force) do
-    query =
+    base =
       from c in Content.Content,
         where: not is_nil(c.text) and c.text != "",
-        select: c.id,
         order_by: [asc: c.id]
 
-    if force do
-      query
-    else
-      # Only unclassified content
-      from c in query,
-        left_join: cl in assoc(c, :classification),
-        where: is_nil(cl.id)
-    end
+    q =
+      if force do
+        base
+      else
+        # Only unclassified content
+        from c in base,
+          left_join: cl in assoc(c, :classification),
+          where: is_nil(cl.id)
+      end
+
+    from c in q, select: c.id
   end
 
   defp preview_reprocessing(content_ids, models, opts) do

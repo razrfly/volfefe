@@ -2,6 +2,7 @@ defmodule VolfefeMachineWeb.Admin.MLDashboardLive do
   use VolfefeMachineWeb, :live_view
 
   import Ecto.Query
+  import LiveToast
   alias VolfefeMachine.Repo
   alias VolfefeMachine.Intelligence.{ModelRegistry, Reprocessor}
   alias VolfefeMachine.Content
@@ -34,12 +35,26 @@ defmodule VolfefeMachineWeb.Admin.MLDashboardLive do
 
   @impl true
   def handle_event("update_model_type", %{"reprocess" => %{"model_type" => type}}, socket) do
-    {:noreply, assign(socket, :model_type, String.to_atom(type))}
+    model_type =
+      case type do
+        "all" -> :all
+        "sentiment" -> :sentiment
+        "ner" -> :ner
+        _ -> socket.assigns.model_type
+      end
+    {:noreply, assign(socket, :model_type, model_type)}
   end
 
   @impl true
   def handle_event("update_content_scope", %{"reprocess" => %{"content_scope" => scope}}, socket) do
-    {:noreply, assign(socket, :content_scope, String.to_atom(scope))}
+    content_scope =
+      case scope do
+        "unclassified" -> :unclassified
+        "all" -> :all
+        "ids" -> :ids
+        _ -> socket.assigns.content_scope
+      end
+    {:noreply, assign(socket, :content_scope, content_scope)}
   end
 
   @impl true
@@ -52,39 +67,39 @@ defmodule VolfefeMachineWeb.Admin.MLDashboardLive do
       {:ok, result} ->
         {:noreply,
          socket
-         |> put_flash(:info, "Successfully enqueued #{result.enqueued_jobs} job(s) for #{result.total} items")
+         |> put_toast(:success, "Successfully enqueued #{result.enqueued_jobs} job(s) for #{result.total} items")
          |> load_initial_data()}
 
       {:error, reason} ->
-        {:noreply, put_flash(socket, :error, "Failed to enqueue jobs: #{inspect(reason)}")}
+        {:noreply, put_toast(socket, :error, "Failed to enqueue jobs: #{inspect(reason)}")}
     end
   end
 
   @impl true
   def handle_event("retry_job", %{"id" => job_id}, socket) do
     case retry_oban_job(String.to_integer(job_id)) do
-      {:ok, _} ->
+      :ok ->
         {:noreply,
          socket
-         |> put_flash(:info, "Job ##{job_id} retried successfully")
+         |> put_toast(:success, "Job ##{job_id} retried successfully")
          |> load_initial_data()}
 
       {:error, reason} ->
-        {:noreply, put_flash(socket, :error, "Failed to retry job: #{inspect(reason)}")}
+        {:noreply, put_toast(socket, :error, "Failed to retry job: #{inspect(reason)}")}
     end
   end
 
   @impl true
   def handle_event("cancel_job", %{"id" => job_id}, socket) do
     case cancel_oban_job(String.to_integer(job_id)) do
-      {:ok, _} ->
+      :ok ->
         {:noreply,
          socket
-         |> put_flash(:info, "Job ##{job_id} cancelled successfully")
+         |> put_toast(:success, "Job ##{job_id} cancelled successfully")
          |> load_initial_data()}
 
       {:error, reason} ->
-        {:noreply, put_flash(socket, :error, "Failed to cancel job: #{inspect(reason)}")}
+        {:noreply, put_toast(socket, :error, "Failed to cancel job: #{inspect(reason)}")}
     end
   end
 
@@ -94,11 +109,11 @@ defmodule VolfefeMachineWeb.Admin.MLDashboardLive do
       {:ok, count} ->
         {:noreply,
          socket
-         |> put_flash(:info, "Successfully cleared #{count} classification(s)")
+         |> put_toast(:success, "Successfully cleared #{count} classification(s)")
          |> load_initial_data()}
 
       {:error, reason} ->
-        {:noreply, put_flash(socket, :error, "Failed to clear classifications: #{inspect(reason)}")}
+        {:noreply, put_toast(socket, :error, "Failed to clear classifications: #{inspect(reason)}")}
     end
   end
 
@@ -213,7 +228,8 @@ defmodule VolfefeMachineWeb.Admin.MLDashboardLive do
     # Add limit if not processing all
     opts =
       if !Keyword.get(opts, :all) && !Keyword.has_key?(opts, :content_ids) do
-        limit = String.to_integer(params["limit"] || "10")
+        {parsed, _} = Integer.parse(params["limit"] || "10")
+        limit = (parsed || 10) |> max(1) |> min(1000)
         Keyword.put(opts, :limit, limit)
       else
         opts
@@ -238,61 +254,34 @@ defmodule VolfefeMachineWeb.Admin.MLDashboardLive do
   defp parse_content_ids(_, opts), do: opts
 
   defp retry_oban_job(job_id) do
-    # Update job state to available and reset attempt counter
-    query =
-      from j in "oban_jobs",
-        where: j.id == ^job_id,
-        update: [
-          set: [
-            state: "available",
-            scheduled_at: ^DateTime.utc_now(),
-            max_attempts: fragment("? + 1", j.max_attempts)
-          ]
-        ]
-
-    case Repo.update_all(query, []) do
-      {1, _} -> {:ok, :retried}
-      {0, _} -> {:error, :not_found}
-    end
+    Oban.retry_job(Oban, job_id)
   end
 
   defp cancel_oban_job(job_id) do
-    query =
-      from j in "oban_jobs",
-        where: j.id == ^job_id and j.state in ["available", "scheduled", "retryable"],
-        update: [
-          set: [
-            state: "cancelled",
-            cancelled_at: ^DateTime.utc_now()
-          ]
-        ]
-
-    case Repo.update_all(query, []) do
-      {1, _} -> {:ok, :cancelled}
-      {0, _} -> {:error, :not_found_or_invalid_state}
-    end
+    Oban.cancel_job(Oban, job_id)
   end
 
   defp clear_all_classifications do
     require Logger
 
-    try do
+    Repo.transaction(fn ->
       # Step 1: Delete from model_classifications first (child records)
-      {model_count, _} = Repo.delete_all("model_classifications")
+      {model_count, _} = Repo.delete_all(from(mc in "model_classifications"))
       Logger.info("Deleted #{model_count} model classification(s)")
 
       # Step 2: Delete from classifications (parent records)
-      {class_count, _} = Repo.delete_all("classifications")
+      {class_count, _} = Repo.delete_all(from(c in "classifications"))
       Logger.info("Deleted #{class_count} classification(s)")
 
       # Step 3: Reset the classified flag on all content records
       {:ok, unclassified_count} = Content.mark_all_as_unclassified()
       Logger.info("Reset classified flag on #{unclassified_count} content record(s)")
 
-      total = model_count + class_count
-      {:ok, total}
-    rescue
-      error ->
+      model_count + class_count
+    end)
+    |> case do
+      {:ok, total} -> {:ok, total}
+      {:error, error} ->
         Logger.error("Failed to clear classifications: #{inspect(error)}")
         {:error, error}
     end
@@ -367,6 +356,6 @@ defmodule VolfefeMachineWeb.Admin.MLDashboardLive do
   end
 
   def available_models(:all), do: ModelRegistry.list_models()
-  def available_models(:sentiment), do: ModelRegistry.models_by_type("sentiment")
-  def available_models(:ner), do: ModelRegistry.models_by_type("ner")
+  def available_models(:sentiment), do: ModelRegistry.models_by_type(:sentiment)
+  def available_models(:ner), do: ModelRegistry.models_by_type(:ner)
 end
