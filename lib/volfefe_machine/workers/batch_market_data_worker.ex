@@ -80,21 +80,27 @@ defmodule VolfefeMachine.Workers.BatchMarketDataWorker do
         })
       end)
 
-    {:ok, inserted_jobs} = Oban.insert_all(jobs)
-    count = length(inserted_jobs)
-    Logger.info("Enqueued #{count} baseline calculation jobs")
+    case Oban.insert_all(jobs) do
+      {:ok, inserted_jobs} ->
+        count = length(inserted_jobs)
+        Logger.info("Enqueued #{count} baseline calculation jobs")
 
-    meta = %{
-      operation: "baselines",
-      total_assets: total,
-      jobs_enqueued: count,
-      lookback_days: lookback_days,
-      force: force,
-      check_freshness: check_freshness,
-      completed_at: DateTime.utc_now() |> DateTime.to_iso8601()
-    }
+        meta = %{
+          operation: "baselines",
+          total_assets: total,
+          jobs_enqueued: count,
+          lookback_days: lookback_days,
+          force: force,
+          check_freshness: check_freshness,
+          completed_at: DateTime.utc_now() |> DateTime.to_iso8601()
+        }
 
-    {:ok, meta}
+        {:ok, meta}
+
+      {:error, reason} = error ->
+        Logger.error("Failed to enqueue baseline jobs: #{inspect(reason)}")
+        error
+    end
   end
 
   defp process_baseline_batch(_args) do
@@ -120,19 +126,25 @@ defmodule VolfefeMachine.Workers.BatchMarketDataWorker do
         })
       end)
 
-    {:ok, inserted_jobs} = Oban.insert_all(jobs)
-    count = length(inserted_jobs)
-    Logger.info("Enqueued #{count} snapshot capture jobs")
+    case Oban.insert_all(jobs) do
+      {:ok, inserted_jobs} ->
+        count = length(inserted_jobs)
+        Logger.info("Enqueued #{count} snapshot capture jobs")
 
-    meta = %{
-      operation: "snapshots",
-      total_content: total,
-      jobs_enqueued: count,
-      force: force,
-      completed_at: DateTime.utc_now() |> DateTime.to_iso8601()
-    }
+        meta = %{
+          operation: "snapshots",
+          total_content: total,
+          jobs_enqueued: count,
+          force: force,
+          completed_at: DateTime.utc_now() |> DateTime.to_iso8601()
+        }
 
-    {:ok, meta}
+        {:ok, meta}
+
+      {:error, reason} = error ->
+        Logger.error("Failed to enqueue snapshot jobs: #{inspect(reason)}")
+        error
+    end
   end
 
   defp process_snapshot_batch(_args) do

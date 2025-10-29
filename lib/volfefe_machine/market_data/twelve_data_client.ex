@@ -68,27 +68,27 @@ defmodule VolfefeMachine.MarketData.TwelveDataClient do
 
     url = "#{@base_url}/time_series?symbol=#{symbol}&interval=#{interval}&start_date=#{start_str}&end_date=#{end_str}&apikey=#{get_api_key()}"
 
-    case HTTPoison.get(url, [], timeout: 30_000, recv_timeout: 30_000) do
-      {:ok, %HTTPoison.Response{status_code: 200, body: body}} ->
+    case Req.get(url, receive_timeout: 30_000) do
+      {:ok, %{status: 200, body: body}} ->
         parse_response(body)
 
-      {:ok, %HTTPoison.Response{status_code: 429, body: body}} ->
-        case Jason.decode(body) do
-          {:ok, %{"message" => message}} -> {:error, "Rate limit: #{message}"}
+      {:ok, %{status: 429, body: body}} ->
+        case body do
+          %{"message" => message} -> {:error, "Rate limit: #{message}"}
           _ -> {:error, "Rate limit exceeded - wait 60 seconds"}
         end
 
-      {:ok, %HTTPoison.Response{status_code: 401}} ->
+      {:ok, %{status: 401}} ->
         {:error, "Authentication failed - check TWELVE_DATA_API_KEY"}
 
-      {:ok, %HTTPoison.Response{status_code: 404}} ->
+      {:ok, %{status: 404}} ->
         {:error, "Symbol not found"}
 
-      {:ok, %HTTPoison.Response{status_code: code}} ->
+      {:ok, %{status: code}} ->
         {:error, "TwelveData API returned #{code}"}
 
-      {:error, %HTTPoison.Error{reason: reason}} ->
-        {:error, "HTTP request failed: #{inspect(reason)}"}
+      {:error, exception} ->
+        {:error, "HTTP request failed: #{inspect(exception)}"}
     end
   end
 
@@ -221,15 +221,15 @@ defmodule VolfefeMachine.MarketData.TwelveDataClient do
   def check_usage do
     url = "#{@base_url}/api_usage?apikey=#{get_api_key()}"
 
-    case HTTPoison.get(url, [], timeout: 30_000, recv_timeout: 30_000) do
-      {:ok, %HTTPoison.Response{status_code: 200, body: body}} ->
-        Jason.decode(body)
+    case Req.get(url, receive_timeout: 30_000) do
+      {:ok, %{status: 200, body: body}} ->
+        {:ok, body}
 
-      {:ok, %HTTPoison.Response{status_code: code}} ->
+      {:ok, %{status: code}} ->
         {:error, "API returned #{code}"}
 
-      error ->
-        error
+      {:error, exception} ->
+        {:error, "HTTP request failed: #{inspect(exception)}"}
     end
   end
 
@@ -247,24 +247,21 @@ defmodule VolfefeMachine.MarketData.TwelveDataClient do
 
   # Private functions
 
-  defp parse_response(body) do
-    case Jason.decode(body) do
-      {:ok, %{"status" => "error", "message" => message}} ->
+  defp parse_response(body) when is_map(body) do
+    case body do
+      %{"status" => "error", "message" => message} ->
         {:error, message}
 
-      {:ok, %{"values" => values, "status" => "ok"}} ->
+      %{"values" => values, "status" => "ok"} ->
         bars = Enum.map(values, &parse_bar/1)
         |> Enum.reverse() # TwelveData returns newest first
         {:ok, bars}
 
-      {:ok, %{"code" => _code, "message" => message}} ->
+      %{"code" => _code, "message" => message} ->
         {:error, message}
 
-      {:ok, _other} ->
+      _other ->
         {:error, "Unexpected response format from TwelveData"}
-
-      {:error, reason} ->
-        {:error, "JSON parsing failed: #{inspect(reason)}"}
     end
   end
 
