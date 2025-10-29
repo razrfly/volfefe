@@ -526,7 +526,7 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
               <% end %>
 
               <!-- Market Impact Timeline -->
-              <%= render_market_impact_timeline(@selected_content) %>
+              <%= render_market_impact_timeline(@selected_content, @selected_content.id) %>
 
               <!-- Model Comparison -->
               <%= if length(@selected_content.model_classifications) > 0 do %>
@@ -1309,13 +1309,13 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
     end
   end
 
-  defp render_market_impact_timeline(content) do
+  defp render_market_impact_timeline(content, content_id) do
     case MarketData.get_impact_summary(content.id) do
       {:ok, summary} ->
-        render_impact_timeline_section(summary)
+        render_impact_timeline_section(summary, content_id)
 
       {:error, :no_snapshots} ->
-        assigns = %{}
+        assigns = %{content_id: content_id}
         ~H"""
         <div>
           <h3 class="text-sm font-semibold text-gray-900 uppercase tracking-wider flex items-center gap-2 mb-3">
@@ -1326,13 +1326,19 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
           </h3>
           <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
             <p class="text-sm text-gray-500">No market snapshots captured for this content yet.</p>
+            <.link
+              navigate={~p"/admin/market-analysis?id=#{@content_id}"}
+              class="mt-2 inline-flex items-center text-sm text-orange-600 hover:text-orange-700 font-medium"
+            >
+              View Market Analysis Page →
+            </.link>
           </div>
         </div>
         """
     end
   end
 
-  defp render_impact_timeline_section(summary) do
+  defp render_impact_timeline_section(summary, content_id) do
     isolation_color =
       cond do
         summary.isolation_score >= 0.7 -> "green"
@@ -1342,7 +1348,8 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
 
     assigns = %{
       summary: summary,
-      isolation_color: isolation_color
+      isolation_color: isolation_color,
+      content_id: content_id
     }
 
     ~H"""
@@ -1515,37 +1522,73 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
 
   defp render_impact_badge_with_summary(summary) do
     max_z_formatted = Float.round(summary.max_z_score, 2)
-    assigns = %{significance: summary.significance, max_z_score: max_z_formatted}
+    isolation_formatted = Float.round(summary.isolation_score, 2)
+
+    # Determine isolation color
+    isolation_color = cond do
+      summary.isolation_score >= 0.7 -> "text-green-600"
+      summary.isolation_score >= 0.5 -> "text-yellow-600"
+      true -> "text-red-600"
+    end
+
+    assigns = %{
+      significance: summary.significance,
+      max_z_score: max_z_formatted,
+      snapshot_count: summary.snapshot_count,
+      isolation_score: isolation_formatted,
+      isolation_color: isolation_color
+    }
 
     case assigns.significance do
       "high" ->
         ~H"""
-        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800" title={"Max z-score: #{@max_z_score}"}>
-          <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
-          </svg>
-          High Impact
-        </span>
+        <div class="flex flex-col gap-1">
+          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800" title={"Max z-score: #{@max_z_score}"}>
+            <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
+            </svg>
+            High Impact
+          </span>
+          <div class="flex items-center gap-2 text-xs text-gray-500">
+            <span title="Snapshot count"><%= @snapshot_count %> snaps</span>
+            <span>•</span>
+            <span class={"font-medium #{@isolation_color}"} title="Isolation score">iso: <%= @isolation_score %></span>
+          </div>
+        </div>
         """
 
       "moderate" ->
         ~H"""
-        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800" title={"Max z-score: #{@max_z_score}"}>
-          <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
-          </svg>
-          Moderate
-        </span>
+        <div class="flex flex-col gap-1">
+          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800" title={"Max z-score: #{@max_z_score}"}>
+            <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
+            </svg>
+            Moderate
+          </span>
+          <div class="flex items-center gap-2 text-xs text-gray-500">
+            <span title="Snapshot count"><%= @snapshot_count %> snaps</span>
+            <span>•</span>
+            <span class={"font-medium #{@isolation_color}"} title="Isolation score">iso: <%= @isolation_score %></span>
+          </div>
+        </div>
         """
 
       "noise" ->
         ~H"""
-        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600" title={"Max z-score: #{@max_z_score}"}>
-          <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm0-2a6 6 0 100-12 6 6 0 000 12z" clip-rule="evenodd" />
-          </svg>
-          No Impact
-        </span>
+        <div class="flex flex-col gap-1">
+          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600" title={"Max z-score: #{@max_z_score}"}>
+            <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm0-2a6 6 0 100-12 6 6 0 000 12z" clip-rule="evenodd" />
+            </svg>
+            No Impact
+          </span>
+          <div class="flex items-center gap-2 text-xs text-gray-500">
+            <span title="Snapshot count"><%= @snapshot_count %> snaps</span>
+            <span>•</span>
+            <span class={"font-medium #{@isolation_color}"} title="Isolation score">iso: <%= @isolation_score %></span>
+          </div>
+        </div>
         """
 
       _ ->

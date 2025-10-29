@@ -80,7 +80,7 @@ defmodule VolfefeMachine.Workers.BatchMarketDataWorker do
         })
       end)
 
-    inserted_jobs = Oban.insert_all(jobs)
+    {:ok, inserted_jobs} = Oban.insert_all(jobs)
     count = length(inserted_jobs)
     Logger.info("Enqueued #{count} baseline calculation jobs")
 
@@ -120,7 +120,7 @@ defmodule VolfefeMachine.Workers.BatchMarketDataWorker do
         })
       end)
 
-    inserted_jobs = Oban.insert_all(jobs)
+    {:ok, inserted_jobs} = Oban.insert_all(jobs)
     count = length(inserted_jobs)
     Logger.info("Enqueued #{count} snapshot capture jobs")
 

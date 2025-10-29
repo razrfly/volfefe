@@ -92,7 +92,7 @@ defmodule VolfefeMachine.Ingestion.ApifyClient do
 
     Logger.info("Starting Apify actor run...")
 
-    case Req.post(url, json: run_input) do
+    case Req.post(url, json: run_input, receive_timeout: 30_000) do
       {:ok, %{status: 201, body: body}} ->
         run_id = body["data"]["id"]
         Logger.info("Actor run started: #{run_id}")
@@ -115,7 +115,7 @@ defmodule VolfefeMachine.Ingestion.ApifyClient do
     else
       url = "#{@base_url}/actor-runs/#{run_id}?token=#{credentials.api_token}"
 
-      case Req.get(url) do
+      case Req.get(url, receive_timeout: 30_000) do
         {:ok, %{status: 200, body: body}} ->
           status = body["data"]["status"]
           handle_run_status(status, run_id, credentials, attempt, body)
@@ -166,7 +166,7 @@ defmodule VolfefeMachine.Ingestion.ApifyClient do
   defp fetch_logs(run_id, credentials) do
     url = "#{@base_url}/actor-runs/#{run_id}/log?token=#{credentials.api_token}"
 
-    case Req.get(url) do
+    case Req.get(url, receive_timeout: 30_000) do
       {:ok, %{status: 200, body: logs}} ->
         Logger.error("Actor logs:\n#{logs}")
 
@@ -179,7 +179,7 @@ defmodule VolfefeMachine.Ingestion.ApifyClient do
   defp get_dataset_id(run_id, credentials) do
     url = "#{@base_url}/actor-runs/#{run_id}?token=#{credentials.api_token}"
 
-    case Req.get(url) do
+    case Req.get(url, receive_timeout: 30_000) do
       {:ok, %{status: 200, body: body}} ->
         dataset_id = body["data"]["defaultDatasetId"]
         Logger.info("Dataset ID: #{dataset_id}")
@@ -199,7 +199,7 @@ defmodule VolfefeMachine.Ingestion.ApifyClient do
 
     Logger.info("Fetching dataset items...")
 
-    case Req.get(url) do
+    case Req.get(url, receive_timeout: 30_000) do
       {:ok, %{status: 200, body: posts}} when is_list(posts) ->
         {:ok, posts}
 

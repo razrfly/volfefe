@@ -68,7 +68,7 @@ defmodule VolfefeMachine.MarketData.TwelveDataClient do
 
     url = "#{@base_url}/time_series?symbol=#{symbol}&interval=#{interval}&start_date=#{start_str}&end_date=#{end_str}&apikey=#{get_api_key()}"
 
-    case HTTPoison.get(url) do
+    case HTTPoison.get(url, [], timeout: 30_000, recv_timeout: 30_000) do
       {:ok, %HTTPoison.Response{status_code: 200, body: body}} ->
         parse_response(body)
 
@@ -221,7 +221,7 @@ defmodule VolfefeMachine.MarketData.TwelveDataClient do
   def check_usage do
     url = "#{@base_url}/api_usage?apikey=#{get_api_key()}"
 
-    case HTTPoison.get(url) do
+    case HTTPoison.get(url, [], timeout: 30_000, recv_timeout: 30_000) do
       {:ok, %HTTPoison.Response{status_code: 200, body: body}} ->
         Jason.decode(body)
 

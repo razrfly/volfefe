@@ -72,7 +72,12 @@ defmodule VolfefeMachineWeb.Admin.MarketAnalysisLive do
 
   defp load_content_list(socket) do
     significance = socket.assigns.filter_significance
-    order_by = String.to_atom(socket.assigns.filter_order)
+    order_by =
+      case socket.assigns.filter_order do
+        "max_z_score" -> :max_z_score
+        "published_at" -> :published_at
+        _ -> :published_at  # default fallback
+      end
 
     opts = [
       limit: 50,
