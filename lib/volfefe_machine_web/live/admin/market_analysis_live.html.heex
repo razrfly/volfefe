@@ -1,0 +1,236 @@
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <!-- Admin Navigation -->
+  <div class="mb-6">
+    <nav class="flex space-x-4 border-b border-gray-200 pb-2">
+      <.link navigate={~p"/admin/content"} class="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium">
+        📄 Content
+      </.link>
+      <.link navigate={~p"/admin/ml"} class="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium">
+        🤖 ML Jobs
+      </.link>
+      <.link navigate={~p"/admin/market-jobs"} class="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium">
+        📊 Market Jobs
+      </.link>
+      <.link navigate={~p"/admin/market-analysis"} class="text-blue-600 border-b-2 border-blue-600 px-3 py-2 text-sm font-medium">
+        📈 Market Analysis
+      </.link>
+      <a href="/admin/oban" class="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium">
+        ⚙️ Oban Dashboard
+      </a>
+    </nav>
+  </div>
+
+  <div class="mb-8">
+    <h1 class="text-3xl font-bold text-gray-900">Market Impact Analysis</h1>
+    <p class="mt-2 text-sm text-gray-600">
+      Analyze market reactions to Trump posts with statistical significance testing
+    </p>
+  </div>
+
+  <!-- Filters -->
+  <div class="bg-white shadow rounded-lg p-6 mb-6">
+    <h2 class="text-lg font-semibold text-gray-900 mb-4">Filters</h2>
+
+    <.form for={@filter_form} phx-change="update_filter">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Minimum Significance</label>
+          <select name="filter[significance]" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+            <option value="all" selected={@filter_significance == "all"}>All Snapshots</option>
+            <option value="high" selected={@filter_significance == "high"}>High (|z| ≥ 2.0)</option>
+            <option value="moderate" selected={@filter_significance == "moderate"}>Moderate+ (|z| ≥ 1.0)</option>
+            <option value="noise" selected={@filter_significance == "noise"}>All (Including Noise)</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Sort By</label>
+          <select name="filter[order_by]" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+            <option value="published_at" selected={@filter_order == "published_at"}>Published Date (Newest First)</option>
+            <option value="max_z_score" selected={@filter_order == "max_z_score"}>Maximum Z-Score</option>
+          </select>
+        </div>
+      </div>
+    </.form>
+  </div>
+
+  <%= if @selected_content_id do %>
+    <!-- Detailed View -->
+    <div class="bg-white shadow rounded-lg p-6 mb-6">
+      <div class="flex justify-between items-start mb-4">
+        <div class="flex-1">
+          <h2 class="text-xl font-semibold text-gray-900 mb-2">Content #<%= @selected_content_id %></h2>
+          <%= if @selected_content do %>
+            <p class="text-sm text-gray-600 mb-2">
+              Published <%= Calendar.strftime(@selected_content.published_at, "%B %d, %Y at %I:%M %p UTC") %>
+            </p>
+            <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
+              <p class="text-gray-900"><%= @selected_content.text %></p>
+            </div>
+          <% end %>
+        </div>
+        <button phx-click="clear_selection" class="ml-4 text-blue-600 hover:text-blue-800 font-medium">
+          ← Back to List
+        </button>
+      </div>
+
+      <%= if @selected_snapshots && length(@selected_snapshots) > 0 do %>
+        <!-- Market Snapshots by Asset -->
+        <div class="space-y-6">
+          <%= for %{asset: asset, snapshots: snapshots} <- @selected_snapshots do %>
+            <div class="border border-gray-200 rounded-lg overflow-hidden">
+              <div class="bg-gray-50 px-4 py-3 border-b border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-900">
+                  <%= asset.symbol %> - <%= asset.name %>
+                </h3>
+              </div>
+
+              <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time Window</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Close Price</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price Change</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Z-Score</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Significance</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Volume</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Market State</th>
+                    </tr>
+                  </thead>
+                  <tbody class="bg-white divide-y divide-gray-200">
+                    <%= for window <- ["before", "1hr_after", "4hr_after", "24hr_after"] do %>
+                      <%= if snapshot = snapshots[window] do %>
+                        <tr>
+                          <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                            <%= window_label(window) %>
+                          </td>
+                          <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                            $<%= format_price(snapshot.close_price) %>
+                          </td>
+                          <td class={"px-4 py-3 whitespace-nowrap text-sm font-medium #{price_change_class(snapshot.price_change_pct)}"}>
+                            <%= format_percentage(snapshot.price_change_pct) %>
+                          </td>
+                          <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                            <%= format_z_score(snapshot.z_score) %>
+                          </td>
+                          <td class="px-4 py-3 whitespace-nowrap">
+                            <span class={"px-2 py-1 text-xs font-medium rounded-full border #{significance_badge_class(snapshot.significance_level)}"}>
+                              <%= snapshot.significance_level || "—" %>
+                            </span>
+                          </td>
+                          <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+                            <%= if snapshot.volume, do: format_volume(snapshot.volume), else: "—" %>
+                          </td>
+                          <td class="px-4 py-3 whitespace-nowrap text-xs text-gray-600">
+                            <%= snapshot.market_state || "—" %>
+                          </td>
+                        </tr>
+                      <% else %>
+                        <tr>
+                          <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                            <%= window_label(window) %>
+                          </td>
+                          <td colspan="6" class="px-4 py-3 text-sm text-gray-400 italic">
+                            No snapshot available
+                          </td>
+                        </tr>
+                      <% end %>
+                    <% end %>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      <% else %>
+        <div class="text-center py-8 text-gray-500">
+          No market snapshots available for this content
+        </div>
+      <% end %>
+    </div>
+  <% else %>
+    <!-- Content List View -->
+    <div class="bg-white shadow rounded-lg overflow-hidden">
+      <div class="px-6 py-4 border-b border-gray-200">
+        <h2 class="text-lg font-semibold text-gray-900">
+          Content with Market Snapshots (<%= length(@content_list) %>)
+        </h2>
+      </div>
+
+      <%= if length(@content_list) > 0 do %>
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Published</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Content Preview</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sentiment</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Max Z-Score</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Significance</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Snapshots</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Isolation</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              <%= for item <- @content_list do %>
+                <tr class="hover:bg-gray-50">
+                  <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+                    <%= Calendar.strftime(item.published_at, "%m/%d %H:%M") %>
+                  </td>
+                  <td class="px-4 py-3 text-sm text-gray-900 max-w-md">
+                    <div class="truncate">
+                      <%= String.slice(item.text || "", 0..100) %><%= if String.length(item.text || "") > 100, do: "..." %>
+                    </div>
+                  </td>
+                  <td class="px-4 py-3 whitespace-nowrap">
+                    <%= if item.sentiment do %>
+                      <span class={"px-2 py-1 text-xs font-medium rounded #{sentiment_badge_class(item.sentiment)}"}>
+                        <%= item.sentiment %>
+                      </span>
+                    <% else %>
+                      <span class="text-xs text-gray-400">—</span>
+                    <% end %>
+                  </td>
+                  <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                    <%= :erlang.float_to_binary(abs(item.max_z_score), decimals: 2) %>
+                  </td>
+                  <td class="px-4 py-3 whitespace-nowrap">
+                    <span class={"px-2 py-1 text-xs font-medium rounded-full border #{significance_badge_class(item.significance)}"}>
+                      <%= item.significance %>
+                    </span>
+                  </td>
+                  <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+                    <%= item.snapshot_count %>
+                  </td>
+                  <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+                    <%= :erlang.float_to_binary(item.isolation_score, decimals: 2) %>
+                  </td>
+                  <td class="px-4 py-3 whitespace-nowrap text-sm">
+                    <button
+                      phx-click="select_content"
+                      phx-value-id={item.id}
+                      class="text-blue-600 hover:text-blue-800 font-medium"
+                    >
+                      View Details →
+                    </button>
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      <% else %>
+        <div class="text-center py-12 text-gray-500">
+          <p class="text-lg mb-2">No market snapshots found</p>
+          <p class="text-sm">
+            Run snapshot capture jobs from the
+            <.link navigate={~p"/admin/market-jobs"} class="text-blue-600 hover:text-blue-800">Market Jobs</.link>
+            page
+          </p>
+        </div>
+      <% end %>
+    </div>
+  <% end %>
+</div>

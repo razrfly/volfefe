@@ -23,6 +23,7 @@ defmodule VolfefeMachine.MarketData do
   import Ecto.Query
   alias VolfefeMachine.Repo
   alias VolfefeMachine.MarketData.{Asset, Snapshot}
+  alias VolfefeMachine.Content.Content
 
   @doc """
   Gets an asset by its ticker symbol.
@@ -313,6 +314,205 @@ defmodule VolfefeMachine.MarketData do
         }
 
         {:ok, summary}
+    end
+  end
+
+  @doc """
+  Lists content items with market snapshots.
+
+  Returns content with classification and snapshot counts, ordered by publish date.
+
+  ## Options
+
+  - `:limit` - Limit number of results (default: 50)
+  - `:offset` - Offset for pagination (default: 0)
+  - `:min_significance` - Filter by minimum significance ("high", "moderate", "noise")
+  - `:order_by` - Order by :published_at or :max_z_score (default: :published_at)
+
+  ## Returns
+
+  List of maps with content details and impact summary.
+
+  ## Examples
+
+      iex> MarketData.list_content_with_snapshots(limit: 10)
+      [%{
+        id: 123,
+        text: "Big tariffs coming!",
+        published_at: ~U[2025-01-26 10:00:00Z],
+        sentiment: "negative",
+        confidence: 0.95,
+        max_z_score: 2.68,
+        significance: "high",
+        snapshot_count: 24
+      }, ...]
+  """
+  def list_content_with_snapshots(opts \\ []) do
+    limit = Keyword.get(opts, :limit, 50)
+    offset = Keyword.get(opts, :offset, 0)
+    min_significance = Keyword.get(opts, :min_significance)
+    order_by = Keyword.get(opts, :order_by, :published_at)
+
+    # Get content IDs with snapshots
+    snapshot_stats =
+      from(s in Snapshot,
+        group_by: s.content_id,
+        select: %{
+          content_id: s.content_id,
+          snapshot_count: count(s.id),
+          max_z_score: max(s.z_score),
+          max_isolation_score: max(s.isolation_score)
+        }
+      )
+      |> Repo.all()
+      |> Enum.map(fn stats ->
+        # Determine significance from max z-score
+        significance =
+          if stats.max_z_score do
+            abs_z = abs(Decimal.to_float(stats.max_z_score))
+            cond do
+              abs_z >= 2.0 -> "high"
+              abs_z >= 1.0 -> "moderate"
+              true -> "noise"
+            end
+          else
+            "noise"
+          end
+
+        Map.put(stats, :significance, significance)
+      end)
+
+    # Filter by significance if requested
+    snapshot_stats =
+      if min_significance do
+        significance_rank = %{"high" => 3, "moderate" => 2, "noise" => 1}
+        min_rank = significance_rank[min_significance] || 1
+
+        Enum.filter(snapshot_stats, fn stats ->
+          (significance_rank[stats.significance] || 0) >= min_rank
+        end)
+      else
+        snapshot_stats
+      end
+
+    # Get content IDs
+    content_ids = Enum.map(snapshot_stats, & &1.content_id)
+
+    if length(content_ids) == 0 do
+      []
+    else
+      # Get content with classifications
+      contents =
+        from(c in Content,
+          where: c.id in ^content_ids,
+          left_join: cl in assoc(c, :classification),
+          select: %{
+            id: c.id,
+            text: c.text,
+            author: c.author,
+            url: c.url,
+            published_at: c.published_at,
+            sentiment: cl.sentiment,
+            confidence: cl.confidence
+          }
+        )
+        |> Repo.all()
+
+      # Merge with snapshot stats
+      content_map = Map.new(contents, &{&1.id, &1})
+      snapshot_map = Map.new(snapshot_stats, &{&1.content_id, &1})
+
+      content_ids
+      |> Enum.map(fn id ->
+        content = content_map[id]
+        stats = snapshot_map[id]
+
+        Map.merge(content, %{
+          snapshot_count: stats.snapshot_count,
+          max_z_score: if(stats.max_z_score, do: Decimal.to_float(stats.max_z_score), else: 0.0),
+          significance: stats.significance,
+          isolation_score: if(stats.max_isolation_score, do: Decimal.to_float(stats.max_isolation_score), else: 0.0)
+        })
+      end)
+      |> Enum.sort_by(
+        fn item ->
+          case order_by do
+            :max_z_score -> -abs(item.max_z_score)
+            _ -> item.published_at
+          end
+        end,
+        case order_by do
+          :max_z_score -> :asc
+          _ -> {:desc, DateTime}
+        end
+      )
+      |> Enum.drop(offset)
+      |> Enum.take(limit)
+    end
+  end
+
+  @doc """
+  Gets detailed snapshots for a content item grouped by asset.
+
+  Returns all snapshots for the content, grouped by asset with all 4 time windows.
+
+  ## Parameters
+
+  - `content_id` - Content ID
+
+  ## Returns
+
+  - `{:ok, asset_snapshots}` - List of asset snapshot groups
+  - `{:error, :no_snapshots}` - No snapshots found
+
+  ## Example Response
+
+      {:ok, [
+        %{
+          asset: %Asset{symbol: "SPY", name: "SPDR S&P 500 ETF"},
+          snapshots: %{
+            "before" => %Snapshot{...},
+            "1hr_after" => %Snapshot{...},
+            "4hr_after" => %Snapshot{...},
+            "24hr_after" => %Snapshot{...}
+          }
+        },
+        ...
+      ]}
+  """
+  def get_content_snapshots(content_id) do
+    snapshots =
+      from(s in Snapshot,
+        where: s.content_id == ^content_id,
+        preload: [:asset],
+        order_by: [s.asset_id, s.window_type]
+      )
+      |> Repo.all()
+
+    case snapshots do
+      [] ->
+        {:error, :no_snapshots}
+
+      snapshots ->
+        asset_snapshots =
+          snapshots
+          |> Enum.group_by(& &1.asset_id)
+          |> Enum.map(fn {_asset_id, asset_snapshots} ->
+            asset = List.first(asset_snapshots).asset
+
+            snapshots_by_window =
+              asset_snapshots
+              |> Enum.map(&{&1.window_type, &1})
+              |> Map.new()
+
+            %{
+              asset: asset,
+              snapshots: snapshots_by_window
+            }
+          end)
+          |> Enum.sort_by(& &1.asset.symbol)
+
+        {:ok, asset_snapshots}
     end
   end
 end

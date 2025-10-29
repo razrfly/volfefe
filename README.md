@@ -125,6 +125,116 @@ mix classify.contents --limit 10 --dry-run
 - Extracted entities: Organizations (ORG), Locations (LOC), Persons (PER), Miscellaneous (MISC)
 - Entity confidence scores and context
 
+### Market Impact Analysis
+
+After classifying content, analyze market reactions by capturing price/volume snapshots around each Trump post.
+
+#### 1. Initial Setup
+
+First, fetch asset information and establish baseline statistics:
+
+```bash
+# Fetch starter universe of assets (SPY, QQQ, DIA, IWM, GLD, TLT)
+mix fetch.assets --symbols SPY,QQQ,DIA,IWM,GLD,TLT
+
+# Calculate 60-day baseline statistics (mean, std dev, percentiles)
+# This fetches historical data and computes rolling returns for 1hr, 4hr, 24hr windows
+mix calculate.baselines --all
+```
+
+#### 2. Capture Market Snapshots
+
+Capture 4 time-windowed snapshots (before, 1hr, 4hr, 24hr after) for classified content:
+
+```bash
+# Single content item
+mix snapshot.market --content-id 165
+
+# Multiple specific items
+mix snapshot.market --ids 165,166,167
+
+# All content published on a date
+mix snapshot.market --date 2025-10-28
+
+# Date range
+mix snapshot.market --date-range 2025-10-01 2025-10-31
+
+# All classified content
+mix snapshot.market --all
+
+# Only content missing complete snapshots
+mix snapshot.market --missing
+
+# Preview without capturing (dry run)
+mix snapshot.market --date 2025-10-28 --dry-run
+```
+
+**Each snapshot captures**:
+- Open, High, Low, Close (OHLC) prices
+- Volume and volume deviation from baseline
+- Volume z-score (standard deviations from mean)
+- Market state (pre-market, regular, after-hours, closed)
+- Data validity flags
+- Isolation score (contamination from nearby content)
+
+#### 3. Update Baselines
+
+Keep baseline statistics fresh as new market data accumulates:
+
+```bash
+# Update only stale baselines (older than 24 hours)
+mix calculate.baselines --all --check-freshness
+
+# Update specific assets
+mix calculate.baselines --symbols SPY,QQQ
+
+# Force recalculation (ignore freshness)
+mix calculate.baselines --all --force
+```
+
+#### 4. Data Validation
+
+Monitor data quality and coverage:
+
+```bash
+# Check which content is missing snapshots
+mix snapshot.market --missing --dry-run
+
+# View baseline statistics
+iex -S mix
+> alias VolfefeMachine.{Repo, MarketData.BaselineStats}
+> Repo.all(BaselineStats) |> Enum.map(& {&1.asset_id, &1.window_minutes, &1.mean_return})
+```
+
+#### Common Workflows
+
+**Daily Update Workflow**:
+```bash
+# 1. Update baselines for all assets (skips fresh ones)
+mix calculate.baselines --all --check-freshness
+
+# 2. Capture snapshots for newly classified content
+mix snapshot.market --missing
+
+# 3. Verify coverage
+mix snapshot.market --missing --dry-run
+```
+
+**Backfill Historical Data**:
+```bash
+# Capture snapshots for all content in October 2025
+mix snapshot.market --date-range 2025-10-01 2025-10-31
+
+# Force recalculate all baselines with latest 60 days
+mix calculate.baselines --all --force
+```
+
+**Troubleshooting**:
+- **"No data available"**: TwelveData may not have data for that timestamp (market closed, weekend, holiday)
+- **"Rate limit exceeded"**: Free tier allows 8 calls/minute, 800/day - add delays between operations
+- **Incomplete snapshots**: Use `--missing` flag to find and fill gaps
+- **Stale baselines**: Use `--check-freshness` to update only old statistics
+
 ### Environment Variables
 
 The project uses environment variables for sensitive configuration. Copy `.env.example` to `.env` and update with your credentials:

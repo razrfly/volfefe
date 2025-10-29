@@ -67,7 +67,10 @@ config :volfefe_machine, Oban,
   queues: [
     ml_sentiment: 10,
     ml_ner: 10,
-    ml_batch: 5
+    ml_batch: 5,
+    market_baselines: 3,
+    market_snapshots: 5,
+    market_batch: 2
   ],
   plugins: [
     {Oban.Plugins.Pruner, max_age: 60 * 60 * 24 * 7},
