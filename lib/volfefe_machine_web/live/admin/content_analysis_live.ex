@@ -300,8 +300,17 @@ defmodule VolfefeMachineWeb.Admin.ContentAnalysisLive do
         filtered_data
         |> Enum.flat_map(fn asset -> Enum.map(asset.data, & &1.price_change) end)
 
-      y_max = Enum.max(all_values ++ [2.0]) |> ceil()
-      y_min = Enum.min(all_values ++ [-2.0]) |> floor()
+      y_max =
+        all_values
+        |> Enum.max(fn -> 2.0 end)
+        |> Float.ceil()
+        |> trunc()
+
+      y_min =
+        all_values
+        |> Enum.min(fn -> -2.0 end)
+        |> Float.floor()
+        |> trunc()
 
       # X-axis positions for 4 windows
       window_positions = %{
@@ -488,4 +497,14 @@ defmodule VolfefeMachineWeb.Admin.ContentAnalysisLive do
     # Invert Y-axis (SVG Y grows downward)
     chart_height - ((value - y_min) / y_range * chart_height)
   end
+
+  defp format_number_with_commas(number) when is_integer(number) or is_binary(number) do
+    number
+    |> to_string()
+    |> String.reverse()
+    |> String.replace(~r/(\d{3})(?=\d)/, "\\1,")
+    |> String.reverse()
+  end
+
+  defp format_number_with_commas(nil), do: "—"
 end

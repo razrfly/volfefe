@@ -195,9 +195,14 @@ defmodule VolfefeMachine.Content do
 
     if capture_snapshots do
       # Auto-trigger market snapshot capture (Phase 1 MVP)
-      case %{content_id: content_id}
-           |> CaptureSnapshotsWorker.new()
-           |> Oban.insert() do
+      args = %{content_id: content_id}
+      job =
+        CaptureSnapshotsWorker.new(
+          args,
+          unique: [fields: [:args, :worker], period: 600] # 10 min dedupe window
+        )
+
+      case Oban.insert(job) do
         {:ok, _job} ->
           Logger.info("Auto-enqueued market snapshot capture for content_id=#{content_id}")
           :ok

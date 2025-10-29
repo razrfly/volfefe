@@ -239,11 +239,7 @@
                           </span>
                         </td>
                         <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                          <%= if snapshot.volume do %>
-                            <%= snapshot.volume |> to_string() |> String.reverse() |> String.replace(~r/(\d{3})(?=\d)/, "\\1,") |> String.reverse() %>
-                          <% else %>
-                            —
-                          <% end %>
+                          <%= format_number_with_commas(snapshot.volume) %>
                         </td>
                         <td class="px-4 py-3 whitespace-nowrap text-xs text-gray-600">
                           <%= snapshot.market_state || "—" %>

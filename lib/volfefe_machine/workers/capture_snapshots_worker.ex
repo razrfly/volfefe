@@ -151,29 +151,41 @@ defmodule VolfefeMachine.Workers.CaptureSnapshotsWorker do
     )
 
     if before_snapshot do
-      # Update each "after" snapshot with price_change_pct
-      after_windows = ["1hr_after", "4hr_after", "24hr_after"]
+      # Validate baseline price
+      cond do
+        is_nil(before_snapshot.close_price) ->
+          Logger.warning("Missing baseline close_price for #{asset.symbol}, skipping price changes")
 
-      Enum.each(after_windows, fn window_type ->
-        after_snapshot = Repo.get_by(Snapshot,
-          content_id: content.id,
-          asset_id: asset.id,
-          window_type: window_type
-        )
+        Decimal.compare(before_snapshot.close_price, Decimal.new("0")) == :eq ->
+          Logger.warning("Zero baseline close_price for #{asset.symbol}, skipping price changes")
 
-        if after_snapshot do
-          price_change_pct = Helpers.calculate_price_change(
-            before_snapshot.close_price,
-            after_snapshot.close_price
-          )
+        true ->
+          # Update each "after" snapshot with price_change_pct
+          after_windows = ["1hr_after", "4hr_after", "24hr_after"]
 
-          after_snapshot
-          |> Snapshot.changeset(%{price_change_pct: price_change_pct})
-          |> Repo.update()
+          Enum.each(after_windows, fn window_type ->
+            after_snapshot = Repo.get_by(Snapshot,
+              content_id: content.id,
+              asset_id: asset.id,
+              window_type: window_type
+            )
 
-          Logger.debug("Calculated price change for #{asset.symbol} #{window_type}: #{price_change_pct}%")
-        end
-      end)
+            if after_snapshot && after_snapshot.close_price do
+              price_change_pct =
+                Helpers.calculate_price_change(before_snapshot.close_price, after_snapshot.close_price)
+
+              case after_snapshot |> Snapshot.changeset(%{price_change_pct: price_change_pct}) |> Repo.update() do
+                {:ok, _} ->
+                  Logger.debug("Calculated price change for #{asset.symbol} #{window_type}: #{price_change_pct}%")
+
+                {:error, cs} ->
+                  Logger.error("Failed to update price change for #{asset.symbol} #{window_type}: #{inspect(cs.errors)}")
+              end
+            else
+              Logger.warning("Missing after_snapshot/close_price for #{asset.symbol} #{window_type}, skipping")
+            end
+          end)
+      end
     else
       Logger.warning("No 'before' snapshot found for #{asset.symbol}, cannot calculate price changes")
     end
