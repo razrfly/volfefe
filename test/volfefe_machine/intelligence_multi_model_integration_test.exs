@@ -88,7 +88,7 @@ defmodule VolfefeMachine.IntelligenceMultiModelIntegrationTest do
       assert consensus.model_version == "consensus_v1.0"
       assert consensus.sentiment in ["positive", "negative", "neutral"]
       assert is_map(consensus.meta)
-      assert consensus.meta.consensus_method == "weighted_vote"
+      assert consensus.meta["consensus_method"] == "weighted_vote"
     end
 
     @tag :slow
@@ -134,7 +134,7 @@ defmodule VolfefeMachine.IntelligenceMultiModelIntegrationTest do
 
     test "returns error for content with no text" do
       {:ok, source} = Content.create_source(%{
-        name: "Test Source",
+        name: "Empty Text Source",
         adapter: "test",
         base_url: "https://test.com",
         enabled: true
@@ -156,7 +156,7 @@ defmodule VolfefeMachine.IntelligenceMultiModelIntegrationTest do
   describe "batch_classify_contents_multi_model/1 integration" do
     setup do
       {:ok, source} = Content.create_source(%{
-        name: "Test Source",
+        name: "Batch Test Source",
         adapter: "test",
         base_url: "https://test.com",
         enabled: true

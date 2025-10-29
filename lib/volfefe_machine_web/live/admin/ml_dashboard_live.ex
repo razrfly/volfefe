@@ -126,7 +126,11 @@ defmodule VolfefeMachineWeb.Admin.MLDashboardLive do
         "50" -> 50
         "100" -> 100
         "ids" -> :ids
-        num when is_binary(num) -> String.to_integer(num)
+        num when is_binary(num) ->
+          case Integer.parse(num) do
+            {i, _} -> i
+            :error -> socket.assigns.snapshot_limit
+          end
         _ -> socket.assigns.snapshot_limit
       end
 
