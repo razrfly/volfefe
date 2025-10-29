@@ -128,7 +128,10 @@ defmodule VolfefeMachineWeb.Admin.MLDashboardLive do
         "ids" -> :ids
         num when is_binary(num) ->
           case Integer.parse(num) do
-            {i, _} -> i
+            {i, _} ->
+              i
+              |> max(1)
+              |> min(1000)
             :error -> socket.assigns.snapshot_limit
           end
         _ -> socket.assigns.snapshot_limit
