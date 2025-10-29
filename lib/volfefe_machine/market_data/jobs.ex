@@ -87,26 +87,30 @@ defmodule VolfefeMachine.MarketData.Jobs do
 
   """
   def calculate_baselines_batch(asset_ids, opts \\ []) when is_list(asset_ids) do
-    lookback_days = Keyword.get(opts, :lookback_days, 60)
-    force = Keyword.get(opts, :force, false)
-    check_freshness = Keyword.get(opts, :check_freshness, false)
-    schedule_in = Keyword.get(opts, :schedule_in)
-
-    job_args = %{
-      operation: "baselines",
-      asset_ids: asset_ids,
-      lookback_days: lookback_days,
-      force: force,
-      check_freshness: check_freshness
-    }
-
-    job = if schedule_in do
-      BatchMarketDataWorker.new(job_args, schedule_in: schedule_in)
+    if asset_ids == [] do
+      {:error, :empty_asset_ids}
     else
-      BatchMarketDataWorker.new(job_args)
-    end
+      lookback_days = Keyword.get(opts, :lookback_days, 60)
+      force = Keyword.get(opts, :force, false)
+      check_freshness = Keyword.get(opts, :check_freshness, false)
+      schedule_in = Keyword.get(opts, :schedule_in)
 
-    Oban.insert(job)
+      job_args = %{
+        operation: "baselines",
+        asset_ids: asset_ids,
+        lookback_days: lookback_days,
+        force: force,
+        check_freshness: check_freshness
+      }
+
+      job = if schedule_in do
+        BatchMarketDataWorker.new(job_args, schedule_in: schedule_in)
+      else
+        BatchMarketDataWorker.new(job_args)
+      end
+
+      Oban.insert(job)
+    end
   end
 
   @doc """
@@ -161,29 +165,33 @@ defmodule VolfefeMachine.MarketData.Jobs do
 
   """
   def capture_snapshots_batch(content_ids, opts \\ []) when is_list(content_ids) do
-    force = Keyword.get(opts, :force, false)
-    schedule_in = Keyword.get(opts, :schedule_in)
-
-    job_args = %{
-      operation: "snapshots",
-      content_ids: content_ids,
-      force: force
-    }
-
-    job = if schedule_in do
-      BatchMarketDataWorker.new(job_args, schedule_in: schedule_in)
+    if content_ids == [] do
+      {:error, :empty_content_ids}
     else
-      BatchMarketDataWorker.new(job_args)
-    end
+      force = Keyword.get(opts, :force, false)
+      schedule_in = Keyword.get(opts, :schedule_in)
 
-    Oban.insert(job)
+      job_args = %{
+        operation: "snapshots",
+        content_ids: content_ids,
+        force: force
+      }
+
+      job = if schedule_in do
+        BatchMarketDataWorker.new(job_args, schedule_in: schedule_in)
+      else
+        BatchMarketDataWorker.new(job_args)
+      end
+
+      Oban.insert(job)
+    end
   end
 
   @doc """
-  Enqueue all market data jobs for a content item.
+  Enqueue snapshot capture for a content item.
 
   This is a convenience function that schedules snapshot captures
-  immediately after the content is classified.
+  after the content is classified.
 
   ## Options
 

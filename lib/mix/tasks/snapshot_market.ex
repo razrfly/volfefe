@@ -26,7 +26,7 @@ defmodule Mix.Tasks.Snapshot.Market do
       mix snapshot.market --date 2025-10-28
 
       # Content published in a date range
-      mix snapshot.market --date-range 2025-10-01 2025-10-31
+      mix snapshot.market --date-range "2025-10-01 2025-10-31"
 
       # All classified content
       mix snapshot.market --all
@@ -51,7 +51,7 @@ defmodule Mix.Tasks.Snapshot.Market do
       # => Processes 3 content items sequentially
 
       # Capture all October 2025 content
-      mix snapshot.market --date-range 2025-10-01 2025-10-31
+      mix snapshot.market --date-range "2025-10-01 2025-10-31"
       # => Finds all content in date range and captures snapshots
 
       # Find and capture missing snapshots
@@ -449,8 +449,9 @@ defmodule Mix.Tasks.Snapshot.Market do
   defp load_content_missing_snapshots do
     import Ecto.Query
 
-    # Get count of assets (should have 4 snapshots per asset)
-    asset_count = Repo.aggregate(MarketData.Asset, :count, :id)
+    # Get count of active, tradable assets (should have 4 snapshots per asset)
+    asset_count = from(a in MarketData.Asset, where: a.status == :active and a.tradable == true)
+                  |> Repo.aggregate(:count, :id)
     expected_snapshots = asset_count * 4
 
     # Find content with incomplete snapshots
@@ -525,7 +526,7 @@ defmodule Mix.Tasks.Snapshot.Market do
       mix snapshot.market --content-id <id>           # Single content
       mix snapshot.market --ids 1,2,3                 # Multiple content IDs
       mix snapshot.market --date 2025-10-28           # All content on date
-      mix snapshot.market --date-range START END      # Content in date range
+      mix snapshot.market --date-range "START END"    # Content in date range (quoted)
       mix snapshot.market --all                       # All classified content
       mix snapshot.market --missing                   # Content missing snapshots
 
@@ -536,7 +537,7 @@ defmodule Mix.Tasks.Snapshot.Market do
     Examples:
       mix snapshot.market --ids 165,166,167
       mix snapshot.market --date 2025-10-28 --dry-run
-      mix snapshot.market --date-range 2025-10-01 2025-10-31
+      mix snapshot.market --date-range "2025-10-01 2025-10-31"
       mix snapshot.market --missing --force
     """)
   end

@@ -55,8 +55,13 @@ defmodule VolfefeMachineWeb.Admin.MarketJobsLive do
         {ids, "all #{length(ids)} assets"}
 
       asset_id when is_integer(asset_id) ->
-        asset = Enum.find(socket.assigns.assets, & &1.id == asset_id)
-        {[asset_id], "asset #{asset.symbol}"}
+        asset = Enum.find(socket.assigns.assets, fn a -> a.id == asset_id end)
+        label =
+          case asset do
+            nil -> "asset id=#{asset_id}"
+            a -> "asset #{a.symbol}"
+          end
+        {[asset_id], label}
     end
 
     case Jobs.calculate_baselines_batch(asset_ids, lookback_days: lookback_days, force: force, check_freshness: check_freshness) do
