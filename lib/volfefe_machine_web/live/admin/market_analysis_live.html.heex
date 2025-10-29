@@ -8,9 +8,6 @@
       <.link navigate={~p"/admin/ml"} class="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium">
         🤖 ML Jobs
       </.link>
-      <.link navigate={~p"/admin/market-jobs"} class="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium">
-        📊 Market Jobs
-      </.link>
       <.link navigate={~p"/admin/market-analysis"} class="text-blue-600 border-b-2 border-blue-600 px-3 py-2 text-sm font-medium">
         📈 Market Analysis
       </.link>
@@ -226,8 +223,8 @@
           <p class="text-lg mb-2">No market snapshots found</p>
           <p class="text-sm">
             Run snapshot capture jobs from the
-            <.link navigate={~p"/admin/market-jobs"} class="text-blue-600 hover:text-blue-800">Market Jobs</.link>
-            page
+            <.link navigate={~p"/admin/ml"} class="text-blue-600 hover:text-blue-800">ML Jobs</.link>
+            dashboard
           </p>
         </div>
       <% end %>

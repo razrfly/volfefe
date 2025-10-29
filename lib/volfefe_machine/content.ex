@@ -7,7 +7,9 @@ defmodule VolfefeMachine.Content do
   """
 
   alias VolfefeMachine.{Repo, Content.Source, Content.Content}
+  alias VolfefeMachine.Workers.CaptureSnapshotsWorker
   import Ecto.Query
+  require Logger
 
   # ========================================
   # Source Functions
@@ -169,19 +171,45 @@ defmodule VolfefeMachine.Content do
   end
 
   @doc """
-  Marks a content as classified.
+  Marks a content as classified and optionally enqueues market snapshot capture.
   Used by Intelligence context after ML analysis.
+
+  ## Parameters
+
+    * `content_id` - The content ID to mark as classified
+    * `capture_snapshots` - Whether to auto-enqueue market snapshots (default: true)
 
   ## Examples
 
+      # Default: classify and capture snapshots
       iex> mark_as_classified(1)
       :ok
+
+      # Opt-out: classify only (useful for testing)
+      iex> mark_as_classified(1, false)
+      :ok
   """
-  def mark_as_classified(content_id) do
+  def mark_as_classified(content_id, capture_snapshots \\ true) do
     from(c in Content, where: c.id == ^content_id)
     |> Repo.update_all(set: [classified: true])
 
-    :ok
+    if capture_snapshots do
+      # Auto-trigger market snapshot capture (Phase 1 MVP)
+      case %{content_id: content_id}
+           |> CaptureSnapshotsWorker.new()
+           |> Oban.insert() do
+        {:ok, _job} ->
+          Logger.info("Auto-enqueued market snapshot capture for content_id=#{content_id}")
+          :ok
+
+        {:error, reason} ->
+          Logger.error("Failed to enqueue market snapshot capture for content_id=#{content_id}: #{inspect(reason)}")
+          :ok  # Still return :ok so classification isn't blocked
+      end
+    else
+      Logger.debug("Skipped market snapshot capture for content_id=#{content_id} (capture_snapshots=false)")
+      :ok
+    end
   end
 
   @doc """

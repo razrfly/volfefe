@@ -8,9 +8,6 @@
       <.link navigate={~p"/admin/ml"} class="text-blue-600 border-b-2 border-blue-600 px-3 py-2 text-sm font-medium">
         🤖 ML Jobs
       </.link>
-      <.link navigate={~p"/admin/market-jobs"} class="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium">
-        📊 Market Jobs
-      </.link>
       <.link navigate={~p"/admin/market-analysis"} class="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium">
         📈 Market Analysis
       </.link>
@@ -82,10 +79,16 @@
     </div>
   </div>
 
-  <!-- Reprocessing Form -->
+  <!-- Job Management Forms -->
   <div class="mb-8">
-    <div class="bg-white shadow rounded-lg p-6 border border-gray-200">
-      <h2 class="text-xl font-semibold text-gray-900 mb-4">Enqueue Reprocessing Job</h2>
+    <h2 class="text-2xl font-semibold text-gray-900 mb-4">Job Management</h2>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <!-- ML Reprocessing Form -->
+      <div class="bg-white shadow rounded-lg p-6 border border-gray-200">
+        <h3 class="text-xl font-semibold text-gray-900 mb-4">🤖 ML Reprocessing</h3>
+        <p class="text-sm text-gray-600 mb-4">
+          Rerun ML classification models on existing content. Use when deploying new models or fixing classification errors.
+        </p>
 
       <.form for={@form} phx-submit="enqueue_reprocess" class="space-y-4">
         <!-- Model Type Selection -->
@@ -190,10 +193,92 @@
             type="submit"
             class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
           >
-            🚀 Enqueue Jobs
+            🚀 Enqueue ML Jobs
           </button>
         </div>
       </.form>
+      </div>
+
+      <!-- Market Snapshot Capture Form -->
+      <div class="bg-white shadow rounded-lg p-6 border border-gray-200">
+        <h3 class="text-xl font-semibold text-gray-900 mb-4">📸 Market Snapshot Capture</h3>
+        <p class="text-sm text-gray-600 mb-4">
+          <strong>Auto-triggers on classification.</strong> Use this for manual recapture of failed/incomplete snapshots.
+        </p>
+
+        <.form for={@snapshot_form} phx-submit="enqueue_snapshots" phx-change="update_snapshot_limit" class="space-y-4">
+          <!-- Content Selection -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Content to Capture</label>
+            <select
+              name="snapshot[limit]"
+              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm"
+            >
+              <option value="missing" selected={@snapshot_limit == :missing}>
+                Missing Snapshots Only (<%= @missing_snapshots_count %> items) - Recommended
+              </option>
+              <option value="10" selected={@snapshot_limit == 10}>Most Recent 10 Classified</option>
+              <option value="50" selected={@snapshot_limit == 50}>Most Recent 50 Classified</option>
+              <option value="100" selected={@snapshot_limit == 100}>Most Recent 100 Classified</option>
+              <option value="ids" selected={@snapshot_limit == :ids}>Specific IDs</option>
+            </select>
+            <p class="mt-1 text-xs text-gray-500">
+              Choose "Missing Snapshots" to fix incomplete captures (&lt;20 snapshots per content)
+            </p>
+          </div>
+
+          <!-- Content IDs (conditional) -->
+          <%= if @snapshot_limit == :ids do %>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">
+                Content IDs (comma-separated)
+              </label>
+              <input
+                type="text"
+                name="snapshot[content_ids]"
+                placeholder="165,166,167"
+                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm"
+              />
+            </div>
+          <% end %>
+
+          <!-- Info Box -->
+          <div class="p-3 bg-blue-50 border border-blue-200 rounded-md">
+            <p class="text-sm text-blue-800">
+              <strong>Current Assets:</strong> <%= @asset_count %> active (SPY, QQQ, DIA, VXX, GLD)<br />
+              <strong>Snapshots per content:</strong> <%= @asset_count * 4 %> (<%= @asset_count %> assets × 4 time windows)
+            </p>
+          </div>
+
+          <!-- Force Checkbox -->
+          <div class="flex items-center">
+            <input
+              type="checkbox"
+              name="snapshot[force]"
+              value="true"
+              id="snapshot-force-checkbox"
+              class="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+            />
+            <label for="snapshot-force-checkbox" class="ml-2 block text-sm text-gray-700">
+              Force recapture (overwrite existing snapshots)
+            </label>
+          </div>
+
+          <!-- Submit Button -->
+          <div class="flex justify-end">
+            <button
+              type="submit"
+              class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+            >
+              📸 Capture Snapshots
+            </button>
+          </div>
+        </.form>
+
+        <div class="mt-4 text-xs text-gray-500">
+          <strong>Rate limits:</strong> TwelveData allows 8 calls/minute, 800/day. Each content = <%= @asset_count * 4 %> API calls.
+        </div>
+      </div>
     </div>
   </div>
 

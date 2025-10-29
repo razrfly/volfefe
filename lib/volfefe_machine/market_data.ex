@@ -257,21 +257,23 @@ defmodule VolfefeMachine.MarketData do
         {:error, :no_snapshots}
 
       snapshots ->
-        # Get max z-score across all snapshots
-        max_z_score =
+        # Phase 1 MVP: Focus on simple price_change_pct instead of z-scores
+        # Get max absolute price change across all snapshots
+        max_price_change =
           snapshots
-          |> Enum.map(& &1.z_score)
+          |> Enum.map(& &1.price_change_pct)
           |> Enum.reject(&is_nil/1)
           |> Enum.map(&Decimal.to_float/1)
           |> Enum.map(&abs/1)
           |> Enum.max(fn -> 0.0 end)
 
-        # Determine overall significance
-        significance =
+        # Determine impact level based on price change magnitude
+        # High: >2% move, Moderate: >0.5% move, Low: <=0.5% move
+        impact_level =
           cond do
-            max_z_score >= 2.0 -> "high"
-            max_z_score >= 1.0 -> "moderate"
-            true -> "noise"
+            max_price_change >= 2.0 -> "high"
+            max_price_change >= 0.5 -> "moderate"
+            true -> "low"
           end
 
         # Get isolation score (same for all snapshots)
@@ -281,33 +283,43 @@ defmodule VolfefeMachine.MarketData do
             snapshot -> snapshot.isolation_score || Decimal.new("0.0")
           end
 
-        # Group by asset and get max z-score per asset
+        # Group by asset and get max price change per asset
         asset_impacts =
           snapshots
           |> Enum.group_by(& &1.asset_id)
           |> Enum.map(fn {_asset_id, asset_snapshots} ->
-            # Find snapshot with max absolute z-score
-            snapshots_with_z = Enum.reject(asset_snapshots, &is_nil(&1.z_score))
+            # Find snapshot with max absolute price change
+            snapshots_with_price = Enum.reject(asset_snapshots, &is_nil(&1.price_change_pct))
 
             max_snapshot =
-              if length(snapshots_with_z) > 0 do
-                Enum.max_by(snapshots_with_z, fn s -> abs(Decimal.to_float(s.z_score)) end)
+              if length(snapshots_with_price) > 0 do
+                Enum.max_by(snapshots_with_price, fn s -> abs(Decimal.to_float(s.price_change_pct)) end)
               else
                 List.first(asset_snapshots)
               end
 
+            price_change = if(max_snapshot.price_change_pct, do: Decimal.to_float(max_snapshot.price_change_pct), else: 0.0)
+
+            # Determine asset-specific impact level
+            asset_impact_level =
+              cond do
+                abs(price_change) >= 2.0 -> "high"
+                abs(price_change) >= 0.5 -> "moderate"
+                true -> "low"
+              end
+
             %{
               symbol: max_snapshot.asset.symbol,
-              max_z_score: if(max_snapshot.z_score, do: Decimal.to_float(max_snapshot.z_score), else: 0.0),
+              price_change_pct: price_change,
               window: max_snapshot.window_type,
-              significance: max_snapshot.significance_level || "noise"
+              impact_level: asset_impact_level
             }
           end)
-          |> Enum.sort_by(& abs(&1.max_z_score), :desc)
+          |> Enum.sort_by(& abs(&1.price_change_pct), :desc)
 
         summary = %{
-          max_z_score: max_z_score,
-          significance: significance,
+          max_price_change: max_price_change,
+          impact_level: impact_level,
           isolation_score: Decimal.to_float(isolation_score),
           snapshot_count: length(snapshots),
           assets: asset_impacts
