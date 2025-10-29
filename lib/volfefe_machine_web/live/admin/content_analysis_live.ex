@@ -312,6 +312,14 @@ defmodule VolfefeMachineWeb.Admin.ContentAnalysisLive do
         |> Float.floor()
         |> trunc()
 
+      # Ensure minimum range to avoid division by zero in scale_y
+      {y_min, y_max} =
+        if y_max == y_min do
+          {y_min - 1, y_max + 1}
+        else
+          {y_min, y_max}
+        end
+
       # X-axis positions for 4 windows
       window_positions = %{
         "before" => 0,
