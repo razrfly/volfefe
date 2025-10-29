@@ -3,7 +3,8 @@ defmodule VolfefeMachine.Workers.CaptureSnapshotsWorker do
   Oban worker for capturing market snapshots around individual content items.
 
   Captures 4 time-windowed snapshots (before, 1hr, 4hr, 24hr after) for each
-  asset, storing OHLCV data, volume z-scores, and market state information.
+  asset, storing OHLCV data and calculating simple price change percentages
+  by comparing each "after" snapshot to the "before" baseline.
 
   ## Usage
 
@@ -129,10 +130,53 @@ defmodule VolfefeMachine.Workers.CaptureSnapshotsWorker do
     window_types = ["before", "1hr_after", "4hr_after", "24hr_after"]
     window_datetimes = [windows.before, windows.after_1hr, windows.after_4hr, windows.after_24hr]
 
-    Enum.zip(window_types, window_datetimes)
+    # Capture all snapshots
+    results = Enum.zip(window_types, window_datetimes)
     |> Enum.reduce(results, fn {window_type, timestamp}, acc ->
       capture_single_snapshot(asset, content, window_type, timestamp, isolation_score, force, acc)
     end)
+
+    # Calculate price changes relative to "before" snapshot
+    calculate_price_changes(asset, content)
+
+    results
+  end
+
+  defp calculate_price_changes(asset, content) do
+    # Get the "before" snapshot as baseline
+    before_snapshot = Repo.get_by(Snapshot,
+      content_id: content.id,
+      asset_id: asset.id,
+      window_type: "before"
+    )
+
+    if before_snapshot do
+      # Update each "after" snapshot with price_change_pct
+      after_windows = ["1hr_after", "4hr_after", "24hr_after"]
+
+      Enum.each(after_windows, fn window_type ->
+        after_snapshot = Repo.get_by(Snapshot,
+          content_id: content.id,
+          asset_id: asset.id,
+          window_type: window_type
+        )
+
+        if after_snapshot do
+          price_change_pct = Helpers.calculate_price_change(
+            before_snapshot.close_price,
+            after_snapshot.close_price
+          )
+
+          after_snapshot
+          |> Snapshot.changeset(%{price_change_pct: price_change_pct})
+          |> Repo.update()
+
+          Logger.debug("Calculated price change for #{asset.symbol} #{window_type}: #{price_change_pct}%")
+        end
+      end)
+    else
+      Logger.warning("No 'before' snapshot found for #{asset.symbol}, cannot calculate price changes")
+    end
   end
 
   defp capture_single_snapshot(asset, content, window_type, timestamp, isolation_score, force, results) do
@@ -147,11 +191,8 @@ defmodule VolfefeMachine.Workers.CaptureSnapshotsWorker do
       Logger.debug("Skipped #{asset.symbol} #{window_type} for content ##{content.id}: exists")
       %{results | skipped: results.skipped + 1}
     else
-      # Get baseline for this asset and window
-      baseline = get_baseline(asset.id, window_type)
-
-      # Capture snapshot from TwelveData
-      case TwelveDataClient.get_bar_with_context(asset.symbol, timestamp, baseline) do
+      # Capture snapshot from TwelveData (no baseline needed for Phase 1 MVP)
+      case TwelveDataClient.get_bar_with_context(asset.symbol, timestamp, nil) do
         {:ok, snapshot_attrs} ->
           snapshot_attrs = Map.merge(snapshot_attrs, %{
             content_id: content.id,
@@ -181,20 +222,6 @@ defmodule VolfefeMachine.Workers.CaptureSnapshotsWorker do
           }
       end
     end
-  end
-
-  defp get_baseline(asset_id, window_type) do
-    window_minutes = case window_type do
-      "before" -> 60
-      "1hr_after" -> 60
-      "4hr_after" -> 240
-      "24hr_after" -> 1440
-    end
-
-    Repo.get_by(MarketData.BaselineStats,
-      asset_id: asset_id,
-      window_minutes: window_minutes
-    )
   end
 
   defp upsert_snapshot(nil, attrs) do

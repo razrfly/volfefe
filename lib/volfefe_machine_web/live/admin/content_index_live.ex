@@ -1359,15 +1359,17 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
         </svg>
         Market Impact Analysis
-        <%= render_impact_badge_inline(@summary.significance, @summary.max_z_score) %>
+        <%= render_price_impact_badge_inline(@summary.impact_level, @summary.max_price_change) %>
       </h3>
 
       <div class="bg-gradient-to-br from-orange-50 to-amber-50 rounded-lg p-4 border border-orange-200 space-y-4">
         <!-- Summary Stats -->
         <div class="grid grid-cols-3 gap-3">
           <div class="bg-white rounded-lg p-3 border border-orange-100">
-            <div class="text-xs text-gray-500 mb-1">Max Impact</div>
-            <div class="text-lg font-bold text-gray-900"><%= Float.round(@summary.max_z_score, 2) %>σ</div>
+            <div class="text-xs text-gray-500 mb-1">Max Price Move</div>
+            <div class={"text-lg font-bold #{price_change_color(@summary.max_price_change)}"}>
+              <%= format_price_change(@summary.max_price_change) %>
+            </div>
           </div>
           <div class="bg-white rounded-lg p-3 border border-orange-100">
             <div class="text-xs text-gray-500 mb-1">Isolation</div>
@@ -1383,26 +1385,39 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
 
         <!-- Asset Impacts -->
         <div>
-          <h4 class="text-xs font-semibold text-gray-900 mb-2">Asset-Specific Impacts</h4>
+          <h4 class="text-xs font-semibold text-gray-900 mb-2">Market Movements by Asset</h4>
           <div class="space-y-2">
             <%= for asset <- @summary.assets do %>
               <div class="bg-white rounded-lg p-3 border border-gray-200">
                 <div class="flex items-center justify-between mb-2">
                   <div class="flex items-center gap-2">
                     <span class="text-sm font-bold text-gray-900"><%= asset.symbol %></span>
-                    <%= render_significance_badge_small(asset.significance) %>
+                    <%= render_impact_level_badge_small(asset.impact_level) %>
                   </div>
-                  <span class="text-xs text-gray-500"><%= asset.window %></span>
+                  <span class="text-xs text-gray-500"><%= format_window_label(asset.window) %></span>
                 </div>
                 <div class="flex items-center justify-between">
-                  <span class="text-xs text-gray-600">Z-Score:</span>
-                  <span class={"text-sm font-mono font-bold #{z_score_color(asset.max_z_score)}"}>
-                    <%= Float.round(asset.max_z_score, 2) %>σ
+                  <span class="text-xs text-gray-600">Price Change:</span>
+                  <span class={"text-sm font-mono font-bold #{price_change_color(asset.price_change_pct)}"}>
+                    <%= format_price_change(asset.price_change_pct) %>
                   </span>
                 </div>
               </div>
             <% end %>
           </div>
+        </div>
+
+        <!-- View Detailed Analysis Link -->
+        <div class="pt-3 border-t border-orange-200">
+          <.link
+            navigate={~p"/admin/content/#{@content_id}/analysis"}
+            class="inline-flex items-center justify-center w-full px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium rounded-md transition-colors gap-2"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            View Detailed Analysis →
+          </.link>
         </div>
 
         <!-- Help Section -->
@@ -1415,7 +1430,15 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
           </summary>
           <div class="mt-3 pt-3 border-t border-orange-200 space-y-2 text-xs text-gray-700">
             <div>
-              <span class="font-semibold text-gray-900">Z-Score (σ):</span>
+              <span class="font-semibold text-gray-900">Price Change %:</span>
+              <p class="mt-1 text-gray-600">Shows how much each asset moved after content was posted, compared to the "before" baseline.</p>
+            </div>
+            <div>
+              <span class="font-semibold text-gray-900">Impact Level:</span>
+              <p class="mt-1 text-gray-600">High (>2% move), Moderate (>0.5%), Low (≤0.5%)</p>
+            </div>
+            <div>
+              <span class="font-semibold text-gray-900">Isolation Score:</span>
               <p class="mt-1 text-gray-600">
                 Measures how unusual a price move is compared to historical patterns. Higher absolute values indicate more significant moves.
                 <ul class="ml-4 mt-1 space-y-0.5 list-disc">
@@ -1453,40 +1476,38 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
     """
   end
 
-  defp render_impact_badge_inline(significance, max_z_score) do
-    z_formatted = Float.round(max_z_score, 2)
-    assigns = %{significance: significance, max_z: z_formatted}
+  defp isolation_text_color("green"), do: "text-green-600"
+  defp isolation_text_color("yellow"), do: "text-yellow-600"
+  defp isolation_text_color("red"), do: "text-red-600"
+  defp isolation_text_color(_), do: "text-gray-600"
 
-    case assigns.significance do
-      "high" ->
-        ~H"""
-        <span class="ml-2 px-2 py-0.5 bg-red-600 text-white text-xs rounded font-medium">
-          High Impact (z=<%= @max_z %>)
-        </span>
-        """
-      "moderate" ->
-        ~H"""
-        <span class="ml-2 px-2 py-0.5 bg-yellow-600 text-white text-xs rounded font-medium">
-          Moderate (z=<%= @max_z %>)
-        </span>
-        """
-      "noise" ->
-        ~H"""
-        <span class="ml-2 px-2 py-0.5 bg-gray-500 text-white text-xs rounded font-medium">
-          No Impact (z=<%= @max_z %>)
-        </span>
-        """
-      _ ->
-        ~H"""
-        <span class="ml-2 px-2 py-0.5 bg-gray-400 text-white text-xs rounded">Unknown</span>
-        """
+  # Phase 1 MVP: Price change helpers
+  defp format_price_change(price_change) when is_float(price_change) do
+    sign = if price_change >= 0, do: "+", else: ""
+    "#{sign}#{Float.round(price_change, 2)}%"
+  end
+  defp format_price_change(_), do: "N/A"
+
+  defp price_change_color(price_change) when is_float(price_change) do
+    abs_change = abs(price_change)
+    cond do
+      abs_change >= 2.0 -> if price_change > 0, do: "text-green-600", else: "text-red-600"
+      abs_change >= 0.5 -> if price_change > 0, do: "text-green-500", else: "text-orange-600"
+      true -> "text-gray-600"
     end
   end
+  defp price_change_color(_), do: "text-gray-600"
 
-  defp render_significance_badge_small(significance) do
-    assigns = %{significance: significance}
+  defp format_window_label("before"), do: "Before"
+  defp format_window_label("1hr_after"), do: "1 Hour After"
+  defp format_window_label("4hr_after"), do: "4 Hours After"
+  defp format_window_label("24hr_after"), do: "24 Hours After"
+  defp format_window_label(window), do: window
 
-    case assigns.significance do
+  defp render_impact_level_badge_small(impact_level) do
+    assigns = %{impact_level: impact_level}
+
+    case assigns.impact_level do
       "high" ->
         ~H"""
         <span class="text-xs px-2 py-0.5 bg-red-100 text-red-800 rounded font-medium">High</span>
@@ -1495,9 +1516,9 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
         ~H"""
         <span class="text-xs px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded font-medium">Mod</span>
         """
-      "noise" ->
+      "low" ->
         ~H"""
-        <span class="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded">Noise</span>
+        <span class="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded">Low</span>
         """
       _ ->
         ~H"""
@@ -1506,22 +1527,37 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
     end
   end
 
-  defp isolation_text_color("green"), do: "text-green-600"
-  defp isolation_text_color("yellow"), do: "text-yellow-600"
-  defp isolation_text_color("red"), do: "text-red-600"
-  defp isolation_text_color(_), do: "text-gray-600"
+  defp render_price_impact_badge_inline(impact_level, max_price_change) do
+    assigns = %{impact_level: impact_level, max_price_change: max_price_change}
 
-  defp z_score_color(z_score) do
-    abs_z = abs(z_score)
-    cond do
-      abs_z >= 2.0 -> "text-red-600"
-      abs_z >= 1.0 -> "text-yellow-600"
-      true -> "text-gray-600"
+    case assigns.impact_level do
+      "high" ->
+        ~H"""
+        <span class="ml-2 text-xs px-2.5 py-1 bg-red-100 text-red-800 rounded-full font-semibold">
+          🔴 High Impact (<%= format_price_change(@max_price_change) %>)
+        </span>
+        """
+      "moderate" ->
+        ~H"""
+        <span class="ml-2 text-xs px-2.5 py-1 bg-yellow-100 text-yellow-800 rounded-full font-semibold">
+          🟡 Moderate (<%= format_price_change(@max_price_change) %>)
+        </span>
+        """
+      "low" ->
+        ~H"""
+        <span class="ml-2 text-xs px-2.5 py-1 bg-gray-100 text-gray-600 rounded-full">
+          ⚪ Low Impact (<%= format_price_change(@max_price_change) %>)
+        </span>
+        """
+      _ ->
+        ~H"""
+        <span class="ml-2 text-xs px-2.5 py-1 bg-gray-100 text-gray-400 rounded-full">-</span>
+        """
     end
   end
 
   defp render_impact_badge_with_summary(summary) do
-    max_z_formatted = Float.round(summary.max_z_score, 2)
+    max_price_formatted = Float.round(summary.max_price_change, 2)
     isolation_formatted = Float.round(summary.isolation_score, 2)
 
     # Determine isolation color
@@ -1532,18 +1568,18 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
     end
 
     assigns = %{
-      significance: summary.significance,
-      max_z_score: max_z_formatted,
+      impact_level: summary.impact_level,
+      max_price_change: max_price_formatted,
       snapshot_count: summary.snapshot_count,
       isolation_score: isolation_formatted,
       isolation_color: isolation_color
     }
 
-    case assigns.significance do
+    case assigns.impact_level do
       "high" ->
         ~H"""
         <div class="flex flex-col gap-1">
-          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800" title={"Max z-score: #{@max_z_score}"}>
+          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800" title={"Max price change: #{@max_price_change}%"}>
             <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
               <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
             </svg>
@@ -1560,7 +1596,7 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
       "moderate" ->
         ~H"""
         <div class="flex flex-col gap-1">
-          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800" title={"Max z-score: #{@max_z_score}"}>
+          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800" title={"Max price change: #{@max_price_change}%"}>
             <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
               <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
             </svg>
@@ -1574,14 +1610,14 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
         </div>
         """
 
-      "noise" ->
+      "low" ->
         ~H"""
         <div class="flex flex-col gap-1">
-          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600" title={"Max z-score: #{@max_z_score}"}>
+          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600" title={"Max price change: #{@max_price_change}%"}>
             <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
               <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm0-2a6 6 0 100-12 6 6 0 000 12z" clip-rule="evenodd" />
             </svg>
-            No Impact
+            Low Impact
           </span>
           <div class="flex items-center gap-2 text-xs text-gray-500">
             <span title="Snapshot count"><%= @snapshot_count %> snaps</span>
