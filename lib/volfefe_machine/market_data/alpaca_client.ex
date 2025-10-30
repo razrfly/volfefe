@@ -142,11 +142,11 @@ defmodule VolfefeMachine.MarketData.AlpacaClient do
   List assets from Alpaca (stub - not yet implemented).
 
   This function is called by MarketData.Loader but is not yet implemented.
-  Currently returns an empty list.
+  Returns error to prevent silent failures in asset seeding workflows.
   """
   def list_assets(_opts \\ []) do
     # TODO: Implement asset listing when needed
-    {:ok, []}
+    {:error, :not_implemented}
   end
 
   @doc """
