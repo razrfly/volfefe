@@ -1,21 +1,6 @@
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
   <!-- Admin Navigation -->
-  <div class="mb-6">
-    <nav class="flex space-x-4 border-b border-gray-200 pb-2">
-      <.link navigate={~p"/admin/content"} class="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium">
-        📄 Content
-      </.link>
-      <.link navigate={~p"/admin/ml"} class="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium">
-        🤖 ML Jobs
-      </.link>
-      <.link navigate={~p"/admin/market-analysis"} class="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium">
-        📈 Market Analysis
-      </.link>
-      <a href="/admin/oban" class="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium">
-        ⚙️ Oban Dashboard
-      </a>
-    </nav>
-  </div>
+  <.admin_nav current_page={:content} />
 
   <%= if @content do %>
     <!-- Header Section -->
@@ -82,7 +67,7 @@
     <%= if @chart_data && @chart_data.assets && length(@chart_data.assets) > 0 do %>
       <!-- Asset Comparison Cards -->
       <div class="bg-white shadow rounded-lg p-6 mb-6">
-        <h2 class="text-xl font-bold text-gray-900 mb-4">Asset Impact Summary</h2>
+        <h2 class="text-xl font-semibold text-gray-900 mb-4">Asset Impact Summary</h2>
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
           <%= for asset <- @chart_data.assets do %>
@@ -142,7 +127,7 @@
       <!-- Time Series Visualization -->
       <div class="bg-white shadow rounded-lg p-6 mb-6">
         <div class="flex justify-between items-center mb-4">
-          <h2 class="text-xl font-bold text-gray-900">Price Change Over Time</h2>
+          <h2 class="text-xl font-semibold text-gray-900">Price Change Over Time</h2>
           <div class="text-sm text-gray-600">
             % change vs. baseline
           </div>
@@ -192,7 +177,7 @@
 
       <!-- Detailed Snapshot Table -->
       <div class="bg-white shadow rounded-lg p-6">
-        <h2 class="text-xl font-bold text-gray-900 mb-4">Detailed Snapshots</h2>
+        <h2 class="text-xl font-semibold text-gray-900 mb-4">Detailed Snapshots</h2>
 
         <%= for asset_data <- @snapshots do %>
           <div class="mb-6 last:mb-0">

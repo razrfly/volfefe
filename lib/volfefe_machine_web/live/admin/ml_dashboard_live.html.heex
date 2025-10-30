@@ -1,21 +1,6 @@
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
   <!-- Admin Navigation -->
-  <div class="mb-6">
-    <nav class="flex space-x-4 border-b border-gray-200 pb-2">
-      <.link navigate={~p"/admin/content"} class="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium">
-        📄 Content
-      </.link>
-      <.link navigate={~p"/admin/ml"} class="text-blue-600 border-b-2 border-blue-600 px-3 py-2 text-sm font-medium">
-        🤖 ML Jobs
-      </.link>
-      <.link navigate={~p"/admin/market-analysis"} class="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium">
-        📈 Market Analysis
-      </.link>
-      <a href="/admin/oban" class="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium">
-        ⚙️ Oban Dashboard
-      </a>
-    </nav>
-  </div>
+  <.admin_nav current_page={:ml} />
 
   <!-- Header -->
   <div class="mb-8">
@@ -43,7 +28,7 @@
       <%= for queue <- @queue_stats do %>
         <div class="bg-white shadow rounded-lg p-6 border border-gray-200">
           <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-medium text-gray-900">
+            <h3 class="text-lg font-semibold text-gray-900">
               <%= queue_status_icon(queue) %> <%= queue.name %>
             </h3>
           </div>
@@ -81,11 +66,11 @@
 
   <!-- Job Management Forms -->
   <div class="mb-8">
-    <h2 class="text-2xl font-semibold text-gray-900 mb-4">Job Management</h2>
+    <h2 class="text-xl font-semibold text-gray-900 mb-4">Job Management</h2>
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <!-- ML Reprocessing Form -->
       <div class="bg-white shadow rounded-lg p-6 border border-gray-200">
-        <h3 class="text-xl font-semibold text-gray-900 mb-4">🤖 ML Reprocessing</h3>
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">🤖 ML Reprocessing</h3>
         <p class="text-sm text-gray-600 mb-4">
           Rerun ML classification models on existing content. Use when deploying new models or fixing classification errors.
         </p>
@@ -201,7 +186,7 @@
 
       <!-- Market Snapshot Capture Form -->
       <div class="bg-white shadow rounded-lg p-6 border border-gray-200">
-        <h3 class="text-xl font-semibold text-gray-900 mb-4">📸 Market Snapshot Capture</h3>
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">📸 Market Snapshot Capture</h3>
         <p class="text-sm text-gray-600 mb-4">
           <strong>Auto-triggers on classification.</strong> Use this for manual recapture of failed/incomplete snapshots.
         </p>
