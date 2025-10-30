@@ -28,6 +28,10 @@ defmodule VolfefeMachineWeb.CoreComponents do
   """
   use Phoenix.Component
   use Gettext, backend: VolfefeMachineWeb.Gettext
+  use Phoenix.VerifiedRoutes,
+    endpoint: VolfefeMachineWeb.Endpoint,
+    router: VolfefeMachineWeb.Router,
+    statics: VolfefeMachineWeb.static_paths()
 
   alias Phoenix.LiveView.JS
 
@@ -472,5 +476,60 @@ defmodule VolfefeMachineWeb.CoreComponents do
   """
   def translate_errors(errors, field) when is_list(errors) do
     for {^field, {msg, opts}} <- errors, do: translate_error({msg, opts})
+  end
+
+  @doc """
+  Renders the admin navigation bar.
+
+  ## Examples
+
+      <.admin_nav current_page={:content} />
+      <.admin_nav current_page={:ml} />
+  """
+  attr :current_page, :atom, required: true, doc: "The current page identifier (:content, :ml, :market_analysis, :oban)"
+
+  def admin_nav(assigns) do
+    ~H"""
+    <div class="mb-6">
+      <nav class="flex space-x-4 border-b border-gray-200 pb-2">
+        <.link
+          navigate={~p"/admin/content"}
+          class={[
+            "px-3 py-2 text-sm font-medium",
+            if(@current_page == :content, do: "text-blue-600 border-b-2 border-blue-600", else: "text-gray-600 hover:text-gray-900")
+          ]}
+        >
+          📄 Content
+        </.link>
+        <.link
+          navigate={~p"/admin/ml"}
+          class={[
+            "px-3 py-2 text-sm font-medium",
+            if(@current_page == :ml, do: "text-blue-600 border-b-2 border-blue-600", else: "text-gray-600 hover:text-gray-900")
+          ]}
+        >
+          🤖 ML Jobs
+        </.link>
+        <.link
+          navigate={~p"/admin/market-analysis"}
+          class={[
+            "px-3 py-2 text-sm font-medium",
+            if(@current_page == :market_analysis, do: "text-blue-600 border-b-2 border-blue-600", else: "text-gray-600 hover:text-gray-900")
+          ]}
+        >
+          📈 Market Analysis
+        </.link>
+        <a
+          href="/admin/oban"
+          class={[
+            "px-3 py-2 text-sm font-medium",
+            if(@current_page == :oban, do: "text-blue-600 border-b-2 border-blue-600", else: "text-gray-600 hover:text-gray-900")
+          ]}
+        >
+          ⚙️ Oban Dashboard
+        </a>
+      </nav>
+    </div>
+    """
   end
 end

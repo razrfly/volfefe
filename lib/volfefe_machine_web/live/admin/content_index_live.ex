@@ -52,18 +52,21 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="p-6">
-      <div class="mb-6">
-        <h1 class="text-2xl font-bold">Content & Classifications</h1>
-        <p class="text-gray-600 mt-2">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <!-- Admin Navigation -->
+      <.admin_nav current_page={:content} />
+
+      <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900">Content & Classifications</h1>
+        <p class="mt-2 text-sm text-gray-600">
           Monitor ingested content and ML-based sentiment analysis results in real-time
         </p>
       </div>
 
       <!-- Summary Statistics Cards -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <!-- Total Content Card -->
-        <div class="bg-white border rounded-lg p-4 shadow-sm">
+        <div class="bg-white shadow rounded-lg p-4 border border-gray-200">
           <div class="flex justify-between items-start">
             <div>
               <p class="text-sm text-gray-600 font-medium">Total Content</p>
@@ -78,7 +81,7 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
         </div>
 
         <!-- Classified Card -->
-        <div class="bg-white border rounded-lg p-4 shadow-sm">
+        <div class="bg-white shadow rounded-lg p-4 border border-gray-200">
           <div class="flex justify-between items-start">
             <div>
               <p class="text-sm text-gray-600 font-medium">Classified</p>
@@ -96,7 +99,7 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
         </div>
 
         <!-- Unclassified Card -->
-        <div class="bg-white border rounded-lg p-4 shadow-sm">
+        <div class="bg-white shadow rounded-lg p-4 border border-gray-200">
           <div class="flex justify-between items-start">
             <div>
               <p class="text-sm text-gray-600 font-medium">Unclassified</p>
@@ -114,7 +117,7 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
         </div>
 
         <!-- Average Confidence Card -->
-        <div class="bg-white border rounded-lg p-4 shadow-sm">
+        <div class="bg-white shadow rounded-lg p-4 border border-gray-200">
           <div class="flex justify-between items-start">
             <div>
               <p class="text-sm text-gray-600 font-medium">Avg Confidence</p>
@@ -136,8 +139,8 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
 
       <!-- Sentiment Distribution (if we have classified content) -->
       <%= if @stats.classified_count > 0 do %>
-        <div class="bg-white border rounded-lg p-4 shadow-sm mb-6">
-          <h3 class="text-sm font-medium text-gray-900 mb-3">Sentiment Distribution</h3>
+        <div class="bg-white shadow rounded-lg p-6 border border-gray-200 mb-8">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">Sentiment Distribution</h3>
           <div class="grid grid-cols-3 gap-4">
             <div class="text-center">
               <div class="text-2xl font-bold text-green-600"><%= @stats.sentiment_dist.positive %></div>
@@ -165,7 +168,7 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
       <% end %>
 
       <!-- Filters -->
-      <div class="bg-white border rounded-lg p-4 shadow-sm mb-6">
+      <div class="bg-white shadow rounded-lg p-6 border border-gray-200 mb-8">
         <div class="flex flex-wrap gap-4">
           <form phx-change="filter_sentiment">
             <label class="block text-sm font-medium text-gray-700 mb-2">
@@ -210,13 +213,13 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
       </div>
 
       <%= if @loading do %>
-        <div class="bg-white border rounded-lg shadow-sm p-12 text-center">
+        <div class="bg-white shadow rounded-lg p-12 text-center border border-gray-200">
           <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mb-4"></div>
           <p class="text-gray-600">Loading content...</p>
         </div>
       <% else %>
         <%= if Enum.empty?(@contents) do %>
-          <div class="bg-white border rounded-lg shadow-sm p-12 text-center">
+          <div class="bg-white shadow rounded-lg p-12 text-center border border-gray-200">
             <svg class="mx-auto h-16 w-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
@@ -242,7 +245,7 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
             <% end %>
           </div>
         <% else %>
-        <div class="bg-white border rounded-lg shadow-sm overflow-hidden">
+        <div class="bg-white shadow rounded-lg overflow-hidden border border-gray-200">
           <div class="overflow-x-auto touch-pan-x overscroll-x-contain">
           <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">

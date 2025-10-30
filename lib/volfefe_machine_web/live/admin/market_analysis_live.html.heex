@@ -1,21 +1,6 @@
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
   <!-- Admin Navigation -->
-  <div class="mb-6">
-    <nav class="flex space-x-4 border-b border-gray-200 pb-2">
-      <.link navigate={~p"/admin/content"} class="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium">
-        📄 Content
-      </.link>
-      <.link navigate={~p"/admin/ml"} class="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium">
-        🤖 ML Jobs
-      </.link>
-      <.link navigate={~p"/admin/market-analysis"} class="text-blue-600 border-b-2 border-blue-600 px-3 py-2 text-sm font-medium">
-        📈 Market Analysis
-      </.link>
-      <a href="/admin/oban" class="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium">
-        ⚙️ Oban Dashboard
-      </a>
-    </nav>
-  </div>
+  <.admin_nav current_page={:market_analysis} />
 
   <div class="mb-8">
     <h1 class="text-3xl font-bold text-gray-900">Market Impact Analysis</h1>
@@ -26,7 +11,7 @@
 
   <!-- Filters -->
   <div class="bg-white shadow rounded-lg p-6 mb-6">
-    <h2 class="text-lg font-semibold text-gray-900 mb-4">Filters</h2>
+    <h2 class="text-xl font-semibold text-gray-900 mb-4">Filters</h2>
 
     <.form for={@filter_form} phx-change="update_filter">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -56,7 +41,7 @@
     <div class="bg-white shadow rounded-lg p-6 mb-6">
       <div class="flex justify-between items-start mb-4">
         <div class="flex-1">
-          <h2 class="text-xl font-semibold text-gray-900 mb-2">Content #<%= @selected_content_id %></h2>
+          <h2 class="text-xl font-semibold text-gray-900">Content #<%= @selected_content_id %></h2>
           <%= if @selected_content do %>
             <p class="text-sm text-gray-600 mb-2">
               Published <%= Calendar.strftime(@selected_content.published_at, "%B %d, %Y at %I:%M %p UTC") %>
@@ -150,7 +135,7 @@
     <!-- Content List View -->
     <div class="bg-white shadow rounded-lg overflow-hidden">
       <div class="px-6 py-4 border-b border-gray-200">
-        <h2 class="text-lg font-semibold text-gray-900">
+        <h2 class="text-xl font-semibold text-gray-900">
           Content with Market Snapshots (<%= length(@content_list) %>)
         </h2>
       </div>
