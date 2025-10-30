@@ -139,6 +139,17 @@ defmodule VolfefeMachine.MarketData.AlpacaClient do
   end
 
   @doc """
+  List assets from Alpaca (stub - not yet implemented).
+
+  This function is called by MarketData.Loader but is not yet implemented.
+  Currently returns an empty list.
+  """
+  def list_assets(_opts \\ []) do
+    # TODO: Implement asset listing when needed
+    {:ok, []}
+  end
+
+  @doc """
   Get bar for market snapshot with validation.
 
   Fetches a bar for the specified timestamp with market hours validation

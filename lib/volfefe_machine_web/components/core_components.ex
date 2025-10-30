@@ -519,6 +519,15 @@ defmodule VolfefeMachineWeb.CoreComponents do
         >
           📈 Market Analysis
         </.link>
+        <.link
+          navigate={~p"/admin/imports"}
+          class={[
+            "px-3 py-2 text-sm font-medium",
+            if(@current_page == :imports, do: "text-blue-600 border-b-2 border-blue-600", else: "text-gray-600 hover:text-gray-900")
+          ]}
+        >
+          📥 Imports
+        </.link>
         <a
           href="/admin/oban"
           class={[
@@ -530,6 +539,47 @@ defmodule VolfefeMachineWeb.CoreComponents do
         </a>
       </nav>
     </div>
+    """
+  end
+
+  @doc """
+  Renders a breadcrumb navigation trail.
+
+  ## Examples
+
+      <.breadcrumb items={[
+        %{label: "Content", path: ~p"/admin/content"},
+        %{label: "Content #109", path: ~p"/admin/content/109"},
+        %{label: "Market Analysis", path: nil}
+      ]} />
+  """
+  attr :items, :list, required: true, doc: "List of breadcrumb items with :label and :path"
+
+  def breadcrumb(assigns) do
+    ~H"""
+    <nav aria-label="Breadcrumb" class="mb-4">
+      <ol class="flex items-center flex-wrap gap-2 text-sm">
+        <%= for {item, index} <- Enum.with_index(@items) do %>
+          <%= if index > 0 do %>
+            <li class="text-gray-400" aria-hidden="true">›</li>
+          <% end %>
+          <li>
+            <%= if item.path do %>
+              <.link
+                navigate={item.path}
+                class="text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                <%= item.label %>
+              </.link>
+            <% else %>
+              <span class="text-gray-900 font-medium" aria-current="page">
+                <%= item.label %>
+              </span>
+            <% end %>
+          </li>
+        <% end %>
+      </ol>
+    </nav>
     """
   end
 end

@@ -30,6 +30,7 @@ defmodule VolfefeMachineWeb.Router do
     live "/content/:id/analysis", ContentAnalysisLive, :show
     live "/ml", MLDashboardLive, :index
     live "/market-analysis", MarketAnalysisLive, :index
+    live "/imports", ImportLive, :index
   end
 
   # Admin Oban dashboard

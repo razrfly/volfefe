@@ -2,6 +2,13 @@
   <!-- Admin Navigation -->
   <.admin_nav current_page={:content} />
 
+  <!-- Breadcrumb Navigation -->
+  <.breadcrumb items={[
+    %{label: "Content", path: ~p"/admin/content"},
+    %{label: "Content ##{@content_id}", path: ~p"/admin/content/#{@content_id}"},
+    %{label: "Market Analysis", path: nil}
+  ]} />
+
   <%= if @content do %>
     <!-- Header Section -->
     <div class="bg-white shadow rounded-lg p-6 mb-6">
