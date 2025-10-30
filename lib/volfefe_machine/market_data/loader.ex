@@ -73,9 +73,10 @@ defmodule VolfefeMachine.MarketData.Loader do
         log_stats(stats)
         {:ok, stats}
 
-      {:error, reason} ->
-        Logger.error("Failed to fetch assets from Alpaca: #{inspect(reason)}")
-        {:error, reason}
+      # TODO: Restore when AlpacaClient.list_assets is fully implemented
+      # {:error, reason} ->
+      #   Logger.error("Failed to fetch assets from Alpaca: #{inspect(reason)}")
+      #   {:error, reason}
     end
   end
 

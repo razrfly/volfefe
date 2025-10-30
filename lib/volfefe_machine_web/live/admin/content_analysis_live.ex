@@ -112,7 +112,6 @@ defmodule VolfefeMachineWeb.Admin.ContentAnalysisLive do
   defp prepare_time_series(snapshots) do
     # Snapshots come as a list of %{asset: asset, snapshots: %{"window" => snapshot, ...}}
     # We need to transform this into a list per asset with data points ordered by window
-    window_order = %{"before" => 0, "1hr_after" => 1, "4hr_after" => 2, "24hr_after" => 3}
     windows = ["before", "1hr_after", "4hr_after", "24hr_after"]
 
     snapshots
@@ -214,7 +213,8 @@ defmodule VolfefeMachineWeb.Admin.ContentAnalysisLive do
   # Template helpers
 
   def format_percentage(nil), do: "—"
-  def format_percentage(0.0), do: "0.00%"
+
+  def format_percentage(value) when is_float(value) and value == 0.0, do: "0.00%"
 
   def format_percentage(value) when is_float(value) do
     sign = if value >= 0, do: "+", else: ""
@@ -222,7 +222,8 @@ defmodule VolfefeMachineWeb.Admin.ContentAnalysisLive do
   end
 
   def format_z_score(nil), do: "—"
-  def format_z_score(0.0), do: "0.00"
+
+  def format_z_score(value) when is_float(value) and value == 0.0, do: "0.00"
 
   def format_z_score(value) when is_float(value) do
     :erlang.float_to_binary(abs(value), decimals: 2) <> "σ"
