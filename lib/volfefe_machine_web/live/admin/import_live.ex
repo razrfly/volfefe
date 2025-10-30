@@ -133,17 +133,25 @@ defmodule VolfefeMachineWeb.Admin.ImportLive do
 
   @impl true
   def handle_event("cancel_job", %{"job_id" => job_id}, socket) do
-    case Oban.cancel_job(String.to_integer(job_id)) do
-      {:ok, _job} ->
-        {:noreply,
-         socket
-         |> put_flash(:info, "Job cancelled")
-         |> load_recent_jobs()}
+    case Integer.parse(job_id) do
+      {id, ""} ->
+        case Oban.cancel_job(id) do
+          {:ok, _job} ->
+            {:noreply,
+             socket
+             |> put_flash(:info, "Job cancelled")
+             |> load_recent_jobs()}
 
-      {:error, _reason} ->
+          {:error, _reason} ->
+            {:noreply,
+             socket
+             |> put_flash(:error, "Failed to cancel job")}
+        end
+
+      _ ->
         {:noreply,
          socket
-         |> put_flash(:error, "Failed to cancel job")}
+         |> put_flash(:error, "Invalid job identifier")}
     end
   end
 

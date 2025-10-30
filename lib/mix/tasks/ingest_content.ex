@@ -35,7 +35,7 @@ defmodule Mix.Tasks.Ingest.Content do
     * `--status` - Show import status and recommendations without importing
     * `--include-replies` - Include replies in results
     * `--dry-run, -d` - Preview without importing
-    * `--force, -f` - Re-import existing posts (update)
+    * `--force, -f` - [Reserved] Force re-classification of already classified posts (not yet implemented)
 
   ## Examples
 
@@ -170,6 +170,9 @@ defmodule Mix.Tasks.Ingest.Content do
          date_range: parsed_date_range,
          include_replies: include_replies,
          dry_run: dry_run,
+         # TODO: Implement force flag to reset classification status when re-importing
+         # Currently, create_or_update_content already does smart upserts that preserve
+         # classification data, so this flag is reserved for forcing re-classification
          force: force
        }}
     end
@@ -507,7 +510,7 @@ defmodule Mix.Tasks.Ingest.Content do
       --status              Show import status and recommendations
       --include-replies, -r Include replies in results
       --dry-run, -d         Preview without importing
-      --force, -f           Re-import existing posts (update)
+      --force, -f           [Reserved] Force re-classification (not yet implemented)
 
     Modes:
       newest      Import only new posts since last import (incremental, default)
