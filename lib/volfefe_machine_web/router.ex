@@ -29,6 +29,7 @@ defmodule VolfefeMachineWeb.Router do
     live "/content/:id", ContentIndexLive, :show
     live "/content/:id/analysis", ContentAnalysisLive, :show
     live "/ml", MLDashboardLive, :index
+    live "/market-data", MarketDataDashboardLive, :index
     live "/market-analysis", MarketAnalysisLive, :index
     live "/imports", ImportLive, :index
   end

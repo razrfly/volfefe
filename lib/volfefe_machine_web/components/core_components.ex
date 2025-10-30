@@ -511,6 +511,15 @@ defmodule VolfefeMachineWeb.CoreComponents do
           🤖 ML Jobs
         </.link>
         <.link
+          navigate={~p"/admin/market-data"}
+          class={[
+            "px-3 py-2 text-sm font-medium",
+            if(@current_page == :market_data, do: "text-blue-600 border-b-2 border-blue-600", else: "text-gray-600 hover:text-gray-900")
+          ]}
+        >
+          📊 Market Data
+        </.link>
+        <.link
           navigate={~p"/admin/market-analysis"}
           class={[
             "px-3 py-2 text-sm font-medium",
