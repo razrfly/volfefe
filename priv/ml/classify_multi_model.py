@@ -172,6 +172,11 @@ def extract_entities(ner_pipeline, text):
     start_time = time.time()
 
     try:
+        # Truncate text if needed - NER models typically have 512 token limit
+        # Approximate: 4 chars per token, so ~2000 chars = ~500 tokens (with safety margin)
+        if len(text) > 2000:
+            text = text[:2000]
+
         # Run NER model
         raw_entities = ner_pipeline(text)
 
@@ -323,7 +328,8 @@ def classify_with_model(model_id, classifier, text, model_config):
 
     try:
         # Get all scores from model (top_k=None for all classes)
-        all_results = classifier(text, top_k=None)
+        # truncation=True handles texts longer than model's max sequence length (512 tokens)
+        all_results = classifier(text, top_k=None, truncation=True, max_length=512)
 
         # Calculate latency immediately after model call
         latency_ms = int((time.time() - start_time) * 1000)
