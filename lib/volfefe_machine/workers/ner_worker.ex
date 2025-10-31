@@ -40,7 +40,8 @@ defmodule VolfefeMachine.Workers.NerWorker do
 
     with :ok <- check_content_status(content_id, force),
          {:ok, _result} <- Intelligence.classify_content_multi_model(content_id) do
-      Content.mark_as_classified(content_id)
+      # Don't auto-capture market snapshots - let user manually trigger from Market Data Dashboard
+      Content.mark_as_classified(content_id, false)
       Logger.info("Successfully extracted entities for content_id=#{content_id}")
       :ok
     else
