@@ -27,8 +27,8 @@ defmodule VolfefeMachine.MarketData.Loader do
   @doc """
   Loads all assets from Alpaca API into the database.
 
-  Fetches assets based on options and upserts them into the database.
-  Existing assets are updated with new data from Alpaca.
+  **NOTE**: This function is not yet implemented as `AlpacaClient.list_assets/1`
+  is a stub. Use `load_asset/1` for individual assets instead.
 
   ## Options
 
@@ -38,45 +38,19 @@ defmodule VolfefeMachine.MarketData.Loader do
 
   ## Returns
 
-  - `{:ok, stats}` - Success with statistics map
-  - `{:error, reason}` - Fetch failed
-
-  ## Statistics Map
-
-  - `:total` - Total assets fetched from Alpaca
-  - `:success` - Successfully inserted/updated
-  - `:errors` - Failed to insert/update
+  - `{:error, :not_implemented}` - Function not yet implemented
 
   ## Examples
 
-      # Load all active US equities
-      {:ok, %{success: 9000, errors: 0}} = Loader.load_all_assets()
+      # This will return an error
+      {:error, :not_implemented} = Loader.load_all_assets()
 
-      # Load only active NASDAQ stocks
-      {:ok, stats} = Loader.load_all_assets(exchange: "NASDAQ")
+      # Use load_asset/1 instead
+      {:ok, asset} = Loader.load_asset("AAPL")
   """
-  def load_all_assets(opts \\ []) do
-    Logger.info("Starting Alpaca asset load with options: #{inspect(opts)}")
-
-    case AlpacaClient.list_assets(opts) do
-      {:ok, assets} ->
-        Logger.info("Fetched #{length(assets)} assets from Alpaca, inserting into database...")
-
-        results = Enum.map(assets, &upsert_asset/1)
-
-        stats = %{
-          total: length(assets),
-          success: Enum.count(results, &match?({:ok, _}, &1)),
-          errors: Enum.count(results, &match?({:error, _}, &1))
-        }
-
-        log_stats(stats)
-        {:ok, stats}
-
-      {:error, reason} ->
-        Logger.error("Failed to fetch assets from Alpaca: #{inspect(reason)}")
-        {:error, reason}
-    end
+  def load_all_assets(_opts \\ []) do
+    Logger.warning("load_all_assets is not yet implemented - use load_asset/1 for individual assets")
+    {:error, :not_implemented}
   end
 
   @doc """
@@ -153,16 +127,4 @@ defmodule VolfefeMachine.MarketData.Loader do
 
   defp map_status("active"), do: :active
   defp map_status(_), do: :inactive
-
-  defp log_stats(%{total: total, success: success, errors: errors}) do
-    rate = if total > 0, do: Float.round(success / total * 100, 1), else: 0.0
-
-    Logger.info("""
-    Asset load complete:
-      Total:   #{total}
-      Success: #{success}
-      Errors:  #{errors}
-      Rate:    #{rate}%
-    """)
-  end
 end
