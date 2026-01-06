@@ -355,7 +355,8 @@ defmodule VolfefeMachine.Intelligence.Reprocessor do
     case result do
       {:ok, _classification_or_result} ->
         # Handles both single-model {:ok, classification} and multi-model {:ok, %{consensus: ...}}
-        Content.mark_as_classified(content_id)
+        # Don't auto-capture market snapshots - let user manually trigger from Market Data Dashboard
+        Content.mark_as_classified(content_id, false)
         {:ok, content_id}
 
       {:error, reason} ->
