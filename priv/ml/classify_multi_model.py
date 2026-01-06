@@ -171,10 +171,14 @@ def extract_entities(ner_pipeline, text):
     """
     start_time = time.time()
 
+    # Calculate truncation info upfront (safe before try block)
+    original_length = len(text)
+    was_truncated = original_length > 2000
+
     try:
         # Truncate text if needed - NER models typically have 512 token limit
         # Approximate: 4 chars per token, so ~2000 chars = ~500 tokens (with safety margin)
-        if len(text) > 2000:
+        if was_truncated:
             text = text[:2000]
 
         # Run NER model
@@ -222,7 +226,10 @@ def extract_entities(ner_pipeline, text):
             "meta": {
                 "processing": {
                     "latency_ms": latency_ms,
-                    "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+                    "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                    "input_truncated": was_truncated,
+                    "input_length": original_length,
+                    "processed_length": len(text)
                 },
                 "model_config": {
                     "model_name": "dslim/bert-base-NER",
@@ -248,7 +255,10 @@ def extract_entities(ner_pipeline, text):
             "meta": {
                 "processing": {
                     "latency_ms": latency_ms,
-                    "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+                    "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                    "input_truncated": was_truncated,
+                    "input_length": original_length,
+                    "processed_length": len(text)
                 }
             }
         }
