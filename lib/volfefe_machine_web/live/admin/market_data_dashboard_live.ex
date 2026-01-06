@@ -4,6 +4,7 @@ defmodule VolfefeMachineWeb.Admin.MarketDataDashboardLive do
   import Ecto.Query
   import LiveToast
   alias VolfefeMachine.Repo
+  alias VolfefeMachine.MarketData.Priority
 
   @impl true
   def mount(_params, _session, socket) do
@@ -17,6 +18,9 @@ defmodule VolfefeMachineWeb.Admin.MarketDataDashboardLive do
      |> assign(:page_title, "Market Data Dashboard")
      |> assign(:snapshot_form, to_form(%{}, as: :snapshot))
      |> assign(:snapshot_limit, :missing)
+     |> assign(:filter_tier, :all)
+     |> assign(:show_content_list, false)
+     |> assign(:content_details, [])
      |> load_initial_data()}
   end
 
@@ -54,6 +58,34 @@ defmodule VolfefeMachineWeb.Admin.MarketDataDashboardLive do
     Logger.info("Snapshot limit changed from #{inspect(socket.assigns.snapshot_limit)} to #{inspect(snapshot_limit)}")
 
     {:noreply, assign(socket, :snapshot_limit, snapshot_limit)}
+  end
+
+  @impl true
+  def handle_event("toggle_content_list", _params, socket) do
+    show = !socket.assigns.show_content_list
+
+    socket = if show do
+      # Load content details when showing the list
+      assign(socket, :content_details, load_content_details_with_priority(socket))
+    else
+      socket
+    end
+
+    {:noreply, assign(socket, :show_content_list, show)}
+  end
+
+  @impl true
+  def handle_event("filter_tier", %{"tier" => tier_str}, socket) do
+    filter_tier = case tier_str do
+      "all" -> :all
+      "1" -> 1
+      "2" -> 2
+      "3" -> 3
+      "skip" -> :skip
+      _ -> :all
+    end
+
+    {:noreply, assign(socket, :filter_tier, filter_tier)}
   end
 
   @impl true
@@ -225,6 +257,75 @@ defmodule VolfefeMachineWeb.Admin.MarketDataDashboardLive do
 
     Enum.uniq(incomplete_ids ++ no_snapshots)
   end
+
+  defp load_content_details_with_priority(socket) do
+    alias VolfefeMachine.Content.Content
+
+    content_ids = case socket.assigns.snapshot_limit do
+      :missing -> get_content_missing_snapshots()
+      limit when is_integer(limit) -> get_recent_classified_content(limit)
+      _ -> []
+    end
+
+    # Load full content with associations
+    content_list =
+      from(c in Content,
+        where: c.id in ^content_ids,
+        preload: [:classification, :content_targets],
+        order_by: [desc: c.published_at]
+      )
+      |> Repo.all()
+
+    # Calculate priority for each content
+    Enum.map(content_list, fn content ->
+      {result, tier_or_reason} = Priority.evaluate(content)
+
+      %{
+        content: content,
+        priority_result: result,
+        priority_tier: if(result == :eligible, do: tier_or_reason, else: nil),
+        skip_reason: if(result == :skip, do: tier_or_reason, else: nil)
+      }
+    end)
+    |> Enum.sort_by(fn item ->
+      # Sort: Tier 1 first, then Tier 2, Tier 3, then skip items
+      case item.priority_tier do
+        1 -> 1
+        2 -> 2
+        3 -> 3
+        nil -> 4
+      end
+    end)
+  end
+
+  defp filtered_content_details(assigns) do
+    details = Map.get(assigns, :content_details, [])
+    filter_tier = Map.get(assigns, :filter_tier, :all)
+
+    case filter_tier do
+      :all ->
+        details
+      tier when tier in [1, 2, 3] ->
+        Enum.filter(details, fn item -> item.priority_tier == tier end)
+      :skip ->
+        Enum.filter(details, fn item -> item.priority_result == :skip end)
+      _ ->
+        []
+    end
+  end
+
+  defp count_by_tier(content_details) when is_list(content_details) do
+    Enum.reduce(content_details, %{1 => 0, 2 => 0, 3 => 0, skip: 0}, fn item, acc ->
+      case item.priority_tier do
+        1 -> Map.update!(acc, 1, &(&1 + 1))
+        2 -> Map.update!(acc, 2, &(&1 + 1))
+        3 -> Map.update!(acc, 3, &(&1 + 1))
+        nil -> Map.update!(acc, :skip, &(&1 + 1))
+      end
+    end)
+  end
+
+  defp count_by_tier(_), do: %{1 => 0, 2 => 0, 3 => 0, skip: 0}
 
   defp get_recent_classified_content(limit) do
     alias VolfefeMachine.Content.Content
