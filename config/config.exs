@@ -71,11 +71,19 @@ config :volfefe_machine, Oban,
     market_baselines: 3,
     market_snapshots: 5,
     market_batch: 2,
-    content_import: 2
+    content_import: 2,
+    polymarket: 5
   ],
   plugins: [
     {Oban.Plugins.Pruner, max_age: 60 * 60 * 24 * 7},
-    {Oban.Plugins.Lifeline, rescue_after: :timer.minutes(30)}
+    {Oban.Plugins.Lifeline, rescue_after: :timer.minutes(30)},
+    {Oban.Plugins.Cron,
+     crontab: [
+       # Trade ingestion every 5 minutes - wide net coverage
+       {"*/5 * * * *", VolfefeMachine.Workers.Polymarket.TradeIngestionWorker},
+       # Market sync hourly with resolution checking
+       {"0 * * * *", VolfefeMachine.Workers.Polymarket.MarketSyncWorker, args: %{check_resolutions: true}}
+     ]}
   ]
 
 # Configure LiveToast for toast notifications
