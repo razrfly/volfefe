@@ -230,7 +230,7 @@
           </div>
         <% end %>
 
-        <form phx-submit="add_note" class="flex gap-2">
+        <form id="add-note-form" phx-submit="add_note" class="flex gap-2">
           <input
             type="text"
             name="note"
@@ -375,7 +375,7 @@
                 Resolve Investigation
               </h3>
 
-              <form phx-submit="resolve_candidate" class="mt-4 space-y-4">
+              <form id="resolve-candidate-form" phx-submit="resolve_candidate" class="mt-4 space-y-4">
                 <div>
                   <label class="block text-sm font-medium text-gray-700">Resolution</label>
                   <select

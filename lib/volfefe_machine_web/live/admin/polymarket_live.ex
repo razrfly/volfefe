@@ -13,6 +13,7 @@ defmodule VolfefeMachineWeb.Admin.PolymarketLive do
 
   import LiveToast
   alias VolfefeMachine.Polymarket
+  alias VolfefeMachine.Polymarket.FormatHelpers
 
   @impl true
   def mount(_params, _session, socket) do
@@ -162,26 +163,29 @@ defmodule VolfefeMachineWeb.Admin.PolymarketLive do
 
   @impl true
   def handle_event("run_discovery_custom", params, socket) do
-    limit = String.to_integer(params["limit"] || "50")
-    anomaly_threshold = Decimal.new(params["anomaly_threshold"] || "0.5")
-    probability_threshold = Decimal.new(params["probability_threshold"] || "0.4")
+    with {:ok, limit} <- parse_integer(params["limit"], 50),
+         {:ok, anomaly_threshold} <- parse_decimal(params["anomaly_threshold"], "0.5"),
+         {:ok, probability_threshold} <- parse_decimal(params["probability_threshold"], "0.4") do
+      opts = [
+        limit: limit,
+        anomaly_threshold: anomaly_threshold,
+        probability_threshold: probability_threshold,
+        notes: "Custom discovery from dashboard"
+      ]
 
-    opts = [
-      limit: limit,
-      anomaly_threshold: anomaly_threshold,
-      probability_threshold: probability_threshold,
-      notes: "Custom discovery from dashboard"
-    ]
+      case Polymarket.quick_discovery(opts) do
+        {:ok, %{candidates: count}} ->
+          {:noreply,
+           socket
+           |> put_toast(:success, "Discovery complete: #{count} new candidates found")
+           |> load_data()}
 
-    case Polymarket.quick_discovery(opts) do
-      {:ok, %{candidates: count}} ->
-        {:noreply,
-         socket
-         |> put_toast(:success, "Discovery complete: #{count} new candidates found")
-         |> load_data()}
-
-      {:error, reason} ->
-        {:noreply, put_toast(socket, :error, "Discovery failed: #{inspect(reason)}")}
+        {:error, reason} ->
+          {:noreply, put_toast(socket, :error, "Discovery failed: #{inspect(reason)}")}
+      end
+    else
+      {:error, field} ->
+        {:noreply, put_toast(socket, :error, "Invalid #{field} value")}
     end
   end
 
@@ -206,6 +210,25 @@ defmodule VolfefeMachineWeb.Admin.PolymarketLive do
   end
 
   # Private functions
+
+  defp parse_integer(nil, default), do: {:ok, default}
+  defp parse_integer("", default), do: {:ok, default}
+  defp parse_integer(str, _default) when is_binary(str) do
+    case Integer.parse(str) do
+      {n, ""} -> {:ok, n}
+      _ -> {:error, "limit"}
+    end
+  end
+
+  defp parse_decimal(nil, default), do: {:ok, Decimal.new(default)}
+  defp parse_decimal("", default), do: {:ok, Decimal.new(default)}
+  defp parse_decimal(str, _default) when is_binary(str) do
+    case Decimal.parse(str) do
+      {d, ""} -> {:ok, d}
+      {d, _remainder} -> {:ok, d}
+      :error -> {:error, "threshold"}
+    end
+  end
 
   defp load_data(socket) do
     dashboard = Polymarket.monitoring_dashboard()
@@ -240,7 +263,7 @@ defmodule VolfefeMachineWeb.Admin.PolymarketLive do
     end)
 
     [headers | rows]
-    |> Enum.map(&Enum.join(&1, ","))
+    |> Enum.map(&FormatHelpers.csv_row/1)
     |> Enum.join("\n")
   end
 
