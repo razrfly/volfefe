@@ -1,0 +1,426 @@
+<.admin_nav current_page={:polymarket} />
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <!-- Header -->
+  <div class="mb-8">
+    <div class="flex items-center gap-4">
+      <.link navigate={~p"/admin/polymarket?tab=candidates"} class="text-gray-500 hover:text-gray-700">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+        </svg>
+      </.link>
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900">
+          Investigation Candidate #<%= @candidate.discovery_rank %>
+        </h1>
+        <p class="text-gray-500 mt-1">
+          Discovered <%= relative_time(@candidate.discovered_at) %>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Status Bar -->
+  <div class="bg-white rounded-lg shadow-sm border p-4 mb-6">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <span class={"inline-flex items-center rounded-full px-3 py-1 text-sm font-medium #{priority_badge_class(@candidate.priority)}"}>
+          <%= String.upcase(@candidate.priority) %> Priority
+        </span>
+        <span class={"inline-flex items-center rounded-full px-3 py-1 text-sm font-medium #{status_badge_class(@candidate.status)}"}>
+          <%= @candidate.status %>
+        </span>
+        <span class="text-gray-500">
+          Insider Probability: <span class="font-semibold text-gray-900"><%= format_probability(@candidate.insider_probability) %></span>
+        </span>
+      </div>
+
+      <!-- Actions -->
+      <div class="flex items-center gap-2">
+        <%= if @candidate.status == "undiscovered" do %>
+          <button
+            phx-click="start_investigation"
+            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
+          >
+            Start Investigation
+          </button>
+        <% end %>
+
+        <%= if @candidate.status == "investigating" do %>
+          <button
+            phx-click="show_resolve_modal"
+            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700"
+          >
+            Resolve
+          </button>
+        <% end %>
+
+        <%= if @candidate.status in ["undiscovered", "investigating"] do %>
+          <button
+            phx-click="dismiss_candidate"
+            class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+            data-confirm="Are you sure you want to dismiss this candidate?"
+          >
+            Dismiss
+          </button>
+        <% end %>
+      </div>
+    </div>
+
+    <!-- Investigation Timeline -->
+    <%= if @candidate.assigned_to do %>
+      <div class="mt-4 pt-4 border-t text-sm text-gray-600">
+        <span>Assigned to: <span class="font-medium"><%= @candidate.assigned_to %></span></span>
+        <%= if @candidate.investigation_started_at do %>
+          <span class="ml-4">Started: <span class="font-medium"><%= format_datetime(@candidate.investigation_started_at) %></span></span>
+        <% end %>
+        <%= if @candidate.resolved_at do %>
+          <span class="ml-4">Resolved: <span class="font-medium"><%= format_datetime(@candidate.resolved_at) %></span></span>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Main Content -->
+    <div class="lg:col-span-2 space-y-6">
+      <!-- Trade Context -->
+      <div class="bg-white rounded-lg shadow-sm border p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Trade Context</h2>
+
+        <dl class="grid grid-cols-2 gap-4">
+          <div>
+            <dt class="text-sm font-medium text-gray-500">Market</dt>
+            <dd class="mt-1 text-sm text-gray-900"><%= @candidate.market_question || "Unknown market" %></dd>
+          </div>
+
+          <div>
+            <dt class="text-sm font-medium text-gray-500">Trade Outcome</dt>
+            <dd class="mt-1 text-sm text-gray-900">
+              <%= @candidate.trade_outcome || "N/A" %>
+              <%= if @candidate.was_correct do %>
+                <span class="ml-2 text-green-600 font-medium">CORRECT</span>
+              <% else %>
+                <%= if @candidate.was_correct == false do %>
+                  <span class="ml-2 text-red-600 font-medium">INCORRECT</span>
+                <% end %>
+              <% end %>
+            </dd>
+          </div>
+
+          <div>
+            <dt class="text-sm font-medium text-gray-500">Trade Size</dt>
+            <dd class="mt-1 text-sm text-gray-900 font-mono">
+              $<%= format_decimal(@candidate.trade_size) %>
+            </dd>
+          </div>
+
+          <div>
+            <dt class="text-sm font-medium text-gray-500">Time Before Resolution</dt>
+            <dd class="mt-1 text-sm text-gray-900">
+              <%= format_hours(@candidate.hours_before_resolution) %>
+            </dd>
+          </div>
+
+          <div>
+            <dt class="text-sm font-medium text-gray-500">Estimated Profit</dt>
+            <dd class={[
+              "mt-1 text-sm font-mono",
+              if(@candidate.estimated_profit && Decimal.gt?(@candidate.estimated_profit, 0), do: "text-green-600", else: "text-gray-900")
+            ]}>
+              <%= if @candidate.estimated_profit do %>
+                $<%= format_decimal(@candidate.estimated_profit) %>
+              <% else %>
+                N/A
+              <% end %>
+            </dd>
+          </div>
+
+          <div>
+            <dt class="text-sm font-medium text-gray-500">Anomaly Score</dt>
+            <dd class="mt-1 text-sm text-gray-900 font-semibold">
+              <%= format_decimal(@candidate.anomaly_score) %>
+            </dd>
+          </div>
+        </dl>
+
+        <%= if @candidate.transaction_hash do %>
+          <div class="mt-4 pt-4 border-t">
+            <dt class="text-sm font-medium text-gray-500">Transaction Hash</dt>
+            <dd class="mt-1 text-sm text-gray-900 font-mono break-all">
+              <%= @candidate.transaction_hash %>
+            </dd>
+          </div>
+        <% end %>
+      </div>
+
+      <!-- Anomaly Breakdown -->
+      <div class="bg-white rounded-lg shadow-sm border p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Anomaly Breakdown</h2>
+
+        <%= if @candidate.anomaly_breakdown && map_size(@candidate.anomaly_breakdown) > 0 do %>
+          <div class="space-y-4">
+            <%= for {dimension, data} <- @candidate.anomaly_breakdown do %>
+              <div class="flex items-center justify-between">
+                <span class="text-sm font-medium text-gray-700 capitalize">
+                  <%= String.replace(dimension, "_", " ") %>
+                </span>
+                <div class="flex items-center gap-3">
+                  <div class="w-32 bg-gray-200 rounded-full h-2">
+                    <% bar_width = if is_map(data), do: min(abs(data["value"] || 0) * 20, 100), else: 0 %>
+                    <div
+                      class={"h-2 rounded-full #{if is_map(data), do: severity_bar_color(data["severity"]), else: "bg-gray-400"}"}
+                      style={"width: #{bar_width}%"}
+                    ></div>
+                  </div>
+                  <span class={"text-sm font-mono w-16 text-right #{if is_map(data), do: severity_class(data["severity"]), else: "text-gray-600"}"}>
+                    <%= if is_map(data) do %>
+                      <%= data["value"] %>
+                    <% else %>
+                      <%= data %>
+                    <% end %>
+                  </span>
+                </div>
+              </div>
+            <% end %>
+          </div>
+        <% else %>
+          <p class="text-gray-500 text-sm">No anomaly breakdown available</p>
+        <% end %>
+      </div>
+
+      <!-- Pattern Matches -->
+      <div class="bg-white rounded-lg shadow-sm border p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Pattern Matches</h2>
+
+        <%= if @candidate.matched_patterns && map_size(@candidate.matched_patterns) > 0 do %>
+          <div class="space-y-3">
+            <%= for {pattern_name, match_data} <- @candidate.matched_patterns do %>
+              <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div>
+                  <span class="text-sm font-medium text-gray-900 capitalize">
+                    <%= String.replace(pattern_name, "_", " ") %>
+                  </span>
+                  <%= if is_map(match_data) && match_data["description"] do %>
+                    <p class="text-xs text-gray-500 mt-1"><%= match_data["description"] %></p>
+                  <% end %>
+                </div>
+                <span class={"inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium #{pattern_match_badge(match_data)}"}>
+                  <%= if is_map(match_data) do %>
+                    <%= match_data["score"] || match_data["match"] || "matched" %>
+                  <% else %>
+                    matched
+                  <% end %>
+                </span>
+              </div>
+            <% end %>
+          </div>
+        <% else %>
+          <p class="text-gray-500 text-sm">No pattern matches recorded</p>
+        <% end %>
+      </div>
+
+      <!-- Investigation Notes -->
+      <div class="bg-white rounded-lg shadow-sm border p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Investigation Notes</h2>
+
+        <%= if @candidate.investigation_notes do %>
+          <div class="bg-gray-50 rounded-lg p-4 mb-4 whitespace-pre-wrap text-sm text-gray-700 font-mono">
+            <%= @candidate.investigation_notes %>
+          </div>
+        <% end %>
+
+        <form phx-submit="add_note" class="flex gap-2">
+          <input
+            type="text"
+            name="note"
+            placeholder="Add a note..."
+            class="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+            required
+          />
+          <button
+            type="submit"
+            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
+          >
+            Add Note
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="space-y-6">
+      <!-- Wallet Profile -->
+      <div class="bg-white rounded-lg shadow-sm border p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Wallet Profile</h2>
+
+        <div class="mb-4">
+          <p class="text-sm font-mono text-gray-600 break-all"><%= @candidate.wallet_address %></p>
+        </div>
+
+        <%= if @wallet do %>
+          <dl class="space-y-3">
+            <div class="flex justify-between">
+              <dt class="text-sm text-gray-500">Total Trades</dt>
+              <dd class="text-sm font-medium text-gray-900"><%= @wallet.total_trades %></dd>
+            </div>
+            <div class="flex justify-between">
+              <dt class="text-sm text-gray-500">Total Volume</dt>
+              <dd class="text-sm font-medium text-gray-900">$<%= format_decimal(@wallet.total_volume) %></dd>
+            </div>
+            <div class="flex justify-between">
+              <dt class="text-sm text-gray-500">Win Rate</dt>
+              <dd class="text-sm font-medium text-gray-900"><%= format_probability(@wallet.win_rate) %></dd>
+            </div>
+            <div class="flex justify-between">
+              <dt class="text-sm text-gray-500">Record</dt>
+              <dd class="text-sm font-medium text-gray-900">
+                <span class="text-green-600"><%= @wallet.wins || 0 %>W</span> -
+                <span class="text-red-600"><%= @wallet.losses || 0 %>L</span>
+              </dd>
+            </div>
+            <div class="flex justify-between">
+              <dt class="text-sm text-gray-500">First Seen</dt>
+              <dd class="text-sm font-medium text-gray-900"><%= format_datetime(@wallet.first_seen_at) %></dd>
+            </div>
+            <div class="flex justify-between">
+              <dt class="text-sm text-gray-500">Last Active</dt>
+              <dd class="text-sm font-medium text-gray-900"><%= relative_time(@wallet.last_seen_at) %></dd>
+            </div>
+          </dl>
+        <% else %>
+          <p class="text-gray-500 text-sm">Wallet profile not found</p>
+        <% end %>
+      </div>
+
+      <!-- Similar Candidates -->
+      <%= if length(@similar_candidates) > 0 do %>
+        <div class="bg-white rounded-lg shadow-sm border p-6">
+          <h2 class="text-lg font-semibold text-gray-900 mb-4">Other Candidates (Same Wallet)</h2>
+
+          <div class="space-y-3">
+            <%= for candidate <- @similar_candidates do %>
+              <.link
+                navigate={~p"/admin/polymarket/candidates/#{candidate.id}"}
+                class="block p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <div class="flex items-center justify-between">
+                  <span class="text-sm font-medium text-gray-900">
+                    Rank #<%= candidate.discovery_rank %>
+                  </span>
+                  <span class={"inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium #{priority_badge_class(candidate.priority)}"}>
+                    <%= candidate.priority %>
+                  </span>
+                </div>
+                <p class="text-xs text-gray-500 mt-1 line-clamp-1">
+                  <%= candidate.market_question || "Unknown market" %>
+                </p>
+              </.link>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
+
+      <!-- Wallet Trade History -->
+      <%= if length(@wallet_trades) > 0 do %>
+        <div class="bg-white rounded-lg shadow-sm border p-6">
+          <h2 class="text-lg font-semibold text-gray-900 mb-4">Recent Wallet Trades</h2>
+
+          <div class="space-y-2">
+            <%= for trade_data <- Enum.take(@wallet_trades, 10) do %>
+              <div class="p-2 bg-gray-50 rounded text-xs">
+                <div class="flex items-center justify-between">
+                  <span class="font-mono text-gray-600">
+                    $<%= format_decimal(trade_data.trade.size) %>
+                  </span>
+                  <%= if trade_data.anomaly_score do %>
+                    <span class={"font-medium #{if Decimal.gt?(trade_data.anomaly_score, Decimal.new("0.5")), do: "text-red-600", else: "text-gray-500"}"}>
+                      <%= format_decimal(trade_data.anomaly_score) %>
+                    </span>
+                  <% end %>
+                </div>
+                <p class="text-gray-500 mt-1 line-clamp-1">
+                  <%= trade_data.market_question || "Unknown market" %>
+                </p>
+              </div>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>
+
+<!-- Resolve Modal -->
+<%= if @show_resolve_modal do %>
+  <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity z-50">
+    <div class="fixed inset-0 z-50 overflow-y-auto">
+      <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+        <div class="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6">
+          <div class="absolute right-0 top-0 pr-4 pt-4">
+            <button
+              type="button"
+              phx-click="hide_resolve_modal"
+              class="rounded-md bg-white text-gray-400 hover:text-gray-500"
+            >
+              <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <div class="sm:flex sm:items-start">
+            <div class="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full">
+              <h3 class="text-lg font-semibold leading-6 text-gray-900">
+                Resolve Investigation
+              </h3>
+
+              <form phx-submit="resolve_candidate" class="mt-4 space-y-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700">Resolution</label>
+                  <select
+                    name="resolution"
+                    required
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+                  >
+                    <option value="">Select resolution...</option>
+                    <option value="confirmed_insider">Confirmed Insider</option>
+                    <option value="likely_insider">Likely Insider</option>
+                    <option value="false_positive">False Positive</option>
+                    <option value="inconclusive">Inconclusive</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label class="block text-sm font-medium text-gray-700">Notes</label>
+                  <textarea
+                    name="notes"
+                    rows="3"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+                    placeholder="Add resolution notes..."
+                  ></textarea>
+                </div>
+
+                <div class="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse gap-2">
+                  <button
+                    type="submit"
+                    class="inline-flex w-full justify-center rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-500 sm:w-auto"
+                  >
+                    Resolve
+                  </button>
+                  <button
+                    type="button"
+                    phx-click="hide_resolve_modal"
+                    class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+<% end %>

@@ -1,0 +1,672 @@
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <!-- Admin Navigation -->
+  <.admin_nav current_page={:polymarket} />
+
+  <!-- Header -->
+  <div class="mb-8">
+    <div class="flex items-center justify-between">
+      <div>
+        <h1 class="text-3xl font-bold text-gray-900">Polymarket Insider Detection</h1>
+        <p class="mt-2 text-sm text-gray-600">
+          Real-time monitoring and investigation of suspicious trading patterns
+        </p>
+      </div>
+      <div class="flex items-center space-x-4">
+        <div class={[
+          "flex items-center px-3 py-1.5 rounded-full text-sm font-medium",
+          if(@dashboard.monitor_status[:enabled], do: "bg-green-100 text-green-800", else: "bg-red-100 text-red-800")
+        ]}>
+          <%= if @dashboard.monitor_status[:enabled] do %>
+            <span class="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
+            Monitor Active
+          <% else %>
+            <span class="w-2 h-2 bg-red-500 rounded-full mr-2"></span>
+            Monitor Inactive
+          <% end %>
+        </div>
+        <button
+          phx-click="run_discovery"
+          class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700"
+        >
+          🔍 Run Discovery
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab Navigation -->
+  <div class="mb-6 border-b border-gray-200">
+    <nav class="-mb-px flex space-x-8">
+      <button
+        phx-click="switch_tab"
+        phx-value-tab="overview"
+        class={[
+          "whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm",
+          if(@active_tab == :overview, do: "border-indigo-500 text-indigo-600", else: "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300")
+        ]}
+      >
+        📊 Overview
+      </button>
+      <button
+        phx-click="switch_tab"
+        phx-value-tab="alerts"
+        class={[
+          "whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm",
+          if(@active_tab == :alerts, do: "border-indigo-500 text-indigo-600", else: "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300")
+        ]}
+      >
+        🚨 Alerts
+        <%= if @dashboard.action_required.critical_alerts > 0 do %>
+          <span class="ml-2 inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+            <%= @dashboard.action_required.critical_alerts %>
+          </span>
+        <% end %>
+      </button>
+      <button
+        phx-click="switch_tab"
+        phx-value-tab="candidates"
+        class={[
+          "whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm",
+          if(@active_tab == :candidates, do: "border-indigo-500 text-indigo-600", else: "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300")
+        ]}
+      >
+        🎯 Candidates
+        <%= if @dashboard.action_required.pending_investigations > 0 do %>
+          <span class="ml-2 inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+            <%= @dashboard.action_required.pending_investigations %>
+          </span>
+        <% end %>
+      </button>
+      <button
+        phx-click="switch_tab"
+        phx-value-tab="patterns"
+        class={[
+          "whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm",
+          if(@active_tab == :patterns, do: "border-indigo-500 text-indigo-600", else: "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300")
+        ]}
+      >
+        🧩 Patterns
+      </button>
+      <button
+        phx-click="switch_tab"
+        phx-value-tab="discovery"
+        class={[
+          "whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm",
+          if(@active_tab == :discovery, do: "border-indigo-500 text-indigo-600", else: "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300")
+        ]}
+      >
+        🔍 Discovery
+      </button>
+    </nav>
+  </div>
+
+  <!-- Tab Content -->
+  <div class="mt-6">
+    <!-- Overview Tab -->
+    <%= if @active_tab == :overview do %>
+      <div class="space-y-6">
+        <!-- Action Required Banner -->
+        <%= if @dashboard.action_required.critical_alerts > 0 or @dashboard.action_required.high_alerts > 0 do %>
+          <div class="bg-red-50 border-l-4 border-red-400 p-4 rounded-r-lg">
+            <div class="flex">
+              <div class="flex-shrink-0">
+                <span class="text-2xl">🚨</span>
+              </div>
+              <div class="ml-3">
+                <h3 class="text-sm font-medium text-red-800">Action Required</h3>
+                <div class="mt-2 text-sm text-red-700">
+                  <ul class="list-disc pl-5 space-y-1">
+                    <%= if @dashboard.action_required.critical_alerts > 0 do %>
+                      <li><%= @dashboard.action_required.critical_alerts %> critical alert(s) need immediate review</li>
+                    <% end %>
+                    <%= if @dashboard.action_required.high_alerts > 0 do %>
+                      <li><%= @dashboard.action_required.high_alerts %> high priority alert(s) pending</li>
+                    <% end %>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        <% end %>
+
+        <!-- Stats Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <!-- Alerts Stats -->
+          <div class="bg-white shadow rounded-lg p-6 border border-gray-200">
+            <div class="flex items-center justify-between">
+              <h3 class="text-sm font-medium text-gray-500">Total Alerts</h3>
+              <span class="text-2xl">🚨</span>
+            </div>
+            <p class="mt-2 text-3xl font-semibold text-gray-900"><%= @dashboard.alerts.total %></p>
+            <div class="mt-2 flex space-x-2 text-xs">
+              <span class="text-red-600"><%= Map.get(@dashboard.alerts.by_severity, "critical", 0) %> critical</span>
+              <span class="text-gray-400">|</span>
+              <span class="text-orange-600"><%= Map.get(@dashboard.alerts.by_severity, "high", 0) %> high</span>
+            </div>
+          </div>
+
+          <!-- Candidates Stats -->
+          <div class="bg-white shadow rounded-lg p-6 border border-gray-200">
+            <div class="flex items-center justify-between">
+              <h3 class="text-sm font-medium text-gray-500">Investigation Candidates</h3>
+              <span class="text-2xl">🎯</span>
+            </div>
+            <p class="mt-2 text-3xl font-semibold text-gray-900"><%= @investigation.candidates.total %></p>
+            <div class="mt-2 flex space-x-2 text-xs">
+              <span class="text-blue-600"><%= Map.get(@investigation.candidates.by_status, "undiscovered", 0) %> new</span>
+              <span class="text-gray-400">|</span>
+              <span class="text-yellow-600"><%= Map.get(@investigation.candidates.by_status, "investigating", 0) %> investigating</span>
+            </div>
+          </div>
+
+          <!-- Confirmed Insiders -->
+          <div class="bg-white shadow rounded-lg p-6 border border-gray-200">
+            <div class="flex items-center justify-between">
+              <h3 class="text-sm font-medium text-gray-500">Confirmed Insiders</h3>
+              <span class="text-2xl">🔴</span>
+            </div>
+            <p class="mt-2 text-3xl font-semibold text-gray-900"><%= @investigation.confirmed_insiders.total %></p>
+            <div class="mt-2 text-xs text-gray-500">
+              From <%= @investigation.candidates.total %> candidates reviewed
+            </div>
+          </div>
+
+          <!-- Pattern Matches -->
+          <div class="bg-white shadow rounded-lg p-6 border border-gray-200">
+            <div class="flex items-center justify-between">
+              <h3 class="text-sm font-medium text-gray-500">Active Patterns</h3>
+              <span class="text-2xl">🧩</span>
+            </div>
+            <p class="mt-2 text-3xl font-semibold text-gray-900"><%= @pattern_stats.active_patterns %></p>
+            <div class="mt-2 text-xs text-gray-500">
+              <%= @pattern_stats.validated_patterns %> validated
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="bg-white shadow rounded-lg border border-gray-200">
+          <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-lg font-semibold text-gray-900">Recent Alerts</h2>
+            <p class="mt-1 text-sm text-gray-500">Latest alerts from the monitoring system (updates every 10s)</p>
+          </div>
+          <div class="divide-y divide-gray-200">
+            <%= if length(@dashboard.recent_alerts) == 0 do %>
+              <div class="px-6 py-8 text-center text-gray-500">
+                No alerts yet. The system will generate alerts when suspicious trades are detected.
+              </div>
+            <% else %>
+              <%= for alert <- @dashboard.recent_alerts do %>
+                <div class="px-6 py-4 hover:bg-gray-50">
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-4">
+                      <span class="text-xl"><%= severity_icon(alert.severity) %></span>
+                      <div>
+                        <div class="flex items-center space-x-2">
+                          <span class={[
+                            "inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ring-1 ring-inset",
+                            severity_badge_class(alert.severity)
+                          ]}>
+                            <%= alert.severity %>
+                          </span>
+                          <span class="font-medium text-gray-900"><%= format_wallet(alert.wallet) %></span>
+                        </div>
+                        <p class="text-sm text-gray-500 mt-1"><%= truncate(alert.market, 60) %></p>
+                      </div>
+                    </div>
+                    <div class="text-right">
+                      <div class="text-sm font-medium text-gray-900"><%= format_probability(alert.score) %></div>
+                      <div class="text-xs text-gray-500"><%= relative_time(alert.triggered_at) %></div>
+                    </div>
+                  </div>
+                </div>
+              <% end %>
+            <% end %>
+          </div>
+        </div>
+      </div>
+    <% end %>
+
+    <!-- Alerts Tab -->
+    <%= if @active_tab == :alerts do %>
+      <div class="bg-white shadow rounded-lg border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-lg font-semibold text-gray-900">All Alerts</h2>
+              <p class="mt-1 text-sm text-gray-500">
+                <%= @dashboard.alerts.total %> total alerts |
+                <%= @dashboard.alerts.new %> new |
+                <%= @dashboard.alerts.last_24h %> in last 24h
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Severity</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Wallet</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Market</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Score</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              <%= if length(@alerts) == 0 do %>
+                <tr>
+                  <td colspan="7" class="px-6 py-8 text-center text-gray-500">
+                    No alerts found. Run discovery or wait for the monitor to detect suspicious trades.
+                  </td>
+                </tr>
+              <% else %>
+                <%= for alert <- @alerts do %>
+                  <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <span class={[
+                        "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ring-1 ring-inset",
+                        severity_badge_class(alert.severity)
+                      ]}>
+                        <%= severity_icon(alert.severity) %> <%= alert.severity %>
+                      </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <span class="font-mono text-sm"><%= format_wallet(alert.wallet_address) %></span>
+                    </td>
+                    <td class="px-6 py-4">
+                      <span class="text-sm text-gray-900"><%= truncate(alert.market_question, 40) %></span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <span class="text-sm font-medium"><%= format_probability(alert.insider_probability) %></span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <span class={[
+                        "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium",
+                        status_badge_class(alert.status)
+                      ]}>
+                        <%= alert.status %>
+                      </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <%= relative_time(alert.triggered_at) %>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <%= if alert.status == "new" do %>
+                        <button
+                          phx-click="acknowledge_alert"
+                          phx-value-id={alert.id}
+                          class="text-indigo-600 hover:text-indigo-900 mr-3"
+                        >
+                          Ack
+                        </button>
+                        <button
+                          phx-click="investigate_alert"
+                          phx-value-id={alert.id}
+                          class="text-yellow-600 hover:text-yellow-900 mr-3"
+                        >
+                          Investigate
+                        </button>
+                      <% end %>
+                      <%= if alert.status in ["new", "acknowledged"] do %>
+                        <button
+                          phx-click="dismiss_alert"
+                          phx-value-id={alert.id}
+                          class="text-gray-600 hover:text-gray-900"
+                        >
+                          Dismiss
+                        </button>
+                      <% end %>
+                    </td>
+                  </tr>
+                <% end %>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    <% end %>
+
+    <!-- Candidates Tab -->
+    <%= if @active_tab == :candidates do %>
+      <div class="bg-white shadow rounded-lg border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-lg font-semibold text-gray-900">Investigation Candidates</h2>
+              <p class="mt-1 text-sm text-gray-500">
+                Wallets flagged for potential insider trading
+              </p>
+            </div>
+            <button
+              phx-click="run_discovery"
+              class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+            >
+              🔍 Run Discovery
+            </button>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Wallet</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Score</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Market</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Discovered</th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              <%= if length(@candidates) == 0 do %>
+                <tr>
+                  <td colspan="7" class="px-6 py-8 text-center text-gray-500">
+                    No candidates found. Run discovery to identify potential insider wallets.
+                  </td>
+                </tr>
+              <% else %>
+                <%= for candidate <- @candidates do %>
+                  <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <span class={[
+                        "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium",
+                        case candidate.priority do
+                          "high" -> "bg-red-100 text-red-800"
+                          "medium" -> "bg-yellow-100 text-yellow-800"
+                          _ -> "bg-gray-100 text-gray-800"
+                        end
+                      ]}>
+                        <%= candidate.priority %>
+                      </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <span class="font-mono text-sm"><%= format_wallet(candidate.wallet_address) %></span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <span class="text-sm font-medium"><%= format_probability(candidate.insider_probability) %></span>
+                    </td>
+                    <td class="px-6 py-4">
+                      <span class="text-sm text-gray-900"><%= truncate(candidate.market_question, 40) %></span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <span class={[
+                        "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium",
+                        status_badge_class(candidate.status)
+                      ]}>
+                        <%= candidate.status %>
+                      </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <%= relative_time(candidate.discovered_at) %>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <.link
+                        navigate={~p"/admin/polymarket/candidates/#{candidate.id}"}
+                        class="text-blue-600 hover:text-blue-900 mr-3"
+                      >
+                        View
+                      </.link>
+                      <%= if candidate.status in ["undiscovered", "pending_review"] do %>
+                        <button
+                          phx-click="start_candidate_investigation"
+                          phx-value-id={candidate.id}
+                          class="text-indigo-600 hover:text-indigo-900 mr-3"
+                        >
+                          Investigate
+                        </button>
+                        <button
+                          phx-click="dismiss_candidate"
+                          phx-value-id={candidate.id}
+                          class="text-gray-600 hover:text-gray-900"
+                        >
+                          Dismiss
+                        </button>
+                      <% end %>
+                    </td>
+                  </tr>
+                <% end %>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    <% end %>
+
+    <!-- Patterns Tab -->
+    <%= if @active_tab == :patterns do %>
+      <div class="space-y-6">
+        <!-- Pattern Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div class="bg-white shadow rounded-lg p-6 border border-gray-200">
+            <h3 class="text-sm font-medium text-gray-500">Total Patterns</h3>
+            <p class="mt-2 text-3xl font-semibold text-gray-900"><%= @pattern_stats.total_patterns %></p>
+          </div>
+          <div class="bg-white shadow rounded-lg p-6 border border-gray-200">
+            <h3 class="text-sm font-medium text-gray-500">Active Patterns</h3>
+            <p class="mt-2 text-3xl font-semibold text-green-600"><%= @pattern_stats.active_patterns %></p>
+          </div>
+          <div class="bg-white shadow rounded-lg p-6 border border-gray-200">
+            <h3 class="text-sm font-medium text-gray-500">Validated Patterns</h3>
+            <p class="mt-2 text-3xl font-semibold text-gray-900"><%= @pattern_stats.validated_patterns %></p>
+          </div>
+          <div class="bg-white shadow rounded-lg p-6 border border-gray-200">
+            <h3 class="text-sm font-medium text-gray-500">Best F1 Score</h3>
+            <p class="mt-2 text-3xl font-semibold text-gray-900"><%= format_probability(@pattern_stats.best_f1) %></p>
+          </div>
+        </div>
+
+        <!-- Patterns List -->
+        <div class="bg-white shadow rounded-lg border border-gray-200">
+          <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-lg font-semibold text-gray-900">Insider Trading Patterns</h2>
+            <p class="mt-1 text-sm text-gray-500">
+              Detection patterns used to identify suspicious trading behavior
+            </p>
+          </div>
+
+          <div class="divide-y divide-gray-200">
+            <%= if length(@patterns) == 0 do %>
+              <div class="px-6 py-8 text-center text-gray-500">
+                No patterns configured. Patterns are seeded automatically on first run.
+              </div>
+            <% else %>
+              <%= for pattern <- @patterns do %>
+                <div class="px-6 py-4 hover:bg-gray-50">
+                  <div class="flex items-center justify-between">
+                    <div class="flex-1">
+                      <div class="flex items-center space-x-3">
+                        <span class={[
+                          "inline-flex items-center px-2 py-0.5 rounded text-xs font-medium",
+                          if(pattern.is_active, do: "bg-green-100 text-green-800", else: "bg-gray-100 text-gray-800")
+                        ]}>
+                          <%= if pattern.is_active, do: "Active", else: "Inactive" %>
+                        </span>
+                        <h3 class="text-sm font-medium text-gray-900"><%= pattern.pattern_name %></h3>
+                      </div>
+                      <p class="mt-1 text-sm text-gray-500"><%= pattern.description %></p>
+                    </div>
+                    <div class="ml-6 text-right">
+                      <div class="text-sm font-medium text-gray-900">
+                        F1: <%= format_probability(pattern.f1_score) %>
+                      </div>
+                      <div class="text-xs text-gray-500">
+                        Precision: <%= format_probability(pattern.precision) %>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              <% end %>
+            <% end %>
+          </div>
+        </div>
+      </div>
+    <% end %>
+
+    <!-- Discovery Tab -->
+    <%= if @active_tab == :discovery do %>
+      <div class="space-y-6">
+        <!-- Discovery Controls -->
+        <div class="bg-white shadow rounded-lg p-6 border border-gray-200">
+          <div class="flex justify-between items-start mb-6">
+            <div>
+              <h2 class="text-lg font-semibold text-gray-900">Discovery Tools</h2>
+              <p class="text-sm text-gray-500 mt-1">Run anomaly detection to find new investigation candidates</p>
+            </div>
+            <div class="flex gap-2">
+              <button
+                phx-click="run_discovery"
+                class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700"
+              >
+                🔍 Quick Discovery
+              </button>
+              <button
+                phx-click="export_candidates_csv"
+                class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+              >
+                📥 Export CSV
+              </button>
+            </div>
+          </div>
+
+          <!-- Custom Discovery Form -->
+          <form phx-submit="run_discovery_custom" class="border-t pt-6">
+            <h3 class="text-md font-medium text-gray-900 mb-4">Custom Discovery Run</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700">Max Candidates</label>
+                <input
+                  type="number"
+                  name="limit"
+                  value="50"
+                  min="10"
+                  max="500"
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
+                />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700">Anomaly Threshold</label>
+                <input
+                  type="number"
+                  name="anomaly_threshold"
+                  value="0.5"
+                  min="0.1"
+                  max="1.0"
+                  step="0.1"
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
+                />
+                <p class="text-xs text-gray-500 mt-1">Higher = stricter filtering</p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700">Probability Threshold</label>
+                <input
+                  type="number"
+                  name="probability_threshold"
+                  value="0.4"
+                  min="0.1"
+                  max="1.0"
+                  step="0.1"
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
+                />
+                <p class="text-xs text-gray-500 mt-1">Min insider probability</p>
+              </div>
+            </div>
+            <button
+              type="submit"
+              class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700"
+            >
+              🚀 Run Custom Discovery
+            </button>
+          </form>
+        </div>
+
+        <!-- Batch History -->
+        <div class="bg-white shadow rounded-lg p-6 border border-gray-200">
+          <h2 class="text-lg font-semibold text-gray-900 mb-4">Discovery Batch History</h2>
+
+          <%= if length(@discovery_batches) == 0 do %>
+            <p class="text-gray-500 text-sm">No discovery batches yet. Run a discovery to get started.</p>
+          <% else %>
+            <div class="overflow-x-auto">
+              <table class="min-w-full divide-y divide-gray-200">
+                <thead>
+                  <tr>
+                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Batch ID</th>
+                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Candidates</th>
+                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thresholds</th>
+                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Started</th>
+                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notes</th>
+                  </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                  <%= for batch <- @discovery_batches do %>
+                    <tr class="hover:bg-gray-50">
+                      <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">
+                        <%= String.slice(batch.batch_id || "", 0, 8) %>...
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap">
+                        <span class={[
+                          "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium",
+                          if(batch.completed_at, do: "bg-green-100 text-green-800", else: "bg-blue-100 text-blue-800")
+                        ]}>
+                          <%= if batch.completed_at, do: "completed", else: "running" %>
+                        </span>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <%= batch.candidates_generated || 0 %>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-xs text-gray-500">
+                        A: <%= format_probability(batch.anomaly_threshold) %> /
+                        P: <%= format_probability(batch.probability_threshold) %>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <%= relative_time(batch.started_at) %>
+                      </td>
+                      <td class="px-6 py-4 text-sm text-gray-500">
+                        <%= truncate(batch.notes, 30) %>
+                      </td>
+                    </tr>
+                  <% end %>
+                </tbody>
+              </table>
+            </div>
+          <% end %>
+        </div>
+
+        <!-- Discovery Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div class="bg-white shadow rounded-lg p-6 border border-gray-200">
+            <h3 class="text-sm font-medium text-gray-500">Total Batches</h3>
+            <p class="mt-2 text-3xl font-semibold text-gray-900"><%= length(@discovery_batches) %></p>
+          </div>
+          <div class="bg-white shadow rounded-lg p-6 border border-gray-200">
+            <h3 class="text-sm font-medium text-gray-500">Total Candidates Found</h3>
+            <p class="mt-2 text-3xl font-semibold text-indigo-600">
+              <%= Enum.reduce(@discovery_batches, 0, fn b, acc -> acc + (b.candidates_generated || 0) end) %>
+            </p>
+          </div>
+          <div class="bg-white shadow rounded-lg p-6 border border-gray-200">
+            <h3 class="text-sm font-medium text-gray-500">Active Candidates</h3>
+            <p class="mt-2 text-3xl font-semibold text-yellow-600">
+              <%= @investigation.candidates.total %>
+            </p>
+          </div>
+          <div class="bg-white shadow rounded-lg p-6 border border-gray-200">
+            <h3 class="text-sm font-medium text-gray-500">Confirmed Insiders</h3>
+            <p class="mt-2 text-3xl font-semibold text-red-600">
+              <%= @investigation.confirmed_insiders.total %>
+            </p>
+          </div>
+        </div>
+      </div>
+    <% end %>
+  </div>
+</div>
+
+<LiveToast.toast_group flash={@flash} connected={true} kinds={[:info, :error, :success, :warning]} toasts_sync={assigns[:toasts_sync]} />

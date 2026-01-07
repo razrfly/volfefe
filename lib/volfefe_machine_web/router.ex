@@ -32,6 +32,8 @@ defmodule VolfefeMachineWeb.Router do
     live "/market-data", MarketDataDashboardLive, :index
     live "/market-analysis", MarketAnalysisLive, :index
     live "/imports", ImportLive, :index
+    live "/polymarket", PolymarketLive, :index
+    live "/polymarket/candidates/:id", CandidateDetailLive, :show
   end
 
   # Admin Oban dashboard
