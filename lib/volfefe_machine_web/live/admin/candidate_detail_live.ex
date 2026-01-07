@@ -102,13 +102,8 @@ defmodule VolfefeMachineWeb.Admin.CandidateDetailLive do
   @impl true
   def handle_event("add_note", %{"note" => note}, socket) do
     candidate = socket.assigns.candidate
-    existing_notes = candidate.investigation_notes || ""
-    timestamp = Calendar.strftime(DateTime.utc_now(), "%Y-%m-%d %H:%M")
-    new_notes = "#{existing_notes}\n[#{timestamp}] #{note}"
 
-    case candidate
-         |> Polymarket.InvestigationCandidate.changeset(%{investigation_notes: new_notes})
-         |> VolfefeMachine.Repo.update() do
+    case Polymarket.add_investigation_note(candidate, note, "admin") do
       {:ok, updated} ->
         {:noreply,
          socket

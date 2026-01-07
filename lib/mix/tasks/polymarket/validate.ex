@@ -10,12 +10,11 @@ defmodule Mix.Tasks.Polymarket.Validate do
       # Validate all patterns
       mix polymarket.validate
 
-      # Validate specific pattern
-      mix polymarket.validate --pattern whale_correct
+      # Verbose output
+      mix polymarket.validate --verbose
 
   ## Options
 
-      --pattern   Validate a specific pattern by name
       --verbose   Show detailed metrics for each pattern
 
   ## Examples
@@ -59,11 +58,8 @@ defmodule Mix.Tasks.Polymarket.Validate do
     Mix.Task.run("app.start")
 
     {opts, _, _} = OptionParser.parse(args,
-      switches: [
-        pattern: :string,
-        verbose: :boolean
-      ],
-      aliases: [p: :pattern, v: :verbose]
+      switches: [verbose: :boolean],
+      aliases: [v: :verbose]
     )
 
     print_header()
