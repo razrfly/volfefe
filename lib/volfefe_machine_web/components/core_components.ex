@@ -486,7 +486,7 @@ defmodule VolfefeMachineWeb.CoreComponents do
       <.admin_nav current_page={:content} />
       <.admin_nav current_page={:ml} />
   """
-  attr :current_page, :atom, required: true, doc: "The current page identifier (:content, :ml, :market_analysis, :oban)"
+  attr :current_page, :atom, required: true, doc: "The current page identifier (:content, :ml, :market_data, :market_analysis, :imports, :polymarket, :oban)"
 
   def admin_nav(assigns) do
     ~H"""
@@ -536,6 +536,15 @@ defmodule VolfefeMachineWeb.CoreComponents do
           ]}
         >
           📥 Imports
+        </.link>
+        <.link
+          navigate={~p"/admin/polymarket"}
+          class={[
+            "px-3 py-2 text-sm font-medium",
+            if(@current_page == :polymarket, do: "text-blue-600 border-b-2 border-blue-600", else: "text-gray-600 hover:text-gray-900")
+          ]}
+        >
+          🎯 Polymarket
         </.link>
         <a
           href="/admin/oban"
