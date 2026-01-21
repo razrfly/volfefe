@@ -23,6 +23,9 @@ defmodule Mix.Tasks.Polymarket.References do
       # Show detailed descriptions
       mix polymarket.references --verbose
 
+      # Lookup and populate condition_ids for Polymarket cases
+      mix polymarket.references --lookup
+
   ## Options
 
       --platform    Filter by platform (polymarket, kalshi, nyse, nasdaq, coinbase, sportsbook)
@@ -31,6 +34,7 @@ defmodule Mix.Tasks.Polymarket.References do
       --pattern     Filter by pattern type
       --limit       Maximum cases to show (default: all)
       --verbose     Show full descriptions and source URLs
+      --lookup      Search Polymarket API to populate condition_ids for reference cases
 
   ## Pattern Types
 
@@ -67,6 +71,7 @@ defmodule Mix.Tasks.Polymarket.References do
   import Ecto.Query
   alias VolfefeMachine.Repo
   alias VolfefeMachine.Polymarket.InsiderReferenceCase
+  alias VolfefeMachine.Polymarket.Client
 
   @shortdoc "List known insider trading reference cases"
 
@@ -82,16 +87,16 @@ defmodule Mix.Tasks.Polymarket.References do
         pattern: :string,
         limit: :integer,
         verbose: :boolean,
-        seed: :boolean
+        seed: :boolean,
+        lookup: :boolean
       ],
       aliases: [p: :platform, s: :status, c: :category, l: :limit, v: :verbose]
     )
 
-    # Check if --seed flag is passed
-    if opts[:seed] do
-      run_seeds()
-    else
-      list_cases(opts)
+    cond do
+      opts[:seed] -> run_seeds()
+      opts[:lookup] -> run_lookup()
+      true -> list_cases(opts)
     end
   end
 
@@ -110,6 +115,187 @@ defmodule Mix.Tasks.Polymarket.References do
       Mix.shell().error("❌ Seed file not found: #{seed_file}")
     end
   end
+
+  defp run_lookup do
+    Mix.shell().info("")
+    Mix.shell().info(String.duplicate("═", 70))
+    Mix.shell().info("REFERENCE CASE MARKET LOOKUP")
+    Mix.shell().info(String.duplicate("═", 70))
+    Mix.shell().info("")
+
+    # Get all Polymarket reference cases without condition_ids
+    cases = from(r in InsiderReferenceCase,
+      where: r.platform == "polymarket" and is_nil(r.condition_id),
+      order_by: r.case_name
+    ) |> Repo.all()
+
+    if length(cases) == 0 do
+      Mix.shell().info("✅ All Polymarket reference cases already have condition_ids!")
+      Mix.shell().info("")
+
+      # Show existing mappings
+      mapped = from(r in InsiderReferenceCase,
+        where: r.platform == "polymarket" and not is_nil(r.condition_id),
+        order_by: r.case_name
+      ) |> Repo.all()
+
+      if length(mapped) > 0 do
+        Mix.shell().info("Existing mappings:")
+        Enum.each(mapped, fn ref_case ->
+          Mix.shell().info("  • #{ref_case.case_name}")
+          Mix.shell().info("    condition_id: #{ref_case.condition_id}")
+          if ref_case.market_slug, do: Mix.shell().info("    slug: #{ref_case.market_slug}")
+          Mix.shell().info("")
+        end)
+      end
+
+      return_ok()
+    else
+      Mix.shell().info("Found #{length(cases)} Polymarket reference case(s) without condition_ids:")
+      Mix.shell().info("")
+
+      Enum.each(cases, fn ref_case ->
+        Mix.shell().info("• #{ref_case.case_name}")
+      end)
+
+      Mix.shell().info("")
+      Mix.shell().info(String.duplicate("─", 70))
+      Mix.shell().info("Searching Polymarket API for matching markets...")
+      Mix.shell().info("")
+
+      results = Enum.map(cases, fn ref_case ->
+        search_and_link(ref_case)
+      end)
+
+      # Summary
+      linked = Enum.count(results, fn {status, _} -> status == :linked end)
+      candidates = Enum.count(results, fn {status, _} -> status == :candidates end)
+      not_found = Enum.count(results, fn {status, _} -> status == :not_found end)
+
+      Mix.shell().info("")
+      Mix.shell().info(String.duplicate("═", 70))
+      Mix.shell().info("LOOKUP SUMMARY")
+      Mix.shell().info(String.duplicate("═", 70))
+      Mix.shell().info("  Linked:     #{linked}")
+      Mix.shell().info("  Candidates: #{candidates} (manual selection needed)")
+      Mix.shell().info("  Not found:  #{not_found}")
+      Mix.shell().info("")
+    end
+  end
+
+  defp search_and_link(ref_case) do
+    # Extract search keywords from case name
+    keywords = extract_search_keywords(ref_case.case_name)
+
+    Mix.shell().info("🔍 #{ref_case.case_name}")
+    Mix.shell().info("   Searching: \"#{keywords}\"")
+
+    case Client.search_markets(keywords, closed: true, limit: 10) do
+      {:ok, [_ | _] = markets} ->
+        process_search_results(ref_case, markets)
+
+      {:ok, []} ->
+        Mix.shell().info("   ❌ No markets found")
+        {:not_found, ref_case}
+
+      {:error, reason} ->
+        Mix.shell().info("   ❌ Search error: #{reason}")
+        {:not_found, ref_case}
+    end
+  end
+
+  defp process_search_results(ref_case, markets) do
+    # Try to auto-match based on exact or near-exact question match
+    best_match = find_best_match(ref_case, markets)
+
+    case best_match do
+      {:exact, market} ->
+        link_market(ref_case, market)
+        {:linked, ref_case}
+
+      {:partial, candidates} ->
+        Mix.shell().info("   📋 Found #{length(candidates)} potential matches:")
+        Enum.with_index(candidates, 1) |> Enum.each(fn {m, idx} ->
+          question = String.slice(m["question"] || "", 0, 60)
+          Mix.shell().info("      #{idx}. #{question}...")
+          Mix.shell().info("         condition_id: #{m["conditionId"]}")
+        end)
+        {:candidates, {ref_case, candidates}}
+
+      :none ->
+        Mix.shell().info("   ❌ No suitable matches found")
+        {:not_found, ref_case}
+    end
+  end
+
+  defp find_best_match(ref_case, markets) do
+    case_keywords = ref_case.case_name |> String.downcase()
+
+    # Score each market
+    scored = markets
+    |> Enum.map(fn market ->
+      question = (market["question"] || "") |> String.downcase()
+      score = calculate_match_score(case_keywords, question)
+      {market, score}
+    end)
+    |> Enum.filter(fn {_m, score} -> score > 0.3 end)
+    |> Enum.sort_by(fn {_m, score} -> -score end)
+
+    case scored do
+      [{market, score} | _] when score > 0.7 ->
+        {:exact, market}
+
+      [_ | _] = candidates ->
+        {:partial, Enum.map(candidates, fn {m, _} -> m end)}
+
+      [] ->
+        :none
+    end
+  end
+
+  defp calculate_match_score(case_name, question) do
+    case_words = case_name |> String.split(~r/[\s\/]+/) |> MapSet.new()
+    question_words = question |> String.split(~r/[\s\/]+/) |> MapSet.new()
+
+    common = MapSet.intersection(case_words, question_words) |> MapSet.size()
+    total = MapSet.size(case_words)
+
+    if total > 0, do: common / total, else: 0.0
+  end
+
+  defp link_market(ref_case, market) do
+    condition_id = market["conditionId"]
+    slug = market["slug"]
+    question = market["question"]
+
+    changeset = InsiderReferenceCase.changeset(ref_case, %{
+      condition_id: condition_id,
+      market_slug: slug,
+      market_question: question
+    })
+
+    case Repo.update(changeset) do
+      {:ok, _} ->
+        Mix.shell().info("   ✅ Linked to: #{slug}")
+        Mix.shell().info("      condition_id: #{condition_id}")
+
+      {:error, changeset} ->
+        Mix.shell().info("   ❌ Failed to update: #{inspect(changeset.errors)}")
+    end
+  end
+
+  defp extract_search_keywords(case_name) do
+    # Remove common prefixes/suffixes and extract key terms
+    case_name
+    |> String.replace(~r/(raid|trading|case|incident|2024|2025|2026)/i, "")
+    |> String.replace(~r/[\/\-]+/, " ")
+    |> String.trim()
+    |> String.split(~r/\s+/)
+    |> Enum.take(4)
+    |> Enum.join(" ")
+  end
+
+  defp return_ok, do: :ok
 
   defp list_cases(opts) do
     print_header()
@@ -198,6 +384,7 @@ defmodule Mix.Tasks.Polymarket.References do
     Mix.shell().info(String.duplicate("─", 70))
     Mix.shell().info("Use --verbose for full descriptions and sources")
     Mix.shell().info("Use --seed to populate reference cases from seed file")
+    Mix.shell().info("Use --lookup to search Polymarket API and populate condition_ids")
     Mix.shell().info("")
   end
 

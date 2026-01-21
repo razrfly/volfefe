@@ -433,6 +433,224 @@ mix ingest.content --source truth_social --username realDonaldTrump --limit 10 -
 
 ---
 
+## 🎲 Polymarket Insider Detection
+
+The system includes tools for detecting potential insider trading on Polymarket prediction markets by analyzing blockchain trade data.
+
+### Architecture
+
+```
+Reference Cases (Seed Data)      Blockchain (Subgraph)
+├─ Event date                    ├─ ALL trades in date range
+├─ Description                   ├─ Wallet addresses
+└─ Context from news             └─ Trade amounts & timing
+        │                                   │
+        └───────────┬───────────────────────┘
+                    ▼
+            Pattern Discovery
+            ├─ Scan by date range (not keyword)
+            ├─ Group trades by market
+            ├─ Score: volume, whales, timing
+            └─ Output candidate markets
+                    ▼
+            Human Confirmation
+            ├─ Review candidate list
+            ├─ Confirm correct market
+            └─ Update reference case
+                    ▼
+            Trade Ingestion
+            └─ Ingest trades for analysis
+```
+
+### Key Commands
+
+#### 1. Scan Mode (Discovery Without Reference Case)
+
+Scan blockchain trades in a date range to discover market activity patterns:
+
+```bash
+# Scan last 7 days, show top 10 markets
+mix polymarket.ingest --subgraph --days 7 --scan
+
+# Scan specific date range around a known event
+mix polymarket.ingest --subgraph --from 2025-10-08 --to 2025-10-12 --scan --top 20
+
+# Full ingestion (without --scan flag)
+mix polymarket.ingest --subgraph --from 2025-10-01 --to 2025-10-15
+```
+
+**Scan output includes:**
+- Total trades and volume in date range
+- Markets grouped by trading activity
+- Whale trade counts (>$1K positions)
+- Unique wallet counts per market
+- Trading period timestamps
+
+#### 2. Reference Case Discovery (Find Market for Known Event)
+
+Discover which Polymarket market corresponds to a reference case:
+
+```bash
+# Discover markets for a specific reference case
+mix polymarket.discover --reference-case "Nobel Peace Prize 2025"
+
+# Custom window: 10 days before event, 2 days after
+mix polymarket.discover --reference-case "Nobel Peace Prize 2025" --window 10 --after 2
+
+# Show top 20 candidates
+mix polymarket.discover --reference-case "Nobel Peace Prize 2025" --top 20
+
+# Discover for ALL reference cases missing condition_ids
+mix polymarket.discover --all-references
+```
+
+**Discovery output includes:**
+- Ranked candidate markets by score (0.0-1.0)
+- Condition ID for each candidate
+- Volume and pre-event volume percentage
+- Whale count and unique wallet count
+- Trading period around the event
+- **Suspicious wallets** with timing and volume data (Phase 3)
+
+#### 3. Confirm Market Match
+
+After reviewing discover output, confirm which market is correct:
+
+```bash
+# Confirm market match for reference case
+mix polymarket.confirm --reference-case "Nobel Peace Prize 2025" --condition 0x14a3dfeba8...
+
+# With optional slug (auto-fetched if omitted)
+mix polymarket.confirm --reference-case "Case Name" --condition 0xabc... --slug "market-slug"
+```
+
+#### 4. Ingest Trades
+
+After confirming, ingest trades for analysis:
+
+```bash
+# Ingest trades for a specific reference case
+mix polymarket.ingest --subgraph --reference-case "Nobel Peace Prize 2025"
+
+# Ingest trades for all reference cases with condition_ids
+mix polymarket.ingest --subgraph --reference-cases
+
+# Ingest for specific condition
+mix polymarket.ingest --subgraph --condition 0x14a3dfeba8... --from 2025-10-01
+```
+
+### Complete Workflow Example
+
+```bash
+# 1. You have a reference case (from news: "Nobel Peace Prize 2025", event Oct 11)
+#    Check it exists in the database
+mix polymarket.references
+
+# 2. Discover which market matches this event
+mix polymarket.discover --reference-case "Nobel Peace Prize 2025"
+# Output shows candidate markets ranked by score:
+#   1. "Will María Corina Machado win the Nobel Peace Prize?"
+#      Condition: 0x14a3...  Score: 0.85  Volume: $45K (62% pre-event)
+
+# 3. Review candidates and confirm the correct match
+mix polymarket.confirm --reference-case "Nobel Peace Prize 2025" --condition 0x14a3dfeba8...
+
+# 4. Promote discovered wallets to investigation candidates
+mix polymarket.promote --reference-case "Nobel Peace Prize 2025"
+# Output: Created 12 investigation candidate(s)
+#         Batch ID: refcase-nobel-peace-1234567890
+
+# 5. Ingest trades for detailed analysis
+mix polymarket.ingest --subgraph --reference-case "Nobel Peace Prize 2025"
+
+# 6. Review and investigate candidates
+mix polymarket.candidates --batch refcase-nobel-peace-1234567890
+mix polymarket.investigate --id 1
+```
+
+### Scoring Algorithms
+
+#### Market Scoring
+
+Reference case discovery scores markets based on:
+
+| Factor | Weight | Description |
+|--------|--------|-------------|
+| Whale Activity | 30% | Trades >$1K indicate informed trading |
+| Pre-Event Volume | 30% | Volume concentration before event |
+| Total Volume | 25% | Log-scaled trading volume |
+| Wallet Diversity | 15% | Unique wallets (avoid wash trading) |
+
+#### Wallet Suspicion Scoring (Phase 3)
+
+Individual wallets are scored for suspicious activity:
+
+| Factor | Weight | Description |
+|--------|--------|-------------|
+| Volume | 25% | Log-scaled position size |
+| Whale Trades | 25% | Number of trades >$1K |
+| Pre-Event Concentration | 30% | % of volume placed before event |
+| Timing Precision | 20% | Closer to event = more suspicious |
+
+**Timing Precision Breakdown:**
+- Within 24h of event: 20%
+- Within 48h: 15%
+- Within 72h: 10%
+- Beyond 72h: 5%
+
+Discovery results (wallets + candidate markets) are automatically saved to the reference case for later analysis.
+
+#### 5. Promote Wallets to Investigation Candidates (Phase 4)
+
+After discovery, convert suspicious wallets into investigation candidates:
+
+```bash
+# Preview promotion (dry run)
+mix polymarket.promote --reference-case "Nobel Peace Prize 2025" --dry-run
+
+# Promote wallets (creates investigation candidates)
+mix polymarket.promote --reference-case "Nobel Peace Prize 2025"
+
+# Custom thresholds
+mix polymarket.promote --reference-case "Case Name" --min-score 0.6 --limit 10
+
+# Force priority level
+mix polymarket.promote --reference-case "Case Name" --priority critical
+```
+
+**Promotion workflow:**
+1. Reads discovered wallets from reference case
+2. Filters by minimum suspicion score (default: 0.4)
+3. Creates InvestigationCandidate records with:
+   - Anomaly breakdown (volume, timing, whale trades)
+   - Matched patterns (reference case linkage)
+   - Priority based on suspicion score
+4. Assigns batch ID for tracking
+
+**After promotion:**
+```bash
+# List candidates from this batch
+mix polymarket.candidates --batch refcase-nobel-peace-1234567890
+
+# Investigate specific candidate
+mix polymarket.investigate --id 1
+
+# Confirm as insider
+mix polymarket.confirm --id 1 --notes "Pre-event timing matches"
+```
+
+### Data Sources
+
+| Source | Endpoint | Data Available |
+|--------|----------|----------------|
+| Polymarket Subgraph | `api.goldsky.com/.../orderbook-subgraph` | All trades since Nov 2022 |
+| Polymarket API | `data-api.polymarket.com` | Recent trades (geo-blocked in some regions) |
+| Gamma API | `gamma-api.polymarket.com` | Market metadata |
+
+**Note:** The subgraph bypasses geo-blocking and provides complete historical data.
+
+---
+
 ## 🧪 Testing
 
 ```bash
