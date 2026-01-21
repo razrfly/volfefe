@@ -80,37 +80,48 @@ defmodule VolfefeMachine.Polymarket.Market do
   @doc """
   Categorizes a market based on its question text.
   Returns one of: :politics, :corporate, :legal, :crypto, :sports, :entertainment, :science, :other
+
+  Uses simple keyword matching - no regex, no hardcoded team lists.
   """
   def categorize_from_question(question) when is_binary(question) do
     question_lower = String.downcase(question)
 
     cond do
-      # Politics
-      matches_any?(question_lower, ~w(trump biden election president congress senate governor vote republican democrat political impeach)) ->
+      # Sports - check first because " vs " is a strong signal
+      String.contains?(question_lower, " vs ") or String.contains?(question_lower, " vs. ") ->
+        :sports
+
+      matches_any?(question_lower, ~w(nfl nba mlb nhl ufc wwe playoff touchdown homerun knockout boxing wrestling tennis golf)) ->
+        :sports
+
+      # Crypto
+      matches_any?(question_lower, ~w(bitcoin btc ethereum eth crypto solana xrp dogecoin)) ->
+        :crypto
+
+      # Politics - government, elections, geopolitics
+      matches_any?(question_lower, ~w(trump biden president congress senate election vote governor impeach)) ->
+        :politics
+
+      matches_any?(question_lower, ~w(russia ukraine china taiwan iran israel military war ceasefire invasion nato)) ->
+        :politics
+
+      matches_any?(question_lower, ~w(fed federal reserve interest rate tariff sanction)) ->
         :politics
 
       # Corporate
-      matches_any?(question_lower, ~w(ceo earnings stock company ipo acquisition merger layoff bankruptcy)) ->
+      matches_any?(question_lower, ~w(ceo earnings ipo acquisition merger layoff bankruptcy quarterly revenue)) ->
         :corporate
 
       # Legal
-      matches_any?(question_lower, ~w(court ruling verdict trial lawsuit convicted guilty innocent sentence appeal judge jury)) ->
+      matches_any?(question_lower, ~w(court verdict trial lawsuit convicted guilty sentenced indicted extradited)) ->
         :legal
 
-      # Crypto price markets (typically short timeframes)
-      matches_any?(question_lower, ~w(bitcoin btc ethereum eth xrp solana)) and matches_any?(question_lower, ~w(price up down 15m 30m 1h)) ->
-        :crypto
-
-      # Sports
-      matches_any?(question_lower, ~w(nfl nba mlb nhl super bowl championship game win score team player)) ->
-        :sports
-
       # Entertainment
-      matches_any?(question_lower, ~w(oscar grammy emmy movie film tv show celebrity actor actress)) ->
+      matches_any?(question_lower, ~w(oscar grammy emmy movie film netflix episode released celebrity actor actress tweet twitter)) ->
         :entertainment
 
       # Science
-      matches_any?(question_lower, ~w(climate weather temperature nasa space discovery research study)) ->
+      matches_any?(question_lower, ~w(nasa space climate temperature vaccine fda cdc research)) ->
         :science
 
       true ->
