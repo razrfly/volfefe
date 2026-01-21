@@ -206,10 +206,8 @@ defmodule Mix.Tasks.Polymarket.Sync do
       Mix.shell().info("Phase 4: Calculating trade outcomes...")
 
       trades_updated = Enum.reduce(newly_resolved_markets, 0, fn market, acc ->
-        case Polymarket.calculate_trade_outcomes(market) do
-          {:ok, %{updated: n}} -> acc + n
-          _ -> acc
-        end
+        {:ok, %{updated: n}} = Polymarket.calculate_trade_outcomes(market)
+        acc + n
       end)
 
       Mix.shell().info("✅ Updated #{trades_updated} trades with was_correct/profit_loss")
@@ -218,25 +216,15 @@ defmodule Mix.Tasks.Polymarket.Sync do
       # Score the newly-resolved trades
       Mix.shell().info("Phase 5: Scoring newly-resolved trades...")
 
-      case Polymarket.score_all_trades(only_unscored: true) do
-        {:ok, score_stats} ->
-          Mix.shell().info("✅ Scored #{score_stats.scored} trades")
-          Mix.shell().info("")
+      {:ok, score_stats} = Polymarket.score_all_trades(only_unscored: true)
+      Mix.shell().info("✅ Scored #{score_stats.scored} trades")
+      Mix.shell().info("")
 
-          %{results |
-            newly_resolved: length(newly_resolved_markets),
-            trades_updated: trades_updated,
-            trades_scored: score_stats.scored
-          }
-
-        {:error, reason} ->
-          Mix.shell().error("❌ Scoring failed: #{inspect(reason)}")
-          %{results |
-            newly_resolved: length(newly_resolved_markets),
-            trades_updated: trades_updated,
-            errors: results.errors + 1
-          }
-      end
+      %{results |
+        newly_resolved: length(newly_resolved_markets),
+        trades_updated: trades_updated,
+        trades_scored: score_stats.scored
+      }
     end
   end
 

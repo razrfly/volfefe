@@ -82,7 +82,9 @@ config :volfefe_machine, Oban,
        # Trade ingestion every 5 minutes - wide net coverage
        {"*/5 * * * *", VolfefeMachine.Workers.Polymarket.TradeIngestionWorker},
        # Market sync hourly with resolution checking
-       {"0 * * * *", VolfefeMachine.Workers.Polymarket.MarketSyncWorker, args: %{check_resolutions: true}}
+       {"0 * * * *", VolfefeMachine.Workers.Polymarket.MarketSyncWorker, args: %{check_resolutions: true}},
+       # Diversity check every 30 minutes - coverage health monitoring
+       {"*/30 * * * *", VolfefeMachine.Workers.Polymarket.DiversityCheckWorker}
      ]}
   ]
 

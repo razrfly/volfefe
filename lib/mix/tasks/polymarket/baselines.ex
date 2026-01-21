@@ -74,23 +74,17 @@ defmodule Mix.Tasks.Polymarket.Baselines do
       Mix.shell().info("Recalculating baselines...")
       Mix.shell().info("")
 
-      case Polymarket.calculate_insider_baselines() do
-        {:ok, result} ->
-          Mix.shell().info("✅ Updated #{result.updated} baseline metrics")
-          Mix.shell().info("")
+      {:ok, result} = Polymarket.calculate_insider_baselines()
+      Mix.shell().info("✅ Updated #{result.updated} baseline metrics")
+      Mix.shell().info("")
 
-          if verbose do
-            show_baseline_details()
-          end
-
-          # Show post-stats
-          post_stats = Polymarket.feedback_loop_stats()
-          show_separation_change(pre_stats, post_stats)
-
-        {:error, reason} ->
-          Mix.shell().error("❌ Baseline calculation failed: #{inspect(reason)}")
-          Mix.shell().info("")
+      if verbose do
+        show_baseline_details()
       end
+
+      # Show post-stats
+      post_stats = Polymarket.feedback_loop_stats()
+      show_separation_change(pre_stats, post_stats)
     end
 
     print_footer()
