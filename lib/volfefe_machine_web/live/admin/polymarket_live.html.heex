@@ -38,6 +38,7 @@
   <div class="mb-6 border-b border-gray-200">
     <nav class="-mb-px flex space-x-8">
       <button
+        id="tab-overview"
         phx-click="switch_tab"
         phx-value-tab="overview"
         class={[
@@ -48,6 +49,7 @@
         📊 Overview
       </button>
       <button
+        id="tab-alerts"
         phx-click="switch_tab"
         phx-value-tab="alerts"
         class={[
@@ -63,6 +65,7 @@
         <% end %>
       </button>
       <button
+        id="tab-candidates"
         phx-click="switch_tab"
         phx-value-tab="candidates"
         class={[
@@ -78,6 +81,7 @@
         <% end %>
       </button>
       <button
+        id="tab-patterns"
         phx-click="switch_tab"
         phx-value-tab="patterns"
         class={[
@@ -88,6 +92,7 @@
         🧩 Patterns
       </button>
       <button
+        id="tab-discovery"
         phx-click="switch_tab"
         phx-value-tab="discovery"
         class={[
@@ -98,6 +103,7 @@
         🔍 Discovery
       </button>
       <button
+        id="tab-coverage"
         phx-click="switch_tab"
         phx-value-tab="coverage"
         class={[
