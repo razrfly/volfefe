@@ -80,13 +80,8 @@ defmodule Mix.Tasks.Polymarket.Validate do
       Mix.shell().info("Validating #{pattern_count} patterns against #{insider_count} confirmed insiders...")
       Mix.shell().info("")
 
-      case Polymarket.validate_patterns() do
-        {:ok, result} ->
-          print_results(result, opts[:verbose] || false)
-
-        {:error, reason} ->
-          Mix.shell().error("❌ Validation failed: #{inspect(reason)}")
-      end
+      {:ok, result} = Polymarket.validate_patterns()
+      print_results(result, opts[:verbose] || false)
     end
 
     print_footer()

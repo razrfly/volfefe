@@ -111,16 +111,9 @@ defmodule Mix.Tasks.Polymarket.Feedback do
       notes: notes
     ]
 
-    case Polymarket.run_feedback_loop(feedback_opts) do
-      {:ok, result} ->
-        print_steps(result.steps, rescore)
-        print_results(result, pre_stats)
-
-      {:error, reason} ->
-        Mix.shell().error("")
-        Mix.shell().error("❌ Feedback loop failed: #{inspect(reason)}")
-        Mix.shell().info("")
-    end
+    {:ok, result} = Polymarket.run_feedback_loop(feedback_opts)
+    print_steps(result.steps, rescore)
+    print_results(result, pre_stats)
 
     print_footer()
   end
@@ -168,7 +161,7 @@ defmodule Mix.Tasks.Polymarket.Feedback do
 
   defp print_results(result, pre_stats) do
     post_stats = result.post_stats
-    improvements = result.improvements
+    _improvements = result.improvements
 
     Mix.shell().info(String.duplicate("═", 65))
     Mix.shell().info("ITERATION ##{result.iteration} COMPLETE")

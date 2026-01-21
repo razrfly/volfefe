@@ -14,6 +14,7 @@ defmodule VolfefeMachineWeb.Admin.PolymarketLive do
   import LiveToast
   alias VolfefeMachine.Polymarket
   alias VolfefeMachine.Polymarket.FormatHelpers
+  alias VolfefeMachine.Polymarket.DiversityMonitor
 
   @impl true
   def mount(_params, _session, socket) do
@@ -36,6 +37,7 @@ defmodule VolfefeMachineWeb.Admin.PolymarketLive do
       "candidates" -> :candidates
       "patterns" -> :patterns
       "discovery" -> :discovery
+      "coverage" -> :coverage
       _ -> :overview
     end
 
@@ -234,11 +236,13 @@ defmodule VolfefeMachineWeb.Admin.PolymarketLive do
     dashboard = Polymarket.monitoring_dashboard()
     investigation = Polymarket.investigation_dashboard()
     pattern_statistics = Polymarket.pattern_stats()
+    coverage_health = DiversityMonitor.health_summary()
 
     socket
     |> assign(:dashboard, dashboard)
     |> assign(:investigation, investigation)
     |> assign(:pattern_stats, pattern_statistics)
+    |> assign(:coverage_health, coverage_health)
     |> assign(:alerts, Polymarket.list_alerts(limit: 50))
     |> assign(:candidates, Polymarket.list_investigation_candidates(limit: 50))
     |> assign(:patterns, Polymarket.list_insider_patterns(include_stats: true))
@@ -339,4 +343,27 @@ defmodule VolfefeMachineWeb.Admin.PolymarketLive do
     "#{String.slice(address, 0, 6)}...#{String.slice(address, -4, 4)}"
   end
   def format_wallet(address), do: address
+
+  # Coverage helpers
+
+  def health_score_class(score) when score >= 80, do: "text-green-600"
+  def health_score_class(score) when score >= 50, do: "text-yellow-600"
+  def health_score_class(_score), do: "text-red-600"
+
+  def health_score_bg(score) when score >= 80, do: "bg-green-100"
+  def health_score_bg(score) when score >= 50, do: "bg-yellow-100"
+  def health_score_bg(_score), do: "bg-red-100"
+
+  def health_score_icon(score) when score >= 80, do: "✅"
+  def health_score_icon(score) when score >= 50, do: "⚠️"
+  def health_score_icon(_score), do: "❌"
+
+  def format_number(n) when is_integer(n) do
+    n
+    |> Integer.to_string()
+    |> String.reverse()
+    |> String.replace(~r/(\d{3})(?=\d)/, "\\1,")
+    |> String.reverse()
+  end
+  def format_number(n), do: "#{n}"
 end

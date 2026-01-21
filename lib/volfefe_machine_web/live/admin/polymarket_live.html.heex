@@ -97,6 +97,21 @@
       >
         🔍 Discovery
       </button>
+      <button
+        phx-click="switch_tab"
+        phx-value-tab="coverage"
+        class={[
+          "whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm",
+          if(@active_tab == :coverage, do: "border-indigo-500 text-indigo-600", else: "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300")
+        ]}
+      >
+        📡 Coverage
+        <%= if @coverage_health.alert_count > 0 do %>
+          <span class="ml-2 inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+            <%= @coverage_health.alert_count %>
+          </span>
+        <% end %>
+      </button>
     </nav>
   </div>
 
@@ -662,6 +677,196 @@
             <p class="mt-2 text-3xl font-semibold text-red-600">
               <%= @investigation.confirmed_insiders.total %>
             </p>
+          </div>
+        </div>
+      </div>
+    <% end %>
+
+    <!-- Coverage Tab -->
+    <%= if @active_tab == :coverage do %>
+      <div class="space-y-6">
+        <!-- Health Score Banner -->
+        <div class={[
+          "rounded-lg p-6 border",
+          health_score_bg(@coverage_health.health_score)
+        ]}>
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="flex items-center space-x-3">
+                <span class="text-4xl"><%= health_score_icon(@coverage_health.health_score) %></span>
+                <div>
+                  <h2 class={["text-2xl font-bold", health_score_class(@coverage_health.health_score)]}>
+                    Health Score: <%= @coverage_health.health_score %>/100
+                  </h2>
+                  <p class="text-sm text-gray-600 mt-1">
+                    Wide net coverage across market categories
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div class="text-right">
+              <p class="text-sm text-gray-500">Last checked</p>
+              <p class="text-sm font-medium"><%= relative_time(@coverage_health.checked_at) %></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Coverage Stats Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div class="bg-white shadow rounded-lg p-6 border border-gray-200">
+            <div class="flex items-center justify-between">
+              <h3 class="text-sm font-medium text-gray-500">Categories Active</h3>
+              <span class="text-2xl">📊</span>
+            </div>
+            <p class="mt-2 text-3xl font-semibold text-gray-900">
+              <%= @coverage_health.categories_active %>/<%= @coverage_health.categories_total %>
+            </p>
+            <div class="mt-2 text-xs text-gray-500">
+              <%= Float.round(@coverage_health.categories_active / @coverage_health.categories_total * 100, 1) %>% category coverage
+            </div>
+          </div>
+
+          <div class="bg-white shadow rounded-lg p-6 border border-gray-200">
+            <div class="flex items-center justify-between">
+              <h3 class="text-sm font-medium text-gray-500">Markets with Trades</h3>
+              <span class="text-2xl">🎯</span>
+            </div>
+            <p class="mt-2 text-3xl font-semibold text-gray-900">
+              <%= format_number(@coverage_health.markets_with_trades) %>
+            </p>
+            <div class="mt-2 text-xs text-gray-500">
+              of <%= format_number(@coverage_health.total_markets) %> total markets
+            </div>
+          </div>
+
+          <div class="bg-white shadow rounded-lg p-6 border border-gray-200">
+            <div class="flex items-center justify-between">
+              <h3 class="text-sm font-medium text-gray-500">Total Trades</h3>
+              <span class="text-2xl">📈</span>
+            </div>
+            <p class="mt-2 text-3xl font-semibold text-indigo-600">
+              <%= format_number(@coverage_health.total_trades) %>
+            </p>
+            <div class="mt-2 text-xs text-gray-500">
+              <%= format_number(@coverage_health.scored_trades) %> scored
+            </div>
+          </div>
+
+          <div class="bg-white shadow rounded-lg p-6 border border-gray-200">
+            <div class="flex items-center justify-between">
+              <h3 class="text-sm font-medium text-gray-500">Concentration</h3>
+              <%= if @coverage_health.concentration.is_concerning do %>
+                <span class="text-2xl">⚠️</span>
+              <% else %>
+                <span class="text-2xl">✅</span>
+              <% end %>
+            </div>
+            <p class={[
+              "mt-2 text-3xl font-semibold",
+              if(@coverage_health.concentration.is_concerning, do: "text-yellow-600", else: "text-green-600")
+            ]}>
+              <%= @coverage_health.concentration.percentage %>%
+            </p>
+            <div class="mt-2 text-xs text-gray-500">
+              from <%= @coverage_health.concentration.top_category || "N/A" %>
+            </div>
+          </div>
+        </div>
+
+        <!-- Alerts Section -->
+        <%= if @coverage_health.alert_count > 0 do %>
+          <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+            <h3 class="text-lg font-medium text-yellow-800 mb-4">
+              ⚠️ Coverage Alerts (<%= @coverage_health.alert_count %>)
+            </h3>
+            <ul class="space-y-2">
+              <li :if={@coverage_health.stale_count > 0} class="flex items-center text-sm text-yellow-700">
+                <span class="mr-2">🕐</span>
+                <%= @coverage_health.stale_count %> categories have stale data (>1h since last trade)
+              </li>
+              <li :if={@coverage_health.missing_count > 0} class="flex items-center text-sm text-yellow-700">
+                <span class="mr-2">❌</span>
+                <%= @coverage_health.missing_count %> categories have no trades captured
+              </li>
+              <li :if={@coverage_health.critical_count > 0} class="flex items-center text-sm text-red-700">
+                <span class="mr-2">🚨</span>
+                <%= @coverage_health.critical_count %> categories are CRITICAL (>24h stale)
+              </li>
+              <li :if={@coverage_health.concentration.is_concerning} class="flex items-center text-sm text-yellow-700">
+                <span class="mr-2">📊</span>
+                High concentration: <%= @coverage_health.concentration.percentage %>% from <%= @coverage_health.concentration.top_category %>
+              </li>
+            </ul>
+            <div class="mt-4 pt-4 border-t border-yellow-200">
+              <p class="text-sm text-yellow-700">
+                Run <code class="bg-yellow-100 px-1 rounded">mix polymarket.ingest</code> to capture more trades
+              </p>
+            </div>
+          </div>
+        <% else %>
+          <div class="bg-green-50 border border-green-200 rounded-lg p-6">
+            <div class="flex items-center">
+              <span class="text-2xl mr-3">✅</span>
+              <div>
+                <h3 class="text-lg font-medium text-green-800">Coverage Healthy</h3>
+                <p class="text-sm text-green-600 mt-1">
+                  Trade ingestion is covering all active categories with good diversity.
+                </p>
+              </div>
+            </div>
+          </div>
+        <% end %>
+
+        <!-- Pipeline Status -->
+        <div class="bg-white shadow rounded-lg border border-gray-200">
+          <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-medium text-gray-900">Pipeline Status</h3>
+          </div>
+          <div class="p-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div class="text-center p-4 bg-gray-50 rounded-lg">
+                <p class="text-sm text-gray-500">Trade Ingestion</p>
+                <p class="text-lg font-semibold text-green-600">Every 5 min</p>
+                <p class="text-xs text-gray-400 mt-1">Automated via Oban</p>
+              </div>
+              <div class="text-center p-4 bg-gray-50 rounded-lg">
+                <p class="text-sm text-gray-500">Market Sync</p>
+                <p class="text-lg font-semibold text-green-600">Hourly</p>
+                <p class="text-xs text-gray-400 mt-1">With resolution checking</p>
+              </div>
+              <div class="text-center p-4 bg-gray-50 rounded-lg">
+                <p class="text-sm text-gray-500">Diversity Check</p>
+                <p class="text-lg font-semibold text-green-600">Every 30 min</p>
+                <p class="text-xs text-gray-400 mt-1">Coverage health monitoring</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="bg-white shadow rounded-lg border border-gray-200">
+          <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-medium text-gray-900">CLI Commands</h3>
+          </div>
+          <div class="p-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="p-4 bg-gray-50 rounded-lg">
+                <code class="text-sm text-indigo-600">mix polymarket.health</code>
+                <p class="text-xs text-gray-500 mt-1">Quick health check</p>
+              </div>
+              <div class="p-4 bg-gray-50 rounded-lg">
+                <code class="text-sm text-indigo-600">mix polymarket.coverage</code>
+                <p class="text-xs text-gray-500 mt-1">Full coverage report</p>
+              </div>
+              <div class="p-4 bg-gray-50 rounded-lg">
+                <code class="text-sm text-indigo-600">mix polymarket.ingest</code>
+                <p class="text-xs text-gray-500 mt-1">Manual trade ingestion</p>
+              </div>
+              <div class="p-4 bg-gray-50 rounded-lg">
+                <code class="text-sm text-indigo-600">mix polymarket.sync --full</code>
+                <p class="text-xs text-gray-500 mt-1">Full market sync with scoring</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>

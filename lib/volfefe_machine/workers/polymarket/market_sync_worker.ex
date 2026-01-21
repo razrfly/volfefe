@@ -128,30 +128,20 @@ defmodule VolfefeMachine.Workers.Polymarket.MarketSyncWorker do
 
       # Calculate trade outcomes for each
       trades_updated = Enum.reduce(newly_resolved, 0, fn market, acc ->
-        case Polymarket.calculate_trade_outcomes(market) do
-          {:ok, %{updated: n}} -> acc + n
-          _ -> acc
-        end
+        {:ok, %{updated: n}} = Polymarket.calculate_trade_outcomes(market)
+        acc + n
       end)
 
       Logger.info("[MarketSync] Updated #{trades_updated} trades with was_correct/profit_loss")
 
       # Score the newly-resolved trades
-      case Polymarket.score_all_trades(only_unscored: true) do
-        {:ok, score_stats} ->
-          Logger.info("[MarketSync] Scored #{score_stats.scored} trades")
+      {:ok, score_stats} = Polymarket.score_all_trades(only_unscored: true)
+      Logger.info("[MarketSync] Scored #{score_stats.scored} trades")
 
-          %{results |
-            newly_resolved: length(newly_resolved),
-            trades_scored: score_stats.scored
-          }
-
-        {:error, reason} ->
-          %{results |
-            newly_resolved: length(newly_resolved),
-            errors: [{:scoring, reason} | results.errors]
-          }
-      end
+      %{results |
+        newly_resolved: length(newly_resolved),
+        trades_scored: score_stats.scored
+      }
     end
   end
 end

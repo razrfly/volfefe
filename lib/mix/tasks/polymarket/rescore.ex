@@ -81,25 +81,18 @@ defmodule Mix.Tasks.Polymarket.Rescore do
     rescore_opts = [batch_size: batch_size]
     rescore_opts = if limit, do: Keyword.put(rescore_opts, :limit, limit), else: rescore_opts
 
-    case Polymarket.rescore_all_trades(rescore_opts) do
-      {:ok, result} ->
-        Mix.shell().info("✅ Re-scoring complete!")
-        Mix.shell().info("   Scored: #{format_number(result.scored)}")
-        Mix.shell().info("   Errors: #{result.errors}")
+    {:ok, result} = Polymarket.rescore_all_trades(rescore_opts)
+    Mix.shell().info("✅ Re-scoring complete!")
+    Mix.shell().info("   Scored: #{format_number(result.scored)}")
+    Mix.shell().info("   Errors: #{result.errors}")
 
-        if result.errors > 0 do
-          Mix.shell().info("")
-          Mix.shell().info("⚠️  #{result.errors} trades failed to rescore")
-          Mix.shell().info("   Check logs for details")
-        end
-
-        Mix.shell().info("")
-
-      {:error, reason} ->
-        Mix.shell().error("")
-        Mix.shell().error("❌ Rescoring failed: #{inspect(reason)}")
-        Mix.shell().info("")
+    if result.errors > 0 do
+      Mix.shell().info("")
+      Mix.shell().info("⚠️  #{result.errors} trades failed to rescore")
+      Mix.shell().info("   Check logs for details")
     end
+
+    Mix.shell().info("")
 
     print_footer()
   end
@@ -118,10 +111,6 @@ defmodule Mix.Tasks.Polymarket.Rescore do
     Mix.shell().info("")
   end
 
-  defp format_decimal(nil), do: "N/A"
-  defp format_decimal(%Decimal{} = d), do: Decimal.round(d, 4) |> Decimal.to_string()
-  defp format_decimal(f) when is_float(f), do: Float.round(f, 4) |> Float.to_string()
-  defp format_decimal(n), do: "#{n}"
 
   defp format_number(n) when is_integer(n) do
     n
