@@ -4,7 +4,7 @@ defmodule VolfefeMachine.Polymarket.TradeScore do
 
   Stores computed anomaly metrics for each trade:
   - Z-scores for each metric (how many stddevs from normal)
-  - Composite anomaly score
+  - Composite anomaly score with Trinity Weighting
   - Insider probability estimate
   - Pattern matches
 
@@ -15,11 +15,20 @@ defmodule VolfefeMachine.Polymarket.TradeScore do
   - |z| > 2.5 → Very unusual (top 0.6%)
   - |z| > 3.0 → Extreme (top 0.1%)
 
-  **Anomaly Score**: Normalized RMS of z-scores
-  ```
-  anomaly_score = sqrt(sum(z²)) / sqrt(n) / 3.0
-  ```
-  Capped at 1.0, where 1.0 = extreme outlier on all dimensions.
+  **Anomaly Score**: Weighted z-scores with Trinity Boost
+
+  Base weights:
+  - size_zscore: 25%
+  - timing_zscore: 25%
+  - wallet_age_zscore: 20%
+  - position_concentration_zscore: 15%
+  - wallet_activity_zscore: 8%
+  - price_extremity_zscore: 4%
+  - funding_proximity_zscore: 3%
+
+  **Trinity Boost**: When all three core signals (size, timing, wallet_age) are
+  significant (|z| >= 2.0), apply 1.25x multiplier. This captures the classic
+  insider pattern: large trade + perfect timing + new/suspicious wallet.
 
   **Insider Probability**: Weighted combination
   ```
@@ -41,6 +50,8 @@ defmodule VolfefeMachine.Polymarket.TradeScore do
     field :wallet_age_zscore, :decimal
     field :wallet_activity_zscore, :decimal
     field :price_extremity_zscore, :decimal
+    field :position_concentration_zscore, :decimal
+    field :funding_proximity_zscore, :decimal
 
     # Combined scores
     field :anomaly_score, :decimal
@@ -62,6 +73,7 @@ defmodule VolfefeMachine.Polymarket.TradeScore do
     trade_id transaction_hash
     size_zscore timing_zscore wallet_age_zscore
     wallet_activity_zscore price_extremity_zscore
+    position_concentration_zscore funding_proximity_zscore
     anomaly_score insider_probability
     matched_patterns highest_pattern_score
     discovery_rank scored_at
@@ -73,13 +85,36 @@ defmodule VolfefeMachine.Polymarket.TradeScore do
     |> unique_constraint(:trade_id)
   end
 
-  @doc """
-  Calculates composite anomaly score from z-scores.
+  # Trinity signal threshold - z-score must be >= this to count as "significant"
+  @trinity_threshold 2.0
+  # Boost multiplier when all three trinity signals fire
+  @trinity_boost 1.25
 
-  Uses root mean square normalized by max expected z-score (3.0).
-  Result is capped between 0 and 1.
+  # Weights for each z-score (must sum to 1.0)
+  @zscore_weights %{
+    size_zscore: 0.25,
+    timing_zscore: 0.25,
+    wallet_age_zscore: 0.20,
+    position_concentration_zscore: 0.15,
+    wallet_activity_zscore: 0.08,
+    price_extremity_zscore: 0.04,
+    funding_proximity_zscore: 0.03
+  }
+
+  @doc """
+  Calculates composite anomaly score from z-scores using Trinity Weighting.
+
+  Uses weighted z-scores with a boost when all three core signals
+  (size, timing, wallet_age) are significant.
+
+  ## Parameters
+  - `zscores` - Either a list of z-scores (legacy) or a map with named z-scores
+
+  ## Returns
+  Decimal between 0 and 1, where 1.0 = extreme anomaly
   """
   def calculate_anomaly_score(zscores) when is_list(zscores) do
+    # Legacy list-based scoring (for backwards compatibility)
     valid_zscores = Enum.reject(zscores, &is_nil/1)
 
     if Enum.empty?(valid_zscores) do
@@ -101,6 +136,62 @@ defmodule VolfefeMachine.Polymarket.TradeScore do
       Decimal.from_float(Float.round(normalized, 4))
     end
   end
+
+  def calculate_anomaly_score(zscores) when is_map(zscores) do
+    # New weighted scoring with Trinity boost
+    weighted_sum =
+      @zscore_weights
+      |> Enum.reduce(0.0, fn {metric, weight}, acc ->
+        zscore = Map.get(zscores, metric) || Map.get(zscores, to_string(metric))
+        z = abs(ensure_float(zscore))
+        # Normalize each z-score to 0-1 range (3.0 = 1.0)
+        normalized_z = min(z / 3.0, 1.0)
+        acc + normalized_z * weight
+      end)
+
+    # Check for Trinity boost
+    trinity_boost = calculate_trinity_boost(zscores)
+
+    # Apply boost and cap at 1.0
+    final_score = min(weighted_sum * trinity_boost, 1.0)
+    Decimal.from_float(Float.round(final_score, 4))
+  end
+
+  @doc """
+  Calculates the Trinity boost multiplier.
+
+  Returns #{@trinity_boost}x when all three core signals (size, timing, wallet_age)
+  are significant (|z| >= #{@trinity_threshold}).
+
+  This captures the classic insider pattern:
+  - Large trade (size)
+  - Perfect timing (close to resolution)
+  - Suspicious wallet (new or unusual activity)
+  """
+  def calculate_trinity_boost(zscores) when is_map(zscores) do
+    trinity_signals = [:size_zscore, :timing_zscore, :wallet_age_zscore]
+
+    all_significant? =
+      Enum.all?(trinity_signals, fn metric ->
+        zscore = Map.get(zscores, metric) || Map.get(zscores, to_string(metric))
+        abs(ensure_float(zscore)) >= @trinity_threshold
+      end)
+
+    if all_significant?, do: @trinity_boost, else: 1.0
+  end
+
+  def calculate_trinity_boost(_), do: 1.0
+
+  @doc """
+  Checks if the Trinity pattern is present in the given z-scores.
+
+  Returns true if all three core signals are significant.
+  """
+  def trinity_pattern?(zscores) when is_map(zscores) do
+    calculate_trinity_boost(zscores) > 1.0
+  end
+
+  def trinity_pattern?(_), do: false
 
   @doc """
   Calculates insider probability from anomaly score, pattern matches, and outcome.

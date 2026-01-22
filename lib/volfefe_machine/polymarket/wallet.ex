@@ -5,6 +5,15 @@ defmodule VolfefeMachine.Polymarket.Wallet do
   Caches wallet metadata and aggregated trading statistics.
   The `address` is the unique wallet address (proxyWallet) from Polymarket.
   Aggregates are computed from trades and updated periodically.
+
+  ## Funding Signal
+
+  Tracks wallet funding for insider detection:
+  - `funded_at` - When the wallet received its first deposit
+  - `initial_deposit_amount` - Size of the first deposit
+  - `funding_to_first_trade_hours` - Time between funding and first trade
+
+  Short funding-to-trade times with large deposits are suspicious signals.
   """
 
   use Ecto.Schema
@@ -33,6 +42,11 @@ defmodule VolfefeMachine.Polymarket.Wallet do
     # Cache metadata
     field :last_aggregated_at, :utc_datetime
 
+    # Funding Signal (insider detection)
+    field :funded_at, :utc_datetime
+    field :initial_deposit_amount, :decimal
+    field :funding_to_first_trade_hours, :decimal
+
     has_many :trades, VolfefeMachine.Polymarket.Trade
 
     timestamps(type: :utc_datetime)
@@ -44,6 +58,7 @@ defmodule VolfefeMachine.Polymarket.Wallet do
     total_trades total_volume unique_markets
     resolved_positions wins losses win_rate
     first_seen_at last_seen_at last_aggregated_at
+    funded_at initial_deposit_amount funding_to_first_trade_hours
   )a
 
   @doc """

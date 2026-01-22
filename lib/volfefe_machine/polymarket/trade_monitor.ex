@@ -49,7 +49,7 @@ defmodule VolfefeMachine.Polymarket.TradeMonitor do
   require Logger
 
   alias VolfefeMachine.Polymarket
-  alias VolfefeMachine.Polymarket.{Alert, Trade, TradeScore, Market}
+  alias VolfefeMachine.Polymarket.{Alert, Trade, TradeScore, Market, Notifier}
   alias VolfefeMachine.Repo
 
   import Ecto.Query
@@ -371,8 +371,7 @@ defmodule VolfefeMachine.Polymarket.TradeMonitor do
   end
 
   defp broadcast_alert(alert) do
-    # In a real system, this would broadcast via Phoenix.PubSub
-    # For now, just log it
+    # Log the alert
     Logger.info("""
     [ALERT] #{alert.severity |> String.upcase()}
     Type: #{alert.alert_type}
@@ -380,6 +379,30 @@ defmodule VolfefeMachine.Polymarket.TradeMonitor do
     Score: #{alert.insider_probability}
     Market: #{alert.market_question || "Unknown"}
     """)
+
+    # Broadcast via PubSub for LiveView updates
+    Phoenix.PubSub.broadcast(
+      VolfefeMachine.PubSub,
+      "polymarket:alerts",
+      {:new_alert, alert}
+    )
+
+    # Send external notifications (Slack, Discord, etc.)
+    spawn(fn ->
+      case Notifier.notify(alert) do
+        results when is_map(results) ->
+          Enum.each(results, fn
+            {channel, {:ok, :sent}} ->
+              Logger.debug("Notification sent to #{channel}")
+            {channel, {:skipped, reason}} ->
+              Logger.debug("Notification skipped for #{channel}: #{reason}")
+            {channel, {:error, reason}} ->
+              Logger.warning("Notification failed for #{channel}: #{inspect(reason)}")
+          end)
+        _ ->
+          :ok
+      end
+    end)
   end
 
   defp get_latest_trade_timestamp do
