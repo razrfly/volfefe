@@ -439,7 +439,7 @@ The system includes tools for detecting potential insider trading on Polymarket 
 
 ### Architecture
 
-```
+```text
 Reference Cases (Seed Data)      Blockchain (Subgraph)
 ├─ Event date                    ├─ ALL trades in date range
 ├─ Description                   ├─ Wallet addresses
