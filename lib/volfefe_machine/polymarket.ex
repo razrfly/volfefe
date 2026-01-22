@@ -468,6 +468,14 @@ defmodule VolfefeMachine.Polymarket do
       display_name: api_trade["name"]
     })
 
+    trade_timestamp = parse_timestamp(api_trade["timestamp"])
+
+    # Calculate wallet age at time of trade (days between wallet first seen and trade)
+    wallet_age_days = calculate_wallet_age_at_trade(wallet, trade_timestamp)
+
+    # Use wallet's current trade count as activity proxy
+    wallet_trade_count = wallet.total_trades || 0
+
     attrs = %{
       transaction_hash: transaction_hash,
       market_id: if(market, do: market.id, else: nil),
@@ -480,8 +488,10 @@ defmodule VolfefeMachine.Polymarket do
       size: parse_decimal(api_trade["size"]),
       price: parse_decimal(api_trade["price"]),
       usdc_size: parse_decimal(api_trade["usdcSize"]),
-      trade_timestamp: parse_timestamp(api_trade["timestamp"]),
+      trade_timestamp: trade_timestamp,
       price_extremity: calculate_price_extremity(api_trade["price"]),
+      wallet_age_days: wallet_age_days,
+      wallet_trade_count: wallet_trade_count,
       meta: api_trade
     }
 
@@ -571,6 +581,18 @@ defmodule VolfefeMachine.Polymarket do
     |> Enum.map(fn {:ok, :inserted, _, wallet} -> wallet.id end)
     |> Enum.uniq()
     |> length()
+  end
+
+  # Calculate wallet age in days at the time of trade
+  # Returns 0 for brand new wallets, nil if timestamps can't be compared
+  defp calculate_wallet_age_at_trade(_wallet, nil), do: nil
+  defp calculate_wallet_age_at_trade(%{first_seen_at: nil}, _trade_timestamp), do: 0
+  defp calculate_wallet_age_at_trade(%{first_seen_at: first_seen}, trade_timestamp) do
+    # Days between wallet's first trade and this trade
+    case DateTime.diff(trade_timestamp, first_seen, :day) do
+      days when days < 0 -> 0  # Trade is before first_seen (shouldn't happen, but handle gracefully)
+      days -> days
+    end
   end
 
   defp parse_outcomes(api_market) do
@@ -913,6 +935,103 @@ defmodule VolfefeMachine.Polymarket do
         total: total_wallets
       }
     }
+  end
+
+  @doc """
+  Backfill wallet_age_days and wallet_trade_count for all existing trades.
+
+  Calculates:
+  - wallet_age_days: Days between wallet's first trade and this trade
+  - wallet_trade_count: Wallet's total trades at time of trade (uses current count as proxy)
+
+  ## Options
+
+  - `:batch_size` - Trades to process per batch (default: 500)
+  - `:dry_run` - If true, report what would be updated without updating (default: false)
+
+  ## Returns
+
+  - `{:ok, %{updated: n, errors: n, skipped: n}}`
+  """
+  def backfill_wallet_signals(opts \\ []) do
+    batch_size = Keyword.get(opts, :batch_size, 500)
+    dry_run = Keyword.get(opts, :dry_run, false)
+
+    # Build a map of wallet first_seen_at timestamps and trade counts
+    wallets_map =
+      from(w in Wallet,
+        select: {w.address, %{first_seen_at: w.first_seen_at, total_trades: w.total_trades}}
+      )
+      |> Repo.all()
+      |> Map.new()
+
+    Logger.info("[Backfill] Loaded #{map_size(wallets_map)} wallets for wallet signal backfill")
+
+    # Get trades that need wallet_age_days populated
+    trades_query = from(t in Trade, where: is_nil(t.wallet_age_days), select: t)
+    total_to_process = Repo.aggregate(trades_query, :count)
+
+    Logger.info("[Backfill] #{total_to_process} trades need wallet signals populated")
+
+    if dry_run do
+      {:ok, %{total: total_to_process, message: "Dry run - no changes made"}}
+    else
+      process_wallet_signal_batches(trades_query, wallets_map, batch_size)
+    end
+  end
+
+  defp process_wallet_signal_batches(query, wallets_map, batch_size) do
+    Repo.transaction(fn ->
+      stats = %{updated: 0, errors: 0, skipped: 0}
+
+      query
+      |> Repo.stream(max_rows: batch_size)
+      |> Stream.chunk_every(batch_size)
+      |> Enum.reduce(stats, fn batch, acc ->
+        batch_results = Enum.map(batch, fn trade ->
+          update_trade_wallet_signals(trade, wallets_map)
+        end)
+
+        updated = Enum.count(batch_results, &match?(:ok, &1))
+        errors = Enum.count(batch_results, &match?(:error, &1))
+        skipped = Enum.count(batch_results, &match?(:skipped, &1))
+
+        Logger.info("[Backfill] Processed batch: #{updated} updated, #{skipped} skipped, #{errors} errors")
+
+        %{
+          updated: acc.updated + updated,
+          errors: acc.errors + errors,
+          skipped: acc.skipped + skipped
+        }
+      end)
+    end)
+  end
+
+  defp update_trade_wallet_signals(trade, wallets_map) do
+    wallet_info = Map.get(wallets_map, trade.wallet_address, %{})
+    first_seen = wallet_info[:first_seen_at]
+    total_trades = wallet_info[:total_trades] || 0
+
+    wallet_age_days = if first_seen && trade.trade_timestamp do
+      case DateTime.diff(trade.trade_timestamp, first_seen, :day) do
+        days when days < 0 -> 0
+        days -> days
+      end
+    else
+      nil
+    end
+
+    # Skip if we can't calculate wallet age (no first_seen_at data)
+    if is_nil(wallet_age_days) do
+      :skipped
+    else
+      case trade
+           |> Trade.changeset(%{wallet_age_days: wallet_age_days, wallet_trade_count: total_trades})
+           |> Repo.update() do
+        {:ok, _} -> :ok
+        {:error, _} -> :error
+      end
+    end
   end
 
   # ============================================
