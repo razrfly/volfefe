@@ -8,7 +8,7 @@ This runbook provides operational guidance for running and maintaining the Polym
 
 ## System Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                         DATA INGESTION                                   │
 ├─────────────────────────────────────────────────────────────────────────┤

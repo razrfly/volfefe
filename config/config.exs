@@ -103,16 +103,16 @@ config :volfefe_machine, VolfefeMachine.Polymarket.TradeMonitor,
   enabled: false                # Disabled by default, enable via CLI
 
 # Configure Notifier for external alert notifications
-# Set webhook URLs in runtime.exs or environment variables
+# Webhook URLs are set in runtime.exs from environment variables
 config :volfefe_machine, VolfefeMachine.Polymarket.Notifier,
   enabled: false,               # Enable when webhook URLs are configured
   channels: [
     slack: [
-      webhook_url: System.get_env("SLACK_WEBHOOK_URL"),
+      webhook_url: nil,         # Set via SLACK_WEBHOOK_URL env var in runtime.exs
       min_severity: "high"      # Only high/critical alerts
     ],
     discord: [
-      webhook_url: System.get_env("DISCORD_WEBHOOK_URL"),
+      webhook_url: nil,         # Set via DISCORD_WEBHOOK_URL env var in runtime.exs
       min_severity: "medium"    # medium and above
     ]
   ]

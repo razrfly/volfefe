@@ -974,7 +974,7 @@ defmodule VolfefeMachine.Polymarket do
     Logger.info("[Backfill] #{total_to_process} trades need wallet signals populated")
 
     if dry_run do
-      {:ok, %{total: total_to_process, message: "Dry run - no changes made"}}
+      {:ok, %{updated: 0, errors: 0, skipped: 0, total: total_to_process, message: "Dry run - no changes made"}}
     else
       process_wallet_signal_batches(trades_query, wallets_map, batch_size)
     end
