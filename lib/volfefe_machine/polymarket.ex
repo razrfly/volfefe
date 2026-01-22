@@ -1307,8 +1307,18 @@ defmodule VolfefeMachine.Polymarket do
     activity_z = safe_zscore("wallet_activity", category, trade.wallet_trade_count)
     price_z = safe_zscore("price_extremity", category, trade.price_extremity)
 
+    # Calculate position concentration z-score
+    concentration_z = case calculate_position_concentration(trade.wallet_address, trade.condition_id) do
+      {:ok, concentration} ->
+        case position_concentration_zscore(concentration) do
+          {:ok, z} -> z
+          _ -> nil
+        end
+      _ -> nil
+    end
+
     # Use the most relevant z-scores (skip nil)
-    zscores = [size_z, usdc_z, timing_z, wallet_age_z, activity_z, price_z] |> Enum.reject(&is_nil/1)
+    zscores = [size_z, usdc_z, timing_z, wallet_age_z, activity_z, price_z, concentration_z] |> Enum.reject(&is_nil/1)
 
     anomaly_score = TradeScore.calculate_anomaly_score(zscores)
     insider_prob = TradeScore.calculate_insider_probability(anomaly_score, nil, trade.was_correct)
@@ -1319,7 +1329,8 @@ defmodule VolfefeMachine.Polymarket do
       timing: timing_z || 0,
       wallet_age: wallet_age_z || 0,
       wallet_activity: activity_z || 0,
-      price_extremity: price_z || 0
+      price_extremity: price_z || 0,
+      position_concentration: concentration_z || 0
     })
 
     attrs = %{
@@ -1330,6 +1341,7 @@ defmodule VolfefeMachine.Polymarket do
       wallet_age_zscore: decimal_or_nil(wallet_age_z),
       wallet_activity_zscore: decimal_or_nil(activity_z),
       price_extremity_zscore: decimal_or_nil(price_z),
+      position_concentration_zscore: decimal_or_nil(concentration_z),
       anomaly_score: anomaly_score,
       insider_probability: insider_prob,
       matched_patterns: breakdown,
@@ -1534,6 +1546,97 @@ defmodule VolfefeMachine.Polymarket do
   defp ensure_float(n) when is_float(n), do: n
   defp ensure_float(n) when is_integer(n), do: n * 1.0
   defp ensure_float(nil), do: nil
+
+  @doc """
+  Calculate position concentration for a wallet on a specific market.
+
+  Measures how directional a wallet's trades are:
+  - 1.0 = All trades on one side (100% YES or 100% NO)
+  - 0.0 = Equal trades on both sides
+
+  High concentration combined with correct outcome strongly indicates insider.
+
+  ## Returns
+
+  - `{:ok, concentration}` where concentration is 0.0 to 1.0
+  - `{:error, :insufficient_data}` if wallet has no trades on this market
+  """
+  def calculate_position_concentration(wallet_address, condition_id) do
+    # Get all trades for this wallet on this market
+    trades = from(t in Trade,
+      where: t.wallet_address == ^wallet_address and t.condition_id == ^condition_id,
+      select: %{
+        outcome: t.outcome,
+        side: t.side,
+        size: t.size
+      }
+    ) |> Repo.all()
+
+    if Enum.empty?(trades) do
+      {:error, :insufficient_data}
+    else
+      # Calculate net position for each outcome
+      # BUY adds to position, SELL subtracts
+      position_by_outcome = Enum.reduce(trades, %{}, fn trade, acc ->
+        outcome = trade.outcome || "unknown"
+        size = ensure_float(trade.size) || 0.0
+        direction = if trade.side == "BUY", do: 1.0, else: -1.0
+
+        Map.update(acc, outcome, size * direction, &(&1 + size * direction))
+      end)
+
+      # Calculate total absolute position
+      total_abs_position = position_by_outcome
+        |> Map.values()
+        |> Enum.map(&abs/1)
+        |> Enum.sum()
+
+      if total_abs_position == 0 do
+        {:ok, 0.0}
+      else
+        # Find the dominant position (max absolute value)
+        dominant_position = position_by_outcome
+          |> Map.values()
+          |> Enum.map(&abs/1)
+          |> Enum.max()
+
+        # Concentration = dominant / total
+        # If all on one side, concentration = 1.0
+        # If split equally, concentration approaches 0.5
+        # Normalize to 0-1 scale where 0.5 base -> 0, 1.0 -> 1.0
+        raw_concentration = dominant_position / total_abs_position
+
+        # Scale: 0.5 (balanced) -> 0.0, 1.0 (all one side) -> 1.0
+        concentration = max(0.0, (raw_concentration - 0.5) * 2.0)
+
+        {:ok, Float.round(concentration, 4)}
+      end
+    end
+  end
+
+  @doc """
+  Calculate z-score for position concentration.
+
+  Since position concentration doesn't have natural baselines (it's a ratio 0-1),
+  we convert it to a z-score based on typical distribution:
+  - Mean concentration: ~0.6 (slight directional bias is normal)
+  - StdDev: ~0.2
+
+  High concentration (>0.9) → z-score > 1.5
+  Very high (>0.95) → z-score > 1.75
+
+  Note: This is a simpler approach than baseline lookup since
+  concentration is inherently normalized.
+  """
+  def position_concentration_zscore(concentration) when is_float(concentration) do
+    # Empirical estimates for normal trading
+    mean = 0.6
+    stddev = 0.2
+
+    z = (concentration - mean) / stddev
+    {:ok, Float.round(z, 3)}
+  end
+  def position_concentration_zscore(_), do: {:ok, 0.0}
 
   # ============================================
   # Phase 4: Confirmed Insiders

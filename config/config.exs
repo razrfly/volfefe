@@ -102,6 +102,21 @@ config :volfefe_machine, VolfefeMachine.Polymarket.TradeMonitor,
   probability_threshold: 0.5,   # Min insider probability to trigger alert
   enabled: false                # Disabled by default, enable via CLI
 
+# Configure Notifier for external alert notifications
+# Set webhook URLs in runtime.exs or environment variables
+config :volfefe_machine, VolfefeMachine.Polymarket.Notifier,
+  enabled: false,               # Enable when webhook URLs are configured
+  channels: [
+    slack: [
+      webhook_url: System.get_env("SLACK_WEBHOOK_URL"),
+      min_severity: "high"      # Only high/critical alerts
+    ],
+    discord: [
+      webhook_url: System.get_env("DISCORD_WEBHOOK_URL"),
+      min_severity: "medium"    # medium and above
+    ]
+  ]
+
 # Import ML models configuration
 import_config "ml_models.exs"
 
