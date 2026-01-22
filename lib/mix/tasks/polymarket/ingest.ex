@@ -1047,9 +1047,10 @@ defmodule Mix.Tasks.Polymarket.Ingest do
         {maker_asset, "SELL", event["maker"], true}
 
       taker_asset != "0" ->
-        # Taker is providing market tokens -> this is a BUY from maker's perspective
+        # Taker is providing market tokens -> this is a SELL from taker's perspective
         # takerAmountFilled = tokens, makerAmountFilled = USDC
-        {taker_asset, "BUY", event["taker"], false}
+        # We track taker's wallet, so side must reflect taker's action (SELL)
+        {taker_asset, "SELL", event["taker"], false}
 
       true ->
         # Shouldn't happen, but default to maker
