@@ -273,7 +273,11 @@ defmodule Mix.Tasks.Polymarket.Discover do
 
       {:error, changeset} ->
         Mix.shell().error("⚠️  Failed to save discovery results:")
-        Ecto.Changeset.traverse_errors(changeset, fn {msg, _} -> msg end)
+        Ecto.Changeset.traverse_errors(changeset, fn {msg, opts} ->
+          Enum.reduce(opts, msg, fn {key, value}, acc ->
+            String.replace(acc, "%{#{key}}", to_string(value))
+          end)
+        end)
         |> Enum.each(fn {field, errors} ->
           Mix.shell().error("   #{field}: #{Enum.join(errors, ", ")}")
         end)

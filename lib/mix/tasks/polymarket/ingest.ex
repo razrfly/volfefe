@@ -1037,20 +1037,23 @@ defmodule Mix.Tasks.Polymarket.Ingest do
     maker_asset = event["makerAssetId"]
     taker_asset = event["takerAssetId"]
 
-    # If maker is selling tokens (makerAssetId != 0), that's the market token
-    # If taker is receiving tokens (takerAssetId != 0), that's the market token
-    {token_id, side, wallet_address} = cond do
+    # Determine which asset is the market token (non-zero) and track amount positions
+    # makerAssetId = what maker provides, takerAssetId = what taker provides
+    # makerAmountFilled = amount of makerAsset, takerAmountFilled = amount of takerAsset
+    {token_id, side, wallet_address, token_is_maker_asset} = cond do
       maker_asset != "0" ->
-        # Maker is selling market tokens -> this is a SELL
-        {maker_asset, "SELL", event["maker"]}
+        # Maker is providing market tokens -> this is a SELL from maker's perspective
+        # makerAmountFilled = tokens, takerAmountFilled = USDC
+        {maker_asset, "SELL", event["maker"], true}
 
       taker_asset != "0" ->
-        # Taker is receiving market tokens -> this is a BUY
-        {taker_asset, "BUY", event["taker"]}
+        # Taker is providing market tokens -> this is a BUY from maker's perspective
+        # takerAmountFilled = tokens, makerAmountFilled = USDC
+        {taker_asset, "BUY", event["taker"], false}
 
       true ->
         # Shouldn't happen, but default to maker
-        {maker_asset, "SELL", event["maker"]}
+        {maker_asset, "SELL", event["maker"], true}
     end
 
     # Try local mapping first, then subgraph
@@ -1081,20 +1084,21 @@ defmodule Mix.Tasks.Polymarket.Ingest do
         maker_amount = parse_amount(event["makerAmountFilled"])
         taker_amount = parse_amount(event["takerAmountFilled"])
 
-        # For a BUY: you pay taker_amount USDC to get maker_amount tokens
-        # For a SELL: you give maker_amount tokens to get taker_amount USDC
-        {size, usdc_size, price} = case side do
-          "BUY" ->
-            size = maker_amount
-            usdc = taker_amount
-            price = if size > 0, do: Decimal.div(usdc, size), else: Decimal.new(0)
-            {size, usdc, price}
-
-          "SELL" ->
-            size = maker_amount
-            usdc = taker_amount
-            price = if size > 0, do: Decimal.div(usdc, size), else: Decimal.new(0)
-            {size, usdc, price}
+        # Map amounts based on which asset is the market token
+        # If token_is_maker_asset: maker_amount = tokens, taker_amount = USDC
+        # If !token_is_maker_asset: taker_amount = tokens, maker_amount = USDC
+        {size, usdc_size, price} = if token_is_maker_asset do
+          # makerAmountFilled = tokens, takerAmountFilled = USDC
+          size = maker_amount
+          usdc = taker_amount
+          price = if Decimal.compare(size, 0) == :gt, do: Decimal.div(usdc, size), else: Decimal.new(0)
+          {size, usdc, price}
+        else
+          # takerAmountFilled = tokens, makerAmountFilled = USDC
+          size = taker_amount
+          usdc = maker_amount
+          price = if Decimal.compare(size, 0) == :gt, do: Decimal.div(usdc, size), else: Decimal.new(0)
+          {size, usdc, price}
         end
 
         # Create a unique transaction hash from the event ID

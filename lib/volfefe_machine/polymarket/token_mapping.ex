@@ -121,11 +121,14 @@ defmodule VolfefeMachine.Polymarket.TokenMapping do
       nil -> :no_tokens
       json_string when is_binary(json_string) ->
         case Jason.decode(json_string) do
-          {:ok, tokens} when is_list(tokens) -> {:ok, tokens}
+          {:ok, tokens} when is_list(tokens) ->
+            # Normalize all token IDs to strings for consistent lookups
+            {:ok, Enum.map(tokens, &to_string/1)}
           _ -> :no_tokens
         end
       tokens when is_list(tokens) ->
-        {:ok, tokens}
+        # Normalize all token IDs to strings for consistent lookups
+        {:ok, Enum.map(tokens, &to_string/1)}
     end
   end
 

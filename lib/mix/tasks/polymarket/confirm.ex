@@ -218,8 +218,13 @@ defmodule Mix.Tasks.Polymarket.Confirm do
   end
 
   defp truncate(nil, _), do: "N/A"
-  defp truncate(str, max) when byte_size(str) <= max, do: str
-  defp truncate(str, max), do: String.slice(str, 0, max - 3) <> "..."
+  defp truncate(str, max) when is_binary(str) do
+    if String.length(str) <= max do
+      str
+    else
+      String.slice(str, 0, max - 3) <> "..."
+    end
+  end
 
   defp display_discovered_wallets(ref_case) do
     wallets = ref_case.discovered_wallets || []
