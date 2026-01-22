@@ -281,6 +281,74 @@ defmodule VolfefeMachine.Polymarket.Client do
   end
 
   @doc """
+  Search markets by keyword.
+
+  Useful for finding markets related to specific topics like
+  "Nobel Prize", "OpenAI", "Google Year in Search", etc.
+
+  ## Parameters
+
+  - `query` - Search keyword or phrase
+  - `opts` - Keyword list of options:
+    - `:closed` - Include closed markets (default: true for historical lookup)
+    - `:limit` - Number of markets (default: 20)
+    - `:offset` - Pagination offset (default: 0)
+
+  ## Returns
+
+  - `{:ok, [market]}` - List of matching markets
+  - `{:error, reason}` - Error message
+
+  ## Response Fields
+
+  Each market contains:
+  - `conditionId` - Unique market identifier (use this to link reference cases)
+  - `question` - Market question text
+  - `slug` - URL slug
+  - `endDate` - Market end date
+  - `closed` - Whether market is closed
+  - `resolvedOutcome` - Resolution result if resolved
+
+  ## Examples
+
+      # Find Nobel Prize markets
+      {:ok, markets} = Client.search_markets("Nobel Peace Prize 2025")
+
+      # Find OpenAI markets
+      {:ok, markets} = Client.search_markets("OpenAI")
+
+      # Search with limit
+      {:ok, markets} = Client.search_markets("Google", limit: 50)
+  """
+  def search_markets(query, opts \\ []) do
+    closed = Keyword.get(opts, :closed, true)
+    limit = Keyword.get(opts, :limit, 20)
+    offset = Keyword.get(opts, :offset, 0)
+
+    params =
+      build_query_string(
+        _q: query,
+        closed: closed,
+        limit: limit,
+        offset: offset
+      )
+
+    url = "#{@gamma_api_base}/markets#{params}"
+
+    case make_request(url) do
+      {:ok, markets} when is_list(markets) ->
+        {:ok, markets}
+
+      {:ok, other} ->
+        Logger.warning("Unexpected search response format: #{inspect(other)}")
+        {:error, "Unexpected response format"}
+
+      error ->
+        error
+    end
+  end
+
+  @doc """
   Get a single market by condition ID.
 
   ## Parameters

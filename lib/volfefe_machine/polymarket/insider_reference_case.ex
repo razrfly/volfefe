@@ -61,6 +61,11 @@ defmodule VolfefeMachine.Polymarket.InsiderReferenceCase do
     field :platform, :string
     field :category, :string
 
+    # Market linkage (for Polymarket cases)
+    field :condition_id, :string
+    field :market_slug, :string
+    field :market_question, :string
+
     # Key metrics
     field :reported_profit, :decimal
     field :reported_bet_size, :decimal
@@ -73,6 +78,22 @@ defmodule VolfefeMachine.Polymarket.InsiderReferenceCase do
     field :description, :string
     field :source_urls, {:array, :string}, default: []
 
+    # Data ingestion tracking
+    field :trades_ingested_at, :utc_datetime
+    field :trades_count, :integer, default: 0
+
+    # Discovery results (Phase 3)
+    # Wallets flagged as suspicious: [%{address: "0x...", volume: 12345, whale_trades: 3, ...}, ...]
+    field :discovered_wallets, {:array, :map}, default: []
+    # All candidate condition_ids found during discovery
+    field :discovered_condition_ids, {:array, :string}, default: []
+    # Notes from analysis process
+    field :analysis_notes, :string
+    # When discovery was last run
+    field :discovery_run_at, :utc_datetime
+    # Discovery metadata (window, trade count, etc.)
+    field :discovery_meta, :map, default: %{}
+
     timestamps(type: :utc_datetime)
   end
 
@@ -80,6 +101,10 @@ defmodule VolfefeMachine.Polymarket.InsiderReferenceCase do
   @optional_fields ~w(
     event_date category reported_profit reported_bet_size
     pattern_type status description source_urls
+    condition_id market_slug market_question
+    trades_ingested_at trades_count
+    discovered_wallets discovered_condition_ids analysis_notes
+    discovery_run_at discovery_meta
   )a
 
   def changeset(reference_case, attrs) do

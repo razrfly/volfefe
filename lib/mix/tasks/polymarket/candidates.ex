@@ -19,10 +19,14 @@ defmodule Mix.Tasks.Polymarket.Candidates do
       # Custom limit
       mix polymarket.candidates --limit 100
 
+      # Filter by batch (from promote command)
+      mix polymarket.candidates --batch refcase-nobel-peace-1234567890
+
   ## Options
 
       --status    Filter by status (undiscovered, investigating, confirmed_insider, cleared, dismissed)
       --priority  Filter by priority (critical, high, medium, low)
+      --batch     Filter by batch ID (from promote command)
       --limit     Maximum candidates to show (default: 50)
       --verbose   Show full candidate details
 
@@ -56,15 +60,17 @@ defmodule Mix.Tasks.Polymarket.Candidates do
       switches: [
         status: :string,
         priority: :string,
+        batch: :string,
         limit: :integer,
         verbose: :boolean
       ],
-      aliases: [s: :status, p: :priority, v: :verbose, l: :limit]
+      aliases: [s: :status, p: :priority, b: :batch, v: :verbose, l: :limit]
     )
 
     list_opts = [limit: opts[:limit] || 50]
     list_opts = if opts[:status], do: Keyword.put(list_opts, :status, opts[:status]), else: list_opts
     list_opts = if opts[:priority], do: Keyword.put(list_opts, :priority, opts[:priority]), else: list_opts
+    list_opts = if opts[:batch], do: Keyword.put(list_opts, :batch_id, opts[:batch]), else: list_opts
 
     candidates = Polymarket.list_investigation_candidates(list_opts)
 
@@ -127,6 +133,10 @@ defmodule Mix.Tasks.Polymarket.Candidates do
 
       if c.matched_patterns && length(c.matched_patterns) > 0 do
         Mix.shell().info("   Matched Patterns: #{Enum.join(c.matched_patterns, ", ")}")
+      end
+
+      if c.batch_id do
+        Mix.shell().info("   Batch: #{c.batch_id}")
       end
     end
 
