@@ -20,6 +20,26 @@ if System.get_env("PHX_SERVER") do
   config :volfefe_machine, VolfefeMachineWeb.Endpoint, server: true
 end
 
+# Configure Notifier webhook URLs from environment variables
+# These are read at runtime (not compile-time) so they work correctly in releases
+slack_webhook = System.get_env("SLACK_WEBHOOK_URL")
+discord_webhook = System.get_env("DISCORD_WEBHOOK_URL")
+
+if slack_webhook || discord_webhook do
+  config :volfefe_machine, VolfefeMachine.Polymarket.Notifier,
+    enabled: true,
+    channels: [
+      slack: [
+        webhook_url: slack_webhook,
+        min_severity: "high"
+      ],
+      discord: [
+        webhook_url: discord_webhook,
+        min_severity: "medium"
+      ]
+    ]
+end
+
 if config_env() == :prod do
   database_url =
     System.get_env("DATABASE_URL") ||

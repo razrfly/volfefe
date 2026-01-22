@@ -155,8 +155,12 @@ defmodule Mix.Tasks.Polymarket.Notify do
   end
 
   defp test_channel(channel_str) do
-    channel = String.to_atom(channel_str)
+    channel = String.to_existing_atom(channel_str)
     test_single_channel(channel)
+  rescue
+    ArgumentError ->
+      Mix.shell().error("❌ Unknown channel: #{channel_str}")
+      Mix.shell().info("   Valid channels: slack, discord")
   end
 
   defp test_single_channel(channel) do
