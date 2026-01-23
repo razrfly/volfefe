@@ -491,74 +491,77 @@ defmodule VolfefeMachineWeb.CoreComponents do
   def admin_nav(assigns) do
     ~H"""
     <div class="mb-6">
-      <nav class="flex space-x-4 border-b border-gray-200 pb-2">
+      <nav class="flex space-x-4 border-b border-zinc-950/10 dark:border-white/10 pb-2">
         <.link
           navigate={~p"/admin/content"}
           class={[
             "px-3 py-2 text-sm font-medium",
-            if(@current_page == :content, do: "text-blue-600 border-b-2 border-blue-600", else: "text-gray-600 hover:text-gray-900")
+            admin_nav_class(@current_page == :content)
           ]}
         >
-          📄 Content
+          Content
         </.link>
         <.link
           navigate={~p"/admin/ml"}
           class={[
             "px-3 py-2 text-sm font-medium",
-            if(@current_page == :ml, do: "text-blue-600 border-b-2 border-blue-600", else: "text-gray-600 hover:text-gray-900")
+            admin_nav_class(@current_page == :ml)
           ]}
         >
-          🤖 ML Jobs
+          ML Jobs
         </.link>
         <.link
           navigate={~p"/admin/market-data"}
           class={[
             "px-3 py-2 text-sm font-medium",
-            if(@current_page == :market_data, do: "text-blue-600 border-b-2 border-blue-600", else: "text-gray-600 hover:text-gray-900")
+            admin_nav_class(@current_page == :market_data)
           ]}
         >
-          📊 Market Data
+          Market Data
         </.link>
         <.link
           navigate={~p"/admin/market-analysis"}
           class={[
             "px-3 py-2 text-sm font-medium",
-            if(@current_page == :market_analysis, do: "text-blue-600 border-b-2 border-blue-600", else: "text-gray-600 hover:text-gray-900")
+            admin_nav_class(@current_page == :market_analysis)
           ]}
         >
-          📈 Market Analysis
+          Market Analysis
         </.link>
         <.link
           navigate={~p"/admin/imports"}
           class={[
             "px-3 py-2 text-sm font-medium",
-            if(@current_page == :imports, do: "text-blue-600 border-b-2 border-blue-600", else: "text-gray-600 hover:text-gray-900")
+            admin_nav_class(@current_page == :imports)
           ]}
         >
-          📥 Imports
+          Imports
         </.link>
         <.link
           navigate={~p"/admin/polymarket"}
           class={[
             "px-3 py-2 text-sm font-medium",
-            if(@current_page == :polymarket, do: "text-blue-600 border-b-2 border-blue-600", else: "text-gray-600 hover:text-gray-900")
+            admin_nav_class(@current_page == :polymarket)
           ]}
         >
-          🎯 Polymarket
+          Polymarket
         </.link>
         <a
           href="/admin/oban"
           class={[
             "px-3 py-2 text-sm font-medium",
-            if(@current_page == :oban, do: "text-blue-600 border-b-2 border-blue-600", else: "text-gray-600 hover:text-gray-900")
+            admin_nav_class(@current_page == :oban)
           ]}
         >
-          ⚙️ Oban Dashboard
+          Oban Dashboard
         </a>
       </nav>
     </div>
     """
   end
+
+  defp admin_nav_class(true), do: "text-zinc-950 border-b-2 border-zinc-950 dark:text-white dark:border-white"
+  defp admin_nav_class(false), do: "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-300"
 
   @doc """
   Renders a breadcrumb navigation trail.

@@ -275,30 +275,29 @@ defmodule VolfefeMachineWeb.Admin.PolymarketLive do
   defp format_decimal(%Decimal{} = d), do: Decimal.to_string(d)
   defp format_decimal(n), do: "#{n}"
 
-  # Helper functions for templates
+  # Helper functions for templates - Catalyst badge color atoms
 
-  def severity_badge_class("critical"), do: "bg-red-100 text-red-800 ring-red-600/20"
-  def severity_badge_class("high"), do: "bg-orange-100 text-orange-800 ring-orange-600/20"
-  def severity_badge_class("medium"), do: "bg-yellow-100 text-yellow-800 ring-yellow-600/20"
-  def severity_badge_class("low"), do: "bg-green-100 text-green-800 ring-green-600/20"
-  def severity_badge_class(_), do: "bg-gray-100 text-gray-800 ring-gray-600/20"
+  def severity_to_color("critical"), do: :red
+  def severity_to_color("high"), do: :amber
+  def severity_to_color("medium"), do: :zinc
+  def severity_to_color("low"), do: :zinc
+  def severity_to_color(_), do: :zinc
 
-  def status_badge_class("new"), do: "bg-blue-100 text-blue-800"
-  def status_badge_class("acknowledged"), do: "bg-purple-100 text-purple-800"
-  def status_badge_class("investigating"), do: "bg-yellow-100 text-yellow-800"
-  def status_badge_class("resolved"), do: "bg-green-100 text-green-800"
-  def status_badge_class("dismissed"), do: "bg-gray-100 text-gray-800"
-  def status_badge_class("undiscovered"), do: "bg-blue-100 text-blue-800"
-  def status_badge_class("pending_review"), do: "bg-purple-100 text-purple-800"
-  def status_badge_class("confirmed_insider"), do: "bg-red-100 text-red-800"
-  def status_badge_class("cleared"), do: "bg-green-100 text-green-800"
-  def status_badge_class(_), do: "bg-gray-100 text-gray-800"
+  def status_to_color("new"), do: :zinc
+  def status_to_color("acknowledged"), do: :zinc
+  def status_to_color("investigating"), do: :amber
+  def status_to_color("resolved"), do: :green
+  def status_to_color("dismissed"), do: :zinc
+  def status_to_color("undiscovered"), do: :zinc
+  def status_to_color("pending_review"), do: :amber
+  def status_to_color("confirmed_insider"), do: :red
+  def status_to_color("cleared"), do: :green
+  def status_to_color(_), do: :zinc
 
-  def severity_icon("critical"), do: "🚨"
-  def severity_icon("high"), do: "⚠️"
-  def severity_icon("medium"), do: "📊"
-  def severity_icon("low"), do: "ℹ️"
-  def severity_icon(_), do: "❓"
+  def priority_to_color("high"), do: :red
+  def priority_to_color("critical"), do: :red
+  def priority_to_color("medium"), do: :amber
+  def priority_to_color(_), do: :zinc
 
   def format_probability(nil), do: "N/A"
   def format_probability(%Decimal{} = d), do: "#{Decimal.round(Decimal.mult(d, 100), 1)}%"
@@ -344,19 +343,23 @@ defmodule VolfefeMachineWeb.Admin.PolymarketLive do
   end
   def format_wallet(address), do: address
 
-  # Coverage helpers
+  # Coverage helpers - Catalyst styled
 
-  def health_score_class(score) when score >= 80, do: "text-green-600"
-  def health_score_class(score) when score >= 50, do: "text-yellow-600"
-  def health_score_class(_score), do: "text-red-600"
+  def health_score_class(score) when score >= 80, do: "text-zinc-950 dark:text-white"
+  def health_score_class(score) when score >= 50, do: "text-amber-700 dark:text-amber-400"
+  def health_score_class(_score), do: "text-red-700 dark:text-red-400"
 
-  def health_score_bg(score) when score >= 80, do: "bg-green-100"
-  def health_score_bg(score) when score >= 50, do: "bg-yellow-100"
-  def health_score_bg(_score), do: "bg-red-100"
+  def coverage_health_ring(score) when score >= 80, do: "bg-zinc-50 ring-zinc-200 dark:bg-zinc-800/50 dark:ring-zinc-700"
+  def coverage_health_ring(score) when score >= 50, do: "bg-amber-50 ring-amber-200 dark:bg-amber-900/20 dark:ring-amber-700"
+  def coverage_health_ring(_score), do: "bg-red-50 ring-red-200 dark:bg-red-900/20 dark:ring-red-700"
 
-  def health_score_icon(score) when score >= 80, do: "✅"
-  def health_score_icon(score) when score >= 50, do: "⚠️"
-  def health_score_icon(_score), do: "❌"
+  def health_score_badge_color(score) when score >= 80, do: :green
+  def health_score_badge_color(score) when score >= 50, do: :amber
+  def health_score_badge_color(_score), do: :red
+
+  def health_score_label(score) when score >= 80, do: "Good"
+  def health_score_label(score) when score >= 50, do: "Warning"
+  def health_score_label(_score), do: "Poor"
 
   def format_number(n) when is_integer(n) do
     n

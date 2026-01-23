@@ -1,125 +1,55 @@
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-  <!-- Admin Navigation -->
+  <!-- Admin Navigation - CRITICAL: DO NOT REMOVE -->
   <.admin_nav current_page={:polymarket} />
 
   <!-- Header -->
   <div class="mb-8">
     <div class="flex items-center justify-between">
       <div>
-        <h1 class="text-3xl font-bold text-gray-900">Polymarket Insider Detection</h1>
-        <p class="mt-2 text-sm text-gray-600">
+        <.heading>Polymarket Insider Detection</.heading>
+        <.text class="mt-1">
           Real-time monitoring and investigation of suspicious trading patterns
-        </p>
+        </.text>
       </div>
       <div class="flex items-center space-x-4">
-        <div class={[
-          "flex items-center px-3 py-1.5 rounded-full text-sm font-medium",
-          if(@dashboard.monitor_status[:enabled], do: "bg-green-100 text-green-800", else: "bg-red-100 text-red-800")
-        ]}>
-          <%= if @dashboard.monitor_status[:enabled] do %>
-            <span class="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
-            Monitor Active
-          <% else %>
-            <span class="w-2 h-2 bg-red-500 rounded-full mr-2"></span>
-            Monitor Inactive
-          <% end %>
-        </div>
-        <button
-          phx-click="run_discovery"
-          class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700"
-        >
-          🔍 Run Discovery
-        </button>
+        <.status_indicator active={@dashboard.monitor_status[:enabled]} label={if @dashboard.monitor_status[:enabled], do: "Monitor Active", else: "Monitor Inactive"} />
+        <.catalyst_button phx-click="run_discovery" color={:dark}>
+          Run Discovery
+        </.catalyst_button>
       </div>
     </div>
   </div>
 
   <!-- Tab Navigation -->
-  <div class="mb-6 border-b border-gray-200">
-    <nav class="-mb-px flex space-x-8">
-      <button
-        id="tab-overview"
-        phx-click="switch_tab"
-        phx-value-tab="overview"
-        class={[
-          "whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm",
-          if(@active_tab == :overview, do: "border-indigo-500 text-indigo-600", else: "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300")
-        ]}
-      >
-        📊 Overview
-      </button>
-      <button
-        id="tab-alerts"
-        phx-click="switch_tab"
-        phx-value-tab="alerts"
-        class={[
-          "whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm",
-          if(@active_tab == :alerts, do: "border-indigo-500 text-indigo-600", else: "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300")
-        ]}
-      >
-        🚨 Alerts
-        <%= if @dashboard.action_required.critical_alerts > 0 do %>
-          <span class="ml-2 inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-            <%= @dashboard.action_required.critical_alerts %>
-          </span>
-        <% end %>
-      </button>
-      <button
-        id="tab-candidates"
-        phx-click="switch_tab"
-        phx-value-tab="candidates"
-        class={[
-          "whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm",
-          if(@active_tab == :candidates, do: "border-indigo-500 text-indigo-600", else: "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300")
-        ]}
-      >
-        🎯 Candidates
-        <%= if @dashboard.action_required.pending_investigations > 0 do %>
-          <span class="ml-2 inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-            <%= @dashboard.action_required.pending_investigations %>
-          </span>
-        <% end %>
-      </button>
-      <button
-        id="tab-patterns"
-        phx-click="switch_tab"
-        phx-value-tab="patterns"
-        class={[
-          "whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm",
-          if(@active_tab == :patterns, do: "border-indigo-500 text-indigo-600", else: "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300")
-        ]}
-      >
-        🧩 Patterns
-      </button>
-      <button
-        id="tab-discovery"
-        phx-click="switch_tab"
-        phx-value-tab="discovery"
-        class={[
-          "whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm",
-          if(@active_tab == :discovery, do: "border-indigo-500 text-indigo-600", else: "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300")
-        ]}
-      >
-        🔍 Discovery
-      </button>
-      <button
-        id="tab-coverage"
-        phx-click="switch_tab"
-        phx-value-tab="coverage"
-        class={[
-          "whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm",
-          if(@active_tab == :coverage, do: "border-indigo-500 text-indigo-600", else: "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300")
-        ]}
-      >
-        📡 Coverage
-        <%= if @coverage_health.alert_count > 0 do %>
-          <span class="ml-2 inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-            <%= @coverage_health.alert_count %>
-          </span>
-        <% end %>
-      </button>
-    </nav>
-  </div>
+  <.tabs>
+    <:tab id="tab-overview" active={@active_tab == :overview} phx-click="switch_tab" phx-value-tab="overview">
+      Overview
+    </:tab>
+    <:tab id="tab-alerts" active={@active_tab == :alerts} phx-click="switch_tab" phx-value-tab="alerts">
+      Alerts
+      <%= if @dashboard.action_required.critical_alerts > 0 do %>
+        <.badge color={:red} class="ml-2"><%= @dashboard.action_required.critical_alerts %></.badge>
+      <% end %>
+    </:tab>
+    <:tab id="tab-candidates" active={@active_tab == :candidates} phx-click="switch_tab" phx-value-tab="candidates">
+      Candidates
+      <%= if @dashboard.action_required.pending_investigations > 0 do %>
+        <.badge color={:amber} class="ml-2"><%= @dashboard.action_required.pending_investigations %></.badge>
+      <% end %>
+    </:tab>
+    <:tab id="tab-patterns" active={@active_tab == :patterns} phx-click="switch_tab" phx-value-tab="patterns">
+      Patterns
+    </:tab>
+    <:tab id="tab-discovery" active={@active_tab == :discovery} phx-click="switch_tab" phx-value-tab="discovery">
+      Discovery
+    </:tab>
+    <:tab id="tab-coverage" active={@active_tab == :coverage} phx-click="switch_tab" phx-value-tab="coverage">
+      Coverage
+      <%= if @coverage_health.alert_count > 0 do %>
+        <.badge color={:amber} class="ml-2"><%= @coverage_health.alert_count %></.badge>
+      <% end %>
+    </:tab>
+  </.tabs>
 
   <!-- Tab Content -->
   <div class="mt-6">
@@ -128,116 +58,87 @@
       <div class="space-y-6">
         <!-- Action Required Banner -->
         <%= if @dashboard.action_required.critical_alerts > 0 or @dashboard.action_required.high_alerts > 0 do %>
-          <div class="bg-red-50 border-l-4 border-red-400 p-4 rounded-r-lg">
-            <div class="flex">
-              <div class="flex-shrink-0">
-                <span class="text-2xl">🚨</span>
-              </div>
-              <div class="ml-3">
-                <h3 class="text-sm font-medium text-red-800">Action Required</h3>
-                <div class="mt-2 text-sm text-red-700">
-                  <ul class="list-disc pl-5 space-y-1">
-                    <%= if @dashboard.action_required.critical_alerts > 0 do %>
-                      <li><%= @dashboard.action_required.critical_alerts %> critical alert(s) need immediate review</li>
-                    <% end %>
-                    <%= if @dashboard.action_required.high_alerts > 0 do %>
-                      <li><%= @dashboard.action_required.high_alerts %> high priority alert(s) pending</li>
-                    <% end %>
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </div>
+          <.alert_banner type={:error}>
+            <:title>Action Required</:title>
+            <ul class="space-y-2 mt-2">
+              <%= if @dashboard.action_required.critical_alerts > 0 do %>
+                <li class="flex items-center gap-2 text-sm">
+                  <.badge color={:red}><%= @dashboard.action_required.critical_alerts %> critical</.badge>
+                  <span class="text-zinc-700 dark:text-zinc-300">alert(s) need immediate review</span>
+                </li>
+              <% end %>
+              <%= if @dashboard.action_required.high_alerts > 0 do %>
+                <li class="flex items-center gap-2 text-sm">
+                  <.badge color={:amber}><%= @dashboard.action_required.high_alerts %> high</.badge>
+                  <span class="text-zinc-700 dark:text-zinc-300">priority alert(s) pending</span>
+                </li>
+              <% end %>
+            </ul>
+          </.alert_banner>
         <% end %>
 
         <!-- Stats Grid -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <!-- Alerts Stats -->
-          <div class="bg-white shadow rounded-lg p-6 border border-gray-200">
-            <div class="flex items-center justify-between">
-              <h3 class="text-sm font-medium text-gray-500">Total Alerts</h3>
-              <span class="text-2xl">🚨</span>
-            </div>
-            <p class="mt-2 text-3xl font-semibold text-gray-900"><%= @dashboard.alerts.total %></p>
-            <div class="mt-2 flex space-x-2 text-xs">
-              <span class="text-red-600"><%= Map.get(@dashboard.alerts.by_severity, "critical", 0) %> critical</span>
-              <span class="text-gray-400">|</span>
-              <span class="text-orange-600"><%= Map.get(@dashboard.alerts.by_severity, "high", 0) %> high</span>
-            </div>
-          </div>
+          <.stat_card title="Total Alerts" value={@dashboard.alerts.total}>
+            <:detail>
+              <span class="inline-flex items-center gap-2">
+                <.badge color={:red}><%= Map.get(@dashboard.alerts.by_severity, "critical", 0) %> critical</.badge>
+                <.badge color={:amber}><%= Map.get(@dashboard.alerts.by_severity, "high", 0) %> high</.badge>
+              </span>
+            </:detail>
+          </.stat_card>
 
-          <!-- Candidates Stats -->
-          <div class="bg-white shadow rounded-lg p-6 border border-gray-200">
-            <div class="flex items-center justify-between">
-              <h3 class="text-sm font-medium text-gray-500">Investigation Candidates</h3>
-              <span class="text-2xl">🎯</span>
-            </div>
-            <p class="mt-2 text-3xl font-semibold text-gray-900"><%= @investigation.candidates.total %></p>
-            <div class="mt-2 flex space-x-2 text-xs">
-              <span class="text-blue-600"><%= Map.get(@investigation.candidates.by_status, "undiscovered", 0) %> new</span>
-              <span class="text-gray-400">|</span>
-              <span class="text-yellow-600"><%= Map.get(@investigation.candidates.by_status, "investigating", 0) %> investigating</span>
-            </div>
-          </div>
+          <.stat_card title="Investigation Candidates" value={@investigation.candidates.total}>
+            <:detail>
+              <span class="inline-flex items-center gap-2">
+                <.badge color={:zinc}><%= Map.get(@investigation.candidates.by_status, "undiscovered", 0) %> new</.badge>
+                <.badge color={:amber}><%= Map.get(@investigation.candidates.by_status, "investigating", 0) %> investigating</.badge>
+              </span>
+            </:detail>
+          </.stat_card>
 
-          <!-- Confirmed Insiders -->
-          <div class="bg-white shadow rounded-lg p-6 border border-gray-200">
-            <div class="flex items-center justify-between">
-              <h3 class="text-sm font-medium text-gray-500">Confirmed Insiders</h3>
-              <span class="text-2xl">🔴</span>
-            </div>
-            <p class="mt-2 text-3xl font-semibold text-gray-900"><%= @investigation.confirmed_insiders.total %></p>
-            <div class="mt-2 text-xs text-gray-500">
+          <.stat_card title="Confirmed Insiders" value={@investigation.confirmed_insiders.total}>
+            <:detail>
               From <%= @investigation.candidates.total %> candidates reviewed
-            </div>
-          </div>
+            </:detail>
+          </.stat_card>
 
-          <!-- Pattern Matches -->
-          <div class="bg-white shadow rounded-lg p-6 border border-gray-200">
-            <div class="flex items-center justify-between">
-              <h3 class="text-sm font-medium text-gray-500">Active Patterns</h3>
-              <span class="text-2xl">🧩</span>
-            </div>
-            <p class="mt-2 text-3xl font-semibold text-gray-900"><%= @pattern_stats.active_patterns %></p>
-            <div class="mt-2 text-xs text-gray-500">
+          <.stat_card title="Active Patterns" value={@pattern_stats.active_patterns}>
+            <:detail>
               <%= @pattern_stats.validated_patterns %> validated
-            </div>
-          </div>
+            </:detail>
+          </.stat_card>
         </div>
 
         <!-- Recent Activity -->
-        <div class="bg-white shadow rounded-lg border border-gray-200">
-          <div class="px-6 py-4 border-b border-gray-200">
-            <h2 class="text-lg font-semibold text-gray-900">Recent Alerts</h2>
-            <p class="mt-1 text-sm text-gray-500">Latest alerts from the monitoring system (updates every 10s)</p>
+        <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+          <div class="px-6 py-4 border-b border-zinc-950/10 dark:border-white/10">
+            <.subheading>Recent Alerts</.subheading>
+            <.text class="mt-1">Latest alerts from the monitoring system (updates every 10s)</.text>
           </div>
-          <div class="divide-y divide-gray-200">
+          <div class="divide-y divide-zinc-950/5 dark:divide-white/5">
             <%= if length(@dashboard.recent_alerts) == 0 do %>
-              <div class="px-6 py-8 text-center text-gray-500">
+              <.empty_state>
                 No alerts yet. The system will generate alerts when suspicious trades are detected.
-              </div>
+              </.empty_state>
             <% else %>
               <%= for alert <- @dashboard.recent_alerts do %>
-                <div class="px-6 py-4 hover:bg-gray-50">
+                <div class="px-6 py-4 hover:bg-zinc-950/2.5 dark:hover:bg-white/2.5">
                   <div class="flex items-center justify-between">
                     <div class="flex items-center space-x-4">
-                      <span class="text-xl"><%= severity_icon(alert.severity) %></span>
                       <div>
                         <div class="flex items-center space-x-2">
-                          <span class={[
-                            "inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ring-1 ring-inset",
-                            severity_badge_class(alert.severity)
-                          ]}>
+                          <.badge color={severity_to_color(alert.severity)}>
                             <%= alert.severity %>
-                          </span>
-                          <span class="font-medium text-gray-900"><%= format_wallet(alert.wallet) %></span>
+                          </.badge>
+                          <span class="font-medium text-zinc-950 dark:text-white"><%= format_wallet(alert.wallet) %></span>
                         </div>
-                        <p class="text-sm text-gray-500 mt-1"><%= truncate(alert.market, 60) %></p>
+                        <.text class="mt-1"><%= truncate(alert.market, 60) %></.text>
                       </div>
                     </div>
                     <div class="text-right">
-                      <div class="text-sm font-medium text-gray-900"><%= format_probability(alert.score) %></div>
-                      <div class="text-xs text-gray-500"><%= relative_time(alert.triggered_at) %></div>
+                      <div class="text-sm font-medium text-zinc-950 dark:text-white"><%= format_probability(alert.score) %></div>
+                      <.text><%= relative_time(alert.triggered_at) %></.text>
                     </div>
                   </div>
                 </div>
@@ -250,212 +151,153 @@
 
     <!-- Alerts Tab -->
     <%= if @active_tab == :alerts do %>
-      <div class="bg-white shadow rounded-lg border border-gray-200">
-        <div class="px-6 py-4 border-b border-gray-200">
+      <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+        <div class="px-6 py-4 border-b border-zinc-950/10 dark:border-white/10">
           <div class="flex items-center justify-between">
             <div>
-              <h2 class="text-lg font-semibold text-gray-900">All Alerts</h2>
-              <p class="mt-1 text-sm text-gray-500">
+              <.subheading>All Alerts</.subheading>
+              <.text class="mt-1">
                 <%= @dashboard.alerts.total %> total alerts |
                 <%= @dashboard.alerts.new %> new |
                 <%= @dashboard.alerts.last_24h %> in last 24h
-              </p>
+              </.text>
             </div>
           </div>
         </div>
 
-        <div class="overflow-x-auto">
-          <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
+        <.data_table>
+          <:header>
+            <th class="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Severity</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Wallet</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Market</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Score</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Status</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Time</th>
+            <th class="px-6 py-3 text-right text-xs font-medium text-zinc-500 uppercase tracking-wider">Actions</th>
+          </:header>
+          <:body>
+            <%= if length(@alerts) == 0 do %>
               <tr>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Severity</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Wallet</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Market</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Score</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <td colspan="7" class="px-6 py-8 text-center text-zinc-500">
+                  No alerts found. Run discovery or wait for the monitor to detect suspicious trades.
+                </td>
               </tr>
-            </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-              <%= if length(@alerts) == 0 do %>
-                <tr>
-                  <td colspan="7" class="px-6 py-8 text-center text-gray-500">
-                    No alerts found. Run discovery or wait for the monitor to detect suspicious trades.
+            <% else %>
+              <%= for alert <- @alerts do %>
+                <tr class="hover:bg-zinc-950/2.5 dark:hover:bg-white/2.5">
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <.badge color={severity_to_color(alert.severity)}>
+                      <%= alert.severity %>
+                    </.badge>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="font-mono text-sm"><%= format_wallet(alert.wallet_address) %></span>
+                  </td>
+                  <td class="px-6 py-4">
+                    <span class="text-sm text-zinc-950 dark:text-white"><%= truncate(alert.market_question, 40) %></span>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="text-sm font-medium"><%= format_probability(alert.insider_probability) %></span>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <.badge color={status_to_color(alert.status)}>
+                      <%= alert.status %>
+                    </.badge>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-zinc-500">
+                    <%= relative_time(alert.triggered_at) %>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                    <%= if alert.status == "new" do %>
+                      <.action_link phx-click="acknowledge_alert" phx-value-id={alert.id}>Ack</.action_link>
+                      <.action_link phx-click="investigate_alert" phx-value-id={alert.id}>Investigate</.action_link>
+                    <% end %>
+                    <%= if alert.status in ["new", "acknowledged"] do %>
+                      <.action_link phx-click="dismiss_alert" phx-value-id={alert.id}>Dismiss</.action_link>
+                    <% end %>
                   </td>
                 </tr>
-              <% else %>
-                <%= for alert <- @alerts do %>
-                  <tr class="hover:bg-gray-50">
-                    <td class="px-6 py-4 whitespace-nowrap">
-                      <span class={[
-                        "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ring-1 ring-inset",
-                        severity_badge_class(alert.severity)
-                      ]}>
-                        <%= severity_icon(alert.severity) %> <%= alert.severity %>
-                      </span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                      <span class="font-mono text-sm"><%= format_wallet(alert.wallet_address) %></span>
-                    </td>
-                    <td class="px-6 py-4">
-                      <span class="text-sm text-gray-900"><%= truncate(alert.market_question, 40) %></span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                      <span class="text-sm font-medium"><%= format_probability(alert.insider_probability) %></span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                      <span class={[
-                        "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium",
-                        status_badge_class(alert.status)
-                      ]}>
-                        <%= alert.status %>
-                      </span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <%= relative_time(alert.triggered_at) %>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <%= if alert.status == "new" do %>
-                        <button
-                          phx-click="acknowledge_alert"
-                          phx-value-id={alert.id}
-                          class="text-indigo-600 hover:text-indigo-900 mr-3"
-                        >
-                          Ack
-                        </button>
-                        <button
-                          phx-click="investigate_alert"
-                          phx-value-id={alert.id}
-                          class="text-yellow-600 hover:text-yellow-900 mr-3"
-                        >
-                          Investigate
-                        </button>
-                      <% end %>
-                      <%= if alert.status in ["new", "acknowledged"] do %>
-                        <button
-                          phx-click="dismiss_alert"
-                          phx-value-id={alert.id}
-                          class="text-gray-600 hover:text-gray-900"
-                        >
-                          Dismiss
-                        </button>
-                      <% end %>
-                    </td>
-                  </tr>
-                <% end %>
               <% end %>
-            </tbody>
-          </table>
-        </div>
+            <% end %>
+          </:body>
+        </.data_table>
       </div>
     <% end %>
 
     <!-- Candidates Tab -->
     <%= if @active_tab == :candidates do %>
-      <div class="bg-white shadow rounded-lg border border-gray-200">
-        <div class="px-6 py-4 border-b border-gray-200">
+      <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+        <div class="px-6 py-4 border-b border-zinc-950/10 dark:border-white/10">
           <div class="flex items-center justify-between">
             <div>
-              <h2 class="text-lg font-semibold text-gray-900">Investigation Candidates</h2>
-              <p class="mt-1 text-sm text-gray-500">
-                Wallets flagged for potential insider trading
-              </p>
+              <.subheading>Investigation Candidates</.subheading>
+              <.text class="mt-1">Wallets flagged for potential insider trading</.text>
             </div>
-            <button
-              phx-click="run_discovery"
-              class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
-            >
-              🔍 Run Discovery
-            </button>
+            <.catalyst_button phx-click="run_discovery" color={:dark}>
+              Run Discovery
+            </.catalyst_button>
           </div>
         </div>
 
-        <div class="overflow-x-auto">
-          <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
+        <.data_table>
+          <:header>
+            <th class="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Priority</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Wallet</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Score</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Market</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Status</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Discovered</th>
+            <th class="px-6 py-3 text-right text-xs font-medium text-zinc-500 uppercase tracking-wider">Actions</th>
+          </:header>
+          <:body>
+            <%= if length(@candidates) == 0 do %>
               <tr>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Wallet</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Score</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Market</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Discovered</th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <td colspan="7" class="px-6 py-8 text-center text-zinc-500">
+                  No candidates found. Run discovery to identify potential insider wallets.
+                </td>
               </tr>
-            </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-              <%= if length(@candidates) == 0 do %>
-                <tr>
-                  <td colspan="7" class="px-6 py-8 text-center text-gray-500">
-                    No candidates found. Run discovery to identify potential insider wallets.
+            <% else %>
+              <%= for candidate <- @candidates do %>
+                <tr class="hover:bg-zinc-950/2.5 dark:hover:bg-white/2.5">
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <.badge color={priority_to_color(candidate.priority)}>
+                      <%= candidate.priority %>
+                    </.badge>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="font-mono text-sm"><%= format_wallet(candidate.wallet_address) %></span>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="text-sm font-medium"><%= format_probability(candidate.insider_probability) %></span>
+                  </td>
+                  <td class="px-6 py-4">
+                    <span class="text-sm text-zinc-950 dark:text-white"><%= truncate(candidate.market_question, 40) %></span>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <.badge color={status_to_color(candidate.status)}>
+                      <%= candidate.status %>
+                    </.badge>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-zinc-500">
+                    <%= relative_time(candidate.discovered_at) %>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                    <.link
+                      navigate={~p"/admin/polymarket/candidates/#{candidate.id}"}
+                      class="text-zinc-700 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white"
+                    >
+                      View
+                    </.link>
+                    <%= if candidate.status in ["undiscovered", "pending_review"] do %>
+                      <.action_link phx-click="start_candidate_investigation" phx-value-id={candidate.id}>Investigate</.action_link>
+                      <.action_link phx-click="dismiss_candidate" phx-value-id={candidate.id}>Dismiss</.action_link>
+                    <% end %>
                   </td>
                 </tr>
-              <% else %>
-                <%= for candidate <- @candidates do %>
-                  <tr class="hover:bg-gray-50">
-                    <td class="px-6 py-4 whitespace-nowrap">
-                      <span class={[
-                        "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium",
-                        case candidate.priority do
-                          "high" -> "bg-red-100 text-red-800"
-                          "medium" -> "bg-yellow-100 text-yellow-800"
-                          _ -> "bg-gray-100 text-gray-800"
-                        end
-                      ]}>
-                        <%= candidate.priority %>
-                      </span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                      <span class="font-mono text-sm"><%= format_wallet(candidate.wallet_address) %></span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                      <span class="text-sm font-medium"><%= format_probability(candidate.insider_probability) %></span>
-                    </td>
-                    <td class="px-6 py-4">
-                      <span class="text-sm text-gray-900"><%= truncate(candidate.market_question, 40) %></span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                      <span class={[
-                        "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium",
-                        status_badge_class(candidate.status)
-                      ]}>
-                        <%= candidate.status %>
-                      </span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <%= relative_time(candidate.discovered_at) %>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <.link
-                        navigate={~p"/admin/polymarket/candidates/#{candidate.id}"}
-                        class="text-blue-600 hover:text-blue-900 mr-3"
-                      >
-                        View
-                      </.link>
-                      <%= if candidate.status in ["undiscovered", "pending_review"] do %>
-                        <button
-                          phx-click="start_candidate_investigation"
-                          phx-value-id={candidate.id}
-                          class="text-indigo-600 hover:text-indigo-900 mr-3"
-                        >
-                          Investigate
-                        </button>
-                        <button
-                          phx-click="dismiss_candidate"
-                          phx-value-id={candidate.id}
-                          class="text-gray-600 hover:text-gray-900"
-                        >
-                          Dismiss
-                        </button>
-                      <% end %>
-                    </td>
-                  </tr>
-                <% end %>
               <% end %>
-            </tbody>
-          </table>
-        </div>
+            <% end %>
+          </:body>
+        </.data_table>
       </div>
     <% end %>
 
@@ -464,61 +306,44 @@
       <div class="space-y-6">
         <!-- Pattern Stats -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div class="bg-white shadow rounded-lg p-6 border border-gray-200">
-            <h3 class="text-sm font-medium text-gray-500">Total Patterns</h3>
-            <p class="mt-2 text-3xl font-semibold text-gray-900"><%= @pattern_stats.total_patterns %></p>
-          </div>
-          <div class="bg-white shadow rounded-lg p-6 border border-gray-200">
-            <h3 class="text-sm font-medium text-gray-500">Active Patterns</h3>
-            <p class="mt-2 text-3xl font-semibold text-green-600"><%= @pattern_stats.active_patterns %></p>
-          </div>
-          <div class="bg-white shadow rounded-lg p-6 border border-gray-200">
-            <h3 class="text-sm font-medium text-gray-500">Validated Patterns</h3>
-            <p class="mt-2 text-3xl font-semibold text-gray-900"><%= @pattern_stats.validated_patterns %></p>
-          </div>
-          <div class="bg-white shadow rounded-lg p-6 border border-gray-200">
-            <h3 class="text-sm font-medium text-gray-500">Best F1 Score</h3>
-            <p class="mt-2 text-3xl font-semibold text-gray-900"><%= format_probability(@pattern_stats.best_f1) %></p>
-          </div>
+          <.stat_card title="Total Patterns" value={@pattern_stats.total_patterns} />
+          <.stat_card title="Active Patterns" value={@pattern_stats.active_patterns} />
+          <.stat_card title="Validated Patterns" value={@pattern_stats.validated_patterns} />
+          <.stat_card title="Best F1 Score" value={format_probability(@pattern_stats.best_f1)} />
         </div>
 
         <!-- Patterns List -->
-        <div class="bg-white shadow rounded-lg border border-gray-200">
-          <div class="px-6 py-4 border-b border-gray-200">
-            <h2 class="text-lg font-semibold text-gray-900">Insider Trading Patterns</h2>
-            <p class="mt-1 text-sm text-gray-500">
-              Detection patterns used to identify suspicious trading behavior
-            </p>
+        <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+          <div class="px-6 py-4 border-b border-zinc-950/10 dark:border-white/10">
+            <.subheading>Insider Trading Patterns</.subheading>
+            <.text class="mt-1">Detection patterns used to identify suspicious trading behavior</.text>
           </div>
 
-          <div class="divide-y divide-gray-200">
+          <div class="divide-y divide-zinc-950/5 dark:divide-white/5">
             <%= if length(@patterns) == 0 do %>
-              <div class="px-6 py-8 text-center text-gray-500">
+              <.empty_state>
                 No patterns configured. Patterns are seeded automatically on first run.
-              </div>
+              </.empty_state>
             <% else %>
               <%= for pattern <- @patterns do %>
-                <div class="px-6 py-4 hover:bg-gray-50">
+                <div class="px-6 py-4 hover:bg-zinc-950/2.5 dark:hover:bg-white/2.5">
                   <div class="flex items-center justify-between">
                     <div class="flex-1">
                       <div class="flex items-center space-x-3">
-                        <span class={[
-                          "inline-flex items-center px-2 py-0.5 rounded text-xs font-medium",
-                          if(pattern.is_active, do: "bg-green-100 text-green-800", else: "bg-gray-100 text-gray-800")
-                        ]}>
+                        <.badge color={if pattern.is_active, do: :green, else: :zinc}>
                           <%= if pattern.is_active, do: "Active", else: "Inactive" %>
-                        </span>
-                        <h3 class="text-sm font-medium text-gray-900"><%= pattern.pattern_name %></h3>
+                        </.badge>
+                        <span class="text-sm font-medium text-zinc-950 dark:text-white"><%= pattern.pattern_name %></span>
                       </div>
-                      <p class="mt-1 text-sm text-gray-500"><%= pattern.description %></p>
+                      <.text class="mt-1"><%= pattern.description %></.text>
                     </div>
                     <div class="ml-6 text-right">
-                      <div class="text-sm font-medium text-gray-900">
+                      <div class="text-sm font-medium text-zinc-950 dark:text-white">
                         F1: <%= format_probability(pattern.f1_score) %>
                       </div>
-                      <div class="text-xs text-gray-500">
+                      <.text>
                         Precision: <%= format_probability(pattern.precision) %>
-                      </div>
+                      </.text>
                     </div>
                   </div>
                 </div>
@@ -533,45 +358,39 @@
     <%= if @active_tab == :discovery do %>
       <div class="space-y-6">
         <!-- Discovery Controls -->
-        <div class="bg-white shadow rounded-lg p-6 border border-gray-200">
+        <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 p-6 dark:bg-zinc-900 dark:ring-white/10">
           <div class="flex justify-between items-start mb-6">
             <div>
-              <h2 class="text-lg font-semibold text-gray-900">Discovery Tools</h2>
-              <p class="text-sm text-gray-500 mt-1">Run anomaly detection to find new investigation candidates</p>
+              <.subheading>Discovery Tools</.subheading>
+              <.text class="mt-1">Run anomaly detection to find new investigation candidates</.text>
             </div>
             <div class="flex gap-2">
-              <button
-                phx-click="run_discovery"
-                class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700"
-              >
-                🔍 Quick Discovery
-              </button>
-              <button
-                phx-click="export_candidates_csv"
-                class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-              >
-                📥 Export CSV
-              </button>
+              <.catalyst_button phx-click="run_discovery" color={:dark}>
+                Quick Discovery
+              </.catalyst_button>
+              <.catalyst_button phx-click="export_candidates_csv" color={:zinc}>
+                Export CSV
+              </.catalyst_button>
             </div>
           </div>
 
           <!-- Custom Discovery Form -->
-          <form id="custom-discovery-form" phx-submit="run_discovery_custom" class="border-t pt-6">
-            <h3 class="text-md font-medium text-gray-900 mb-4">Custom Discovery Run</h3>
+          <form id="custom-discovery-form" phx-submit="run_discovery_custom" class="border-t border-zinc-950/10 dark:border-white/10 pt-6">
+            <.subheading level={:h3} class="mb-4">Custom Discovery Run</.subheading>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <div>
-                <label class="block text-sm font-medium text-gray-700">Max Candidates</label>
+                <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Max Candidates</label>
                 <input
                   type="number"
                   name="limit"
                   value="50"
                   min="10"
                   max="500"
-                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
+                  class="mt-1 block w-full rounded border-zinc-300 shadow-sm focus:border-zinc-500 focus:ring-zinc-500 text-sm dark:bg-zinc-800 dark:border-zinc-600 dark:text-white"
                 />
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700">Anomaly Threshold</label>
+                <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Anomaly Threshold</label>
                 <input
                   type="number"
                   name="anomaly_threshold"
@@ -579,12 +398,12 @@
                   min="0.1"
                   max="1.0"
                   step="0.1"
-                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
+                  class="mt-1 block w-full rounded border-zinc-300 shadow-sm focus:border-zinc-500 focus:ring-zinc-500 text-sm dark:bg-zinc-800 dark:border-zinc-600 dark:text-white"
                 />
-                <p class="text-xs text-gray-500 mt-1">Higher = stricter filtering</p>
+                <.text class="mt-1">Higher = stricter filtering</.text>
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700">Probability Threshold</label>
+                <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Probability Threshold</label>
                 <input
                   type="number"
                   name="probability_threshold"
@@ -592,98 +411,70 @@
                   min="0.1"
                   max="1.0"
                   step="0.1"
-                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
+                  class="mt-1 block w-full rounded border-zinc-300 shadow-sm focus:border-zinc-500 focus:ring-zinc-500 text-sm dark:bg-zinc-800 dark:border-zinc-600 dark:text-white"
                 />
-                <p class="text-xs text-gray-500 mt-1">Min insider probability</p>
+                <.text class="mt-1">Min insider probability</.text>
               </div>
             </div>
-            <button
-              type="submit"
-              class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700"
-            >
-              🚀 Run Custom Discovery
-            </button>
+            <.catalyst_button type="submit" color={:dark}>
+              Run Custom Discovery
+            </.catalyst_button>
           </form>
         </div>
 
         <!-- Batch History -->
-        <div class="bg-white shadow rounded-lg p-6 border border-gray-200">
-          <h2 class="text-lg font-semibold text-gray-900 mb-4">Discovery Batch History</h2>
+        <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 p-6 dark:bg-zinc-900 dark:ring-white/10">
+          <.subheading class="mb-4">Discovery Batch History</.subheading>
 
           <%= if length(@discovery_batches) == 0 do %>
-            <p class="text-gray-500 text-sm">No discovery batches yet. Run a discovery to get started.</p>
+            <.text>No discovery batches yet. Run a discovery to get started.</.text>
           <% else %>
-            <div class="overflow-x-auto">
-              <table class="min-w-full divide-y divide-gray-200">
-                <thead>
-                  <tr>
-                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Batch ID</th>
-                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Candidates</th>
-                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thresholds</th>
-                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Started</th>
-                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notes</th>
+            <.data_table>
+              <:header>
+                <th class="px-6 py-3 bg-zinc-50 dark:bg-zinc-800 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Batch ID</th>
+                <th class="px-6 py-3 bg-zinc-50 dark:bg-zinc-800 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Status</th>
+                <th class="px-6 py-3 bg-zinc-50 dark:bg-zinc-800 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Candidates</th>
+                <th class="px-6 py-3 bg-zinc-50 dark:bg-zinc-800 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Thresholds</th>
+                <th class="px-6 py-3 bg-zinc-50 dark:bg-zinc-800 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Started</th>
+                <th class="px-6 py-3 bg-zinc-50 dark:bg-zinc-800 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Notes</th>
+              </:header>
+              <:body>
+                <%= for batch <- @discovery_batches do %>
+                  <tr class="hover:bg-zinc-950/2.5 dark:hover:bg-white/2.5">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-zinc-950 dark:text-white">
+                      <%= String.slice(batch.batch_id || "", 0, 8) %>...
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <.badge color={if batch.completed_at, do: :green, else: :zinc}>
+                        <%= if batch.completed_at, do: "completed", else: "running" %>
+                      </.badge>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-zinc-950 dark:text-white">
+                      <%= batch.candidates_generated || 0 %>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-xs text-zinc-500">
+                      A: <%= format_probability(batch.anomaly_threshold) %> /
+                      P: <%= format_probability(batch.probability_threshold) %>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-zinc-500">
+                      <%= relative_time(batch.started_at) %>
+                    </td>
+                    <td class="px-6 py-4 text-sm text-zinc-500">
+                      <%= truncate(batch.notes, 30) %>
+                    </td>
                   </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                  <%= for batch <- @discovery_batches do %>
-                    <tr class="hover:bg-gray-50">
-                      <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">
-                        <%= String.slice(batch.batch_id || "", 0, 8) %>...
-                      </td>
-                      <td class="px-6 py-4 whitespace-nowrap">
-                        <span class={[
-                          "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium",
-                          if(batch.completed_at, do: "bg-green-100 text-green-800", else: "bg-blue-100 text-blue-800")
-                        ]}>
-                          <%= if batch.completed_at, do: "completed", else: "running" %>
-                        </span>
-                      </td>
-                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <%= batch.candidates_generated || 0 %>
-                      </td>
-                      <td class="px-6 py-4 whitespace-nowrap text-xs text-gray-500">
-                        A: <%= format_probability(batch.anomaly_threshold) %> /
-                        P: <%= format_probability(batch.probability_threshold) %>
-                      </td>
-                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <%= relative_time(batch.started_at) %>
-                      </td>
-                      <td class="px-6 py-4 text-sm text-gray-500">
-                        <%= truncate(batch.notes, 30) %>
-                      </td>
-                    </tr>
-                  <% end %>
-                </tbody>
-              </table>
-            </div>
+                <% end %>
+              </:body>
+            </.data_table>
           <% end %>
         </div>
 
         <!-- Discovery Stats -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div class="bg-white shadow rounded-lg p-6 border border-gray-200">
-            <h3 class="text-sm font-medium text-gray-500">Total Batches</h3>
-            <p class="mt-2 text-3xl font-semibold text-gray-900"><%= length(@discovery_batches) %></p>
-          </div>
-          <div class="bg-white shadow rounded-lg p-6 border border-gray-200">
-            <h3 class="text-sm font-medium text-gray-500">Total Candidates Found</h3>
-            <p class="mt-2 text-3xl font-semibold text-indigo-600">
-              <%= Enum.reduce(@discovery_batches, 0, fn b, acc -> acc + (b.candidates_generated || 0) end) %>
-            </p>
-          </div>
-          <div class="bg-white shadow rounded-lg p-6 border border-gray-200">
-            <h3 class="text-sm font-medium text-gray-500">Active Candidates</h3>
-            <p class="mt-2 text-3xl font-semibold text-yellow-600">
-              <%= @investigation.candidates.total %>
-            </p>
-          </div>
-          <div class="bg-white shadow rounded-lg p-6 border border-gray-200">
-            <h3 class="text-sm font-medium text-gray-500">Confirmed Insiders</h3>
-            <p class="mt-2 text-3xl font-semibold text-red-600">
-              <%= @investigation.confirmed_insiders.total %>
-            </p>
-          </div>
+          <.stat_card title="Total Batches" value={length(@discovery_batches)} />
+          <.stat_card title="Total Candidates Found" value={Enum.reduce(@discovery_batches, 0, fn b, acc -> acc + (b.candidates_generated || 0) end)} />
+          <.stat_card title="Active Candidates" value={@investigation.candidates.total} />
+          <.stat_card title="Confirmed Insiders" value={@investigation.confirmed_insiders.total} />
         </div>
       </div>
     <% end %>
@@ -693,184 +484,143 @@
       <div class="space-y-6">
         <!-- Health Score Banner -->
         <div class={[
-          "rounded-lg p-6 border",
-          health_score_bg(@coverage_health.health_score)
+          "rounded p-6 ring-1",
+          coverage_health_ring(@coverage_health.health_score)
         ]}>
           <div class="flex items-center justify-between">
             <div>
-              <div class="flex items-center space-x-3">
-                <span class="text-4xl"><%= health_score_icon(@coverage_health.health_score) %></span>
+              <div class="flex items-center space-x-4">
+                <.badge color={health_score_badge_color(@coverage_health.health_score)} class="text-base px-3 py-1.5">
+                  <%= health_score_label(@coverage_health.health_score) %>
+                </.badge>
                 <div>
-                  <h2 class={["text-2xl font-bold", health_score_class(@coverage_health.health_score)]}>
+                  <.heading level={:h2} class={health_score_class(@coverage_health.health_score)}>
                     Health Score: <%= @coverage_health.health_score %>/100
-                  </h2>
-                  <p class="text-sm text-gray-600 mt-1">
-                    Wide net coverage across market categories
-                  </p>
+                  </.heading>
+                  <.text class="mt-1">Wide net coverage across market categories</.text>
                 </div>
               </div>
             </div>
             <div class="text-right">
-              <p class="text-sm text-gray-500">Last checked</p>
-              <p class="text-sm font-medium"><%= relative_time(@coverage_health.checked_at) %></p>
+              <.text>Last checked</.text>
+              <span class="text-sm font-medium text-zinc-950 dark:text-white"><%= relative_time(@coverage_health.checked_at) %></span>
             </div>
           </div>
         </div>
 
         <!-- Coverage Stats Grid -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div class="bg-white shadow rounded-lg p-6 border border-gray-200">
-            <div class="flex items-center justify-between">
-              <h3 class="text-sm font-medium text-gray-500">Categories Active</h3>
-              <span class="text-2xl">📊</span>
-            </div>
-            <p class="mt-2 text-3xl font-semibold text-gray-900">
-              <%= @coverage_health.categories_active %>/<%= @coverage_health.categories_total %>
-            </p>
-            <div class="mt-2 text-xs text-gray-500">
+          <.stat_card title="Categories Active" value={"#{@coverage_health.categories_active}/#{@coverage_health.categories_total}"}>
+            <:detail>
               <%= Float.round(@coverage_health.categories_active / @coverage_health.categories_total * 100, 1) %>% category coverage
-            </div>
-          </div>
+            </:detail>
+          </.stat_card>
 
-          <div class="bg-white shadow rounded-lg p-6 border border-gray-200">
-            <div class="flex items-center justify-between">
-              <h3 class="text-sm font-medium text-gray-500">Markets with Trades</h3>
-              <span class="text-2xl">🎯</span>
-            </div>
-            <p class="mt-2 text-3xl font-semibold text-gray-900">
-              <%= format_number(@coverage_health.markets_with_trades) %>
-            </p>
-            <div class="mt-2 text-xs text-gray-500">
+          <.stat_card title="Markets with Trades" value={format_number(@coverage_health.markets_with_trades)}>
+            <:detail>
               of <%= format_number(@coverage_health.total_markets) %> total markets
-            </div>
-          </div>
+            </:detail>
+          </.stat_card>
 
-          <div class="bg-white shadow rounded-lg p-6 border border-gray-200">
-            <div class="flex items-center justify-between">
-              <h3 class="text-sm font-medium text-gray-500">Total Trades</h3>
-              <span class="text-2xl">📈</span>
-            </div>
-            <p class="mt-2 text-3xl font-semibold text-indigo-600">
-              <%= format_number(@coverage_health.total_trades) %>
-            </p>
-            <div class="mt-2 text-xs text-gray-500">
+          <.stat_card title="Total Trades" value={format_number(@coverage_health.total_trades)}>
+            <:detail>
               <%= format_number(@coverage_health.scored_trades) %> scored
-            </div>
-          </div>
+            </:detail>
+          </.stat_card>
 
-          <div class="bg-white shadow rounded-lg p-6 border border-gray-200">
-            <div class="flex items-center justify-between">
-              <h3 class="text-sm font-medium text-gray-500">Concentration</h3>
-              <%= if @coverage_health.concentration.is_concerning do %>
-                <span class="text-2xl">⚠️</span>
-              <% else %>
-                <span class="text-2xl">✅</span>
-              <% end %>
-            </div>
-            <p class={[
-              "mt-2 text-3xl font-semibold",
-              if(@coverage_health.concentration.is_concerning, do: "text-yellow-600", else: "text-green-600")
-            ]}>
-              <%= @coverage_health.concentration.percentage %>%
-            </p>
-            <div class="mt-2 text-xs text-gray-500">
+          <.stat_card title="Concentration" value={"#{@coverage_health.concentration.percentage}%"}>
+            <:detail>
               from <%= @coverage_health.concentration.top_category || "N/A" %>
-            </div>
-          </div>
+              <%= if @coverage_health.concentration.is_concerning do %>
+                <.badge color={:amber} class="ml-1">!</.badge>
+              <% end %>
+            </:detail>
+          </.stat_card>
         </div>
 
         <!-- Alerts Section -->
         <%= if @coverage_health.alert_count > 0 do %>
-          <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-            <h3 class="text-lg font-medium text-yellow-800 mb-4">
-              ⚠️ Coverage Alerts (<%= @coverage_health.alert_count %>)
-            </h3>
-            <ul class="space-y-2">
-              <li :if={@coverage_health.stale_count > 0} class="flex items-center text-sm text-yellow-700">
-                <span class="mr-2">🕐</span>
-                <%= @coverage_health.stale_count %> categories have stale data (>1h since last trade)
+          <.alert_banner type={:warning}>
+            <:title>Coverage Alerts (<%= @coverage_health.alert_count %>)</:title>
+            <ul class="space-y-2 mt-2">
+              <li :if={@coverage_health.stale_count > 0} class="flex items-center gap-2 text-sm">
+                <.badge color={:zinc}><%= @coverage_health.stale_count %> stale</.badge>
+                <span class="text-zinc-700 dark:text-zinc-300">categories have stale data (>1h since last trade)</span>
               </li>
-              <li :if={@coverage_health.missing_count > 0} class="flex items-center text-sm text-yellow-700">
-                <span class="mr-2">❌</span>
-                <%= @coverage_health.missing_count %> categories have no trades captured
+              <li :if={@coverage_health.missing_count > 0} class="flex items-center gap-2 text-sm">
+                <.badge color={:red}><%= @coverage_health.missing_count %> empty</.badge>
+                <span class="text-zinc-700 dark:text-zinc-300">categories have no trades captured</span>
               </li>
-              <li :if={@coverage_health.critical_count > 0} class="flex items-center text-sm text-red-700">
-                <span class="mr-2">🚨</span>
-                <%= @coverage_health.critical_count %> categories are CRITICAL (>24h stale)
+              <li :if={@coverage_health.critical_count > 0} class="flex items-center gap-2 text-sm">
+                <.badge color={:red}><%= @coverage_health.critical_count %> critical</.badge>
+                <span class="text-zinc-700 dark:text-zinc-300">categories are >24h stale</span>
               </li>
-              <li :if={@coverage_health.concentration.is_concerning} class="flex items-center text-sm text-yellow-700">
-                <span class="mr-2">📊</span>
-                High concentration: <%= @coverage_health.concentration.percentage %>% from <%= @coverage_health.concentration.top_category %>
+              <li :if={@coverage_health.concentration.is_concerning} class="flex items-center gap-2 text-sm">
+                <.badge color={:amber}>concentrated</.badge>
+                <span class="text-zinc-700 dark:text-zinc-300"><%= @coverage_health.concentration.percentage %>% from <%= @coverage_health.concentration.top_category %></span>
               </li>
             </ul>
-            <div class="mt-4 pt-4 border-t border-yellow-200">
-              <p class="text-sm text-yellow-700">
-                Run <code class="bg-yellow-100 px-1 rounded">mix polymarket.ingest</code> to capture more trades
-              </p>
+            <div class="mt-4 pt-4 border-t border-zinc-300 dark:border-zinc-600">
+              <.text>
+                Run <code class="bg-zinc-200 dark:bg-zinc-700 px-1 rounded font-mono text-sm">mix polymarket.ingest</code> to capture more trades
+              </.text>
             </div>
-          </div>
+          </.alert_banner>
         <% else %>
-          <div class="bg-green-50 border border-green-200 rounded-lg p-6">
-            <div class="flex items-center">
-              <span class="text-2xl mr-3">✅</span>
-              <div>
-                <h3 class="text-lg font-medium text-green-800">Coverage Healthy</h3>
-                <p class="text-sm text-green-600 mt-1">
-                  Trade ingestion is covering all active categories with good diversity.
-                </p>
-              </div>
-            </div>
-          </div>
+          <.alert_banner type={:success}>
+            <:title>Coverage Healthy</:title>
+            Trade ingestion is covering all active categories with good diversity.
+          </.alert_banner>
         <% end %>
 
         <!-- Pipeline Status -->
-        <div class="bg-white shadow rounded-lg border border-gray-200">
-          <div class="px-6 py-4 border-b border-gray-200">
-            <h3 class="text-lg font-medium text-gray-900">Pipeline Status</h3>
+        <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+          <div class="px-6 py-4 border-b border-zinc-950/10 dark:border-white/10">
+            <.subheading>Pipeline Status</.subheading>
           </div>
           <div class="p-6">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div class="text-center p-4 bg-gray-50 rounded-lg">
-                <p class="text-sm text-gray-500">Trade Ingestion</p>
-                <p class="text-lg font-semibold text-green-600">Every 5 min</p>
-                <p class="text-xs text-gray-400 mt-1">Automated via Oban</p>
+              <div class="text-center p-4 bg-zinc-50 dark:bg-zinc-800 rounded">
+                <.text>Trade Ingestion</.text>
+                <p class="text-lg font-semibold text-zinc-950 dark:text-white">Every 5 min</p>
+                <.text class="mt-1">Automated via Oban</.text>
               </div>
-              <div class="text-center p-4 bg-gray-50 rounded-lg">
-                <p class="text-sm text-gray-500">Market Sync</p>
-                <p class="text-lg font-semibold text-green-600">Hourly</p>
-                <p class="text-xs text-gray-400 mt-1">With resolution checking</p>
+              <div class="text-center p-4 bg-zinc-50 dark:bg-zinc-800 rounded">
+                <.text>Market Sync</.text>
+                <p class="text-lg font-semibold text-zinc-950 dark:text-white">Hourly</p>
+                <.text class="mt-1">With resolution checking</.text>
               </div>
-              <div class="text-center p-4 bg-gray-50 rounded-lg">
-                <p class="text-sm text-gray-500">Diversity Check</p>
-                <p class="text-lg font-semibold text-green-600">Every 30 min</p>
-                <p class="text-xs text-gray-400 mt-1">Coverage health monitoring</p>
+              <div class="text-center p-4 bg-zinc-50 dark:bg-zinc-800 rounded">
+                <.text>Diversity Check</.text>
+                <p class="text-lg font-semibold text-zinc-950 dark:text-white">Every 30 min</p>
+                <.text class="mt-1">Coverage health monitoring</.text>
               </div>
             </div>
           </div>
         </div>
 
         <!-- Quick Actions -->
-        <div class="bg-white shadow rounded-lg border border-gray-200">
-          <div class="px-6 py-4 border-b border-gray-200">
-            <h3 class="text-lg font-medium text-gray-900">CLI Commands</h3>
+        <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+          <div class="px-6 py-4 border-b border-zinc-950/10 dark:border-white/10">
+            <.subheading>CLI Commands</.subheading>
           </div>
           <div class="p-6">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div class="p-4 bg-gray-50 rounded-lg">
-                <code class="text-sm text-indigo-600">mix polymarket.health</code>
-                <p class="text-xs text-gray-500 mt-1">Quick health check</p>
+              <div class="p-4 bg-zinc-50 dark:bg-zinc-800 rounded">
+                <code class="text-sm text-zinc-700 dark:text-zinc-300 font-mono">mix polymarket.health</code>
+                <.text class="mt-1">Quick health check</.text>
               </div>
-              <div class="p-4 bg-gray-50 rounded-lg">
-                <code class="text-sm text-indigo-600">mix polymarket.coverage</code>
-                <p class="text-xs text-gray-500 mt-1">Full coverage report</p>
+              <div class="p-4 bg-zinc-50 dark:bg-zinc-800 rounded">
+                <code class="text-sm text-zinc-700 dark:text-zinc-300 font-mono">mix polymarket.coverage</code>
+                <.text class="mt-1">Full coverage report</.text>
               </div>
-              <div class="p-4 bg-gray-50 rounded-lg">
-                <code class="text-sm text-indigo-600">mix polymarket.ingest</code>
-                <p class="text-xs text-gray-500 mt-1">Manual trade ingestion</p>
+              <div class="p-4 bg-zinc-50 dark:bg-zinc-800 rounded">
+                <code class="text-sm text-zinc-700 dark:text-zinc-300 font-mono">mix polymarket.ingest</code>
+                <.text class="mt-1">Manual trade ingestion</.text>
               </div>
-              <div class="p-4 bg-gray-50 rounded-lg">
-                <code class="text-sm text-indigo-600">mix polymarket.sync --full</code>
-                <p class="text-xs text-gray-500 mt-1">Full market sync with scoring</p>
+              <div class="p-4 bg-zinc-50 dark:bg-zinc-800 rounded">
+                <code class="text-sm text-zinc-700 dark:text-zinc-300 font-mono">mix polymarket.sync --full</code>
+                <.text class="mt-1">Full market sync with scoring</.text>
               </div>
             </div>
           </div>
