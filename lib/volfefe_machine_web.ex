@@ -86,6 +86,8 @@ defmodule VolfefeMachineWeb do
       import Phoenix.HTML
       # Core UI components
       import VolfefeMachineWeb.CoreComponents
+      # Catalyst design system components
+      import VolfefeMachineWeb.CatalystComponents
 
       # Common modules used in templates
       alias Phoenix.LiveView.JS
