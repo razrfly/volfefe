@@ -1,33 +1,39 @@
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-  <!-- Admin Navigation -->
   <.admin_nav current_page={:market_analysis} />
 
+  <!-- Header -->
   <div class="mb-8">
-    <h1 class="text-3xl font-bold text-gray-900">Market Impact Analysis</h1>
-    <p class="mt-2 text-sm text-gray-600">
+    <.heading>Market Impact Analysis</.heading>
+    <.text class="mt-1">
       Analyze market reactions to Trump posts with statistical significance testing
-    </p>
+    </.text>
   </div>
 
   <!-- Filters -->
-  <div class="bg-white shadow rounded-lg p-6 mb-6">
-    <h2 class="text-xl font-semibold text-gray-900 mb-4">Filters</h2>
+  <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 p-6 mb-6 dark:bg-zinc-900 dark:ring-white/10">
+    <.subheading class="mb-4">Filters</.subheading>
 
     <.form for={@filter_form} phx-change="update_filter">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">Minimum Significance</label>
-          <select name="filter[significance]" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+          <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Minimum Significance</label>
+          <select
+            name="filter[significance]"
+            class="w-full rounded border-zinc-300 dark:border-zinc-600 dark:bg-zinc-800 dark:text-white shadow-sm focus:border-zinc-500 focus:ring-zinc-500"
+          >
             <option value="all" selected={@filter_significance == "all"}>All Snapshots</option>
-            <option value="high" selected={@filter_significance == "high"}>High (|z| ≥ 2.0)</option>
-            <option value="moderate" selected={@filter_significance == "moderate"}>Moderate+ (|z| ≥ 1.0)</option>
+            <option value="high" selected={@filter_significance == "high"}>High (|z| >= 2.0)</option>
+            <option value="moderate" selected={@filter_significance == "moderate"}>Moderate+ (|z| >= 1.0)</option>
             <option value="noise" selected={@filter_significance == "noise"}>All (Including Noise)</option>
           </select>
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">Sort By</label>
-          <select name="filter[order_by]" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+          <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Sort By</label>
+          <select
+            name="filter[order_by]"
+            class="w-full rounded border-zinc-300 dark:border-zinc-600 dark:bg-zinc-800 dark:text-white shadow-sm focus:border-zinc-500 focus:ring-zinc-500"
+          >
             <option value="published_at" selected={@filter_order == "published_at"}>Published Date (Newest First)</option>
             <option value="max_z_score" selected={@filter_order == "max_z_score"}>Maximum Z-Score</option>
           </select>
@@ -38,21 +44,21 @@
 
   <%= if @selected_content_id do %>
     <!-- Detailed View -->
-    <div class="bg-white shadow rounded-lg p-6 mb-6">
+    <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 p-6 mb-6 dark:bg-zinc-900 dark:ring-white/10">
       <div class="flex justify-between items-start mb-4">
         <div class="flex-1">
-          <h2 class="text-xl font-semibold text-gray-900">Content #<%= @selected_content_id %></h2>
+          <.subheading>Content #<%= @selected_content_id %></.subheading>
           <%= if @selected_content do %>
-            <p class="text-sm text-gray-600 mb-2">
+            <.text class="mb-2">
               Published <%= Calendar.strftime(@selected_content.published_at, "%B %d, %Y at %I:%M %p UTC") %>
-            </p>
-            <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
-              <p class="text-gray-900"><%= @selected_content.text %></p>
+            </.text>
+            <div class="bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-950/10 dark:border-white/10 rounded p-4 mb-4">
+              <p class="text-zinc-950 dark:text-white"><%= @selected_content.text %></p>
             </div>
           <% end %>
         </div>
-        <button phx-click="clear_selection" class="ml-4 text-blue-600 hover:text-blue-800 font-medium">
-          ← Back to List
+        <button phx-click="clear_selection" class="ml-4 text-zinc-700 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white font-medium underline">
+          Back to List
         </button>
       </div>
 
@@ -60,60 +66,60 @@
         <!-- Market Snapshots by Asset -->
         <div class="space-y-6">
           <%= for %{asset: asset, snapshots: snapshots} <- @selected_snapshots do %>
-            <div class="border border-gray-200 rounded-lg overflow-hidden">
-              <div class="bg-gray-50 px-4 py-3 border-b border-gray-200">
-                <h3 class="text-lg font-semibold text-gray-900">
+            <div class="border border-zinc-950/10 dark:border-white/10 rounded overflow-hidden">
+              <div class="bg-zinc-50 dark:bg-zinc-800/50 px-4 py-3 border-b border-zinc-950/10 dark:border-white/10">
+                <span class="text-lg font-semibold text-zinc-950 dark:text-white">
                   <%= asset.symbol %> - <%= asset.name %>
-                </h3>
+                </span>
               </div>
 
               <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
-                  <thead class="bg-gray-50">
+                <table class="min-w-full divide-y divide-zinc-950/5 dark:divide-white/5">
+                  <thead class="bg-zinc-50 dark:bg-zinc-800/50">
                     <tr>
-                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time Window</th>
-                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Close Price</th>
-                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price Change</th>
-                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Z-Score</th>
-                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Significance</th>
-                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Volume</th>
-                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Market State</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Time Window</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Close Price</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Price Change</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Z-Score</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Significance</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Volume</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Market State</th>
                     </tr>
                   </thead>
-                  <tbody class="bg-white divide-y divide-gray-200">
+                  <tbody class="bg-white dark:bg-zinc-900 divide-y divide-zinc-950/5 dark:divide-white/5">
                     <%= for window <- ["before", "1hr_after", "4hr_after", "24hr_after"] do %>
                       <%= if snapshot = snapshots[window] do %>
                         <tr>
-                          <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                          <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-zinc-950 dark:text-white">
                             <%= window_label(window) %>
                           </td>
-                          <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                          <td class="px-4 py-3 whitespace-nowrap text-sm text-zinc-950 dark:text-white">
                             $<%= format_price(snapshot.close_price) %>
                           </td>
                           <td class={"px-4 py-3 whitespace-nowrap text-sm font-medium #{price_change_class(snapshot.price_change_pct)}"}>
                             <%= format_percentage(snapshot.price_change_pct) %>
                           </td>
-                          <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                          <td class="px-4 py-3 whitespace-nowrap text-sm text-zinc-950 dark:text-white">
                             <%= format_z_score(snapshot.z_score) %>
                           </td>
                           <td class="px-4 py-3 whitespace-nowrap">
-                            <span class={"px-2 py-1 text-xs font-medium rounded-full border #{significance_badge_class(snapshot.significance_level)}"}>
+                            <.badge color={significance_to_color(snapshot.significance_level)}>
                               <%= snapshot.significance_level || "—" %>
-                            </span>
+                            </.badge>
                           </td>
-                          <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+                          <td class="px-4 py-3 whitespace-nowrap text-sm text-zinc-600 dark:text-zinc-400">
                             <%= if snapshot.volume, do: format_volume(snapshot.volume), else: "—" %>
                           </td>
-                          <td class="px-4 py-3 whitespace-nowrap text-xs text-gray-600">
+                          <td class="px-4 py-3 whitespace-nowrap text-xs text-zinc-600 dark:text-zinc-400">
                             <%= snapshot.market_state || "—" %>
                           </td>
                         </tr>
                       <% else %>
                         <tr>
-                          <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                          <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-zinc-950 dark:text-white">
                             <%= window_label(window) %>
                           </td>
-                          <td colspan="6" class="px-4 py-3 text-sm text-gray-400 italic">
+                          <td colspan="6" class="px-4 py-3 text-sm text-zinc-400 dark:text-zinc-500 italic">
                             No snapshot available
                           </td>
                         </tr>
@@ -126,76 +132,76 @@
           <% end %>
         </div>
       <% else %>
-        <div class="text-center py-8 text-gray-500">
+        <div class="text-center py-8 text-zinc-500 dark:text-zinc-400">
           No market snapshots available for this content
         </div>
       <% end %>
     </div>
   <% else %>
     <!-- Content List View -->
-    <div class="bg-white shadow rounded-lg overflow-hidden">
-      <div class="px-6 py-4 border-b border-gray-200">
-        <h2 class="text-xl font-semibold text-gray-900">
+    <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10 overflow-hidden">
+      <div class="px-6 py-4 border-b border-zinc-950/5 dark:border-white/5">
+        <.subheading>
           Content with Market Snapshots (<%= length(@content_list) %>)
-        </h2>
+        </.subheading>
       </div>
 
       <%= if length(@content_list) > 0 do %>
         <div class="overflow-x-auto">
-          <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
+          <table class="min-w-full divide-y divide-zinc-950/5 dark:divide-white/5">
+            <thead class="bg-zinc-50 dark:bg-zinc-800/50">
               <tr>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Published</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Content Preview</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sentiment</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Max Z-Score</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Significance</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Snapshots</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Isolation</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Published</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Content Preview</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Sentiment</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Max Z-Score</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Significance</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Snapshots</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Isolation</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
+            <tbody class="bg-white dark:bg-zinc-900 divide-y divide-zinc-950/5 dark:divide-white/5">
               <%= for item <- @content_list do %>
-                <tr class="hover:bg-gray-50">
-                  <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+                <tr class="hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
+                  <td class="px-4 py-3 whitespace-nowrap text-sm text-zinc-600 dark:text-zinc-400">
                     <%= Calendar.strftime(item.published_at, "%m/%d %H:%M") %>
                   </td>
-                  <td class="px-4 py-3 text-sm text-gray-900 max-w-md">
+                  <td class="px-4 py-3 text-sm text-zinc-950 dark:text-white max-w-md">
                     <div class="truncate">
                       <%= String.slice(item.text || "", 0..100) %><%= if String.length(item.text || "") > 100, do: "..." %>
                     </div>
                   </td>
                   <td class="px-4 py-3 whitespace-nowrap">
                     <%= if item.sentiment do %>
-                      <span class={"px-2 py-1 text-xs font-medium rounded #{sentiment_badge_class(item.sentiment)}"}>
+                      <.badge color={sentiment_to_color(item.sentiment)}>
                         <%= item.sentiment %>
-                      </span>
+                      </.badge>
                     <% else %>
-                      <span class="text-xs text-gray-400">—</span>
+                      <span class="text-xs text-zinc-400 dark:text-zinc-500">—</span>
                     <% end %>
                   </td>
-                  <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                  <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-zinc-950 dark:text-white">
                     <%= :erlang.float_to_binary(abs(item.max_z_score), decimals: 2) %>
                   </td>
                   <td class="px-4 py-3 whitespace-nowrap">
-                    <span class={"px-2 py-1 text-xs font-medium rounded-full border #{significance_badge_class(item.significance)}"}>
+                    <.badge color={significance_to_color(item.significance)}>
                       <%= item.significance %>
-                    </span>
+                    </.badge>
                   </td>
-                  <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+                  <td class="px-4 py-3 whitespace-nowrap text-sm text-zinc-600 dark:text-zinc-400">
                     <%= item.snapshot_count %>
                   </td>
-                  <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+                  <td class="px-4 py-3 whitespace-nowrap text-sm text-zinc-600 dark:text-zinc-400">
                     <%= :erlang.float_to_binary(item.isolation_score, decimals: 2) %>
                   </td>
                   <td class="px-4 py-3 whitespace-nowrap text-sm">
                     <button
                       phx-click="select_content"
                       phx-value-id={item.id}
-                      class="text-blue-600 hover:text-blue-800 font-medium"
+                      class="text-zinc-700 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white font-medium underline"
                     >
-                      View Details →
+                      View Details
                     </button>
                   </td>
                 </tr>
@@ -204,13 +210,13 @@
           </table>
         </div>
       <% else %>
-        <div class="text-center py-12 text-gray-500">
+        <div class="text-center py-12 text-zinc-500 dark:text-zinc-400">
           <p class="text-lg mb-2">No market snapshots found</p>
-          <p class="text-sm">
+          <.text>
             Run snapshot capture jobs from the
-            <.link navigate={~p"/admin/ml"} class="text-blue-600 hover:text-blue-800">ML Jobs</.link>
+            <.link navigate={~p"/admin/ml"} class="text-zinc-900 dark:text-white font-medium underline hover:no-underline">ML Jobs</.link>
             dashboard
-          </p>
+          </.text>
         </div>
       <% end %>
     </div>

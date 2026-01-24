@@ -146,23 +146,24 @@ defmodule VolfefeMachineWeb.Admin.MarketAnalysisLive do
     |> :erlang.float_to_binary(decimals: 2)
   end
 
-  defp significance_badge_class("high"), do: "bg-red-100 text-red-800 border-red-300"
-  defp significance_badge_class("moderate"), do: "bg-yellow-100 text-yellow-800 border-yellow-300"
-  defp significance_badge_class("noise"), do: "bg-gray-100 text-gray-600 border-gray-300"
-  defp significance_badge_class(_), do: "bg-gray-100 text-gray-600 border-gray-300"
+  # Catalyst badge color atoms
+  def significance_to_color("high"), do: :red
+  def significance_to_color("moderate"), do: :amber
+  def significance_to_color("noise"), do: :zinc
+  def significance_to_color(_), do: :zinc
 
-  defp sentiment_badge_class("positive"), do: "bg-green-100 text-green-800"
-  defp sentiment_badge_class("negative"), do: "bg-red-100 text-red-800"
-  defp sentiment_badge_class("neutral"), do: "bg-gray-100 text-gray-800"
-  defp sentiment_badge_class(_), do: "bg-gray-100 text-gray-800"
+  def sentiment_to_color("positive"), do: :green
+  def sentiment_to_color("negative"), do: :red
+  def sentiment_to_color("neutral"), do: :zinc
+  def sentiment_to_color(_), do: :zinc
 
   defp price_change_class(nil), do: ""
 
   defp price_change_class(decimal) do
     if Decimal.compare(decimal, 0) == :gt do
-      "text-green-600"
+      "text-green-600 dark:text-green-400"
     else
-      "text-red-600"
+      "text-red-600 dark:text-red-400"
     end
   end
 

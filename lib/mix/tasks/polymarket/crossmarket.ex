@@ -149,19 +149,15 @@ defmodule Mix.Tasks.Polymarket.Crossmarket do
 
       Mix.shell().info("Promoting top findings to candidates...")
 
-      case CrossMarketScanner.promote_to_candidates(all_suspicious,
+      {:ok, result} = CrossMarketScanner.promote_to_candidates(all_suspicious,
         min_score: min_score,
         limit: promote_limit,
         batch_prefix: "crossmarket-full"
-      ) do
-        {:ok, result} ->
-          Mix.shell().info("")
-          Mix.shell().info("Created #{result.candidates_created} investigation candidates")
-          Mix.shell().info("Batch ID: #{result.batch_id}")
+      )
 
-        {:error, reason} ->
-          Mix.shell().error("Promotion failed: #{reason}")
-      end
+      Mix.shell().info("")
+      Mix.shell().info("Created #{result.candidates_created} investigation candidates")
+      Mix.shell().info("Batch ID: #{result.batch_id}")
     end
 
     Mix.shell().info("")
@@ -192,20 +188,14 @@ defmodule Mix.Tasks.Polymarket.Crossmarket do
   defp find_similar_wallets(opts) do
     print_header("SIMILAR WALLET DETECTION")
 
-    case find_similar_wallets_internal(opts) do
-      {:ok, results} ->
-        print_similar_results(results)
+    {:ok, results} = find_similar_wallets_internal(opts)
+    print_similar_results(results)
 
-        if opts[:promote] && length(results.wallets) > 0 do
-          promote_results(results.wallets, opts, "crossmarket-similar")
-        end
-
-        {:ok, results}
-
-      {:error, reason} ->
-        Mix.shell().error("Search failed: #{reason}")
-        {:error, reason}
+    if opts[:promote] && length(results.wallets) > 0 do
+      promote_results(results.wallets, opts, "crossmarket-similar")
     end
+
+    {:ok, results}
   end
 
   defp find_similar_wallets_internal(opts) do
@@ -370,18 +360,14 @@ defmodule Mix.Tasks.Polymarket.Crossmarket do
     Mix.shell().info("")
     Mix.shell().info("Promoting to investigation candidates...")
 
-    case CrossMarketScanner.promote_to_candidates(items,
+    {:ok, result} = CrossMarketScanner.promote_to_candidates(items,
       min_score: min_score,
       limit: promote_limit,
       batch_prefix: batch_prefix
-    ) do
-      {:ok, result} ->
-        Mix.shell().info("Created #{result.candidates_created} candidates")
-        Mix.shell().info("Batch ID: #{result.batch_id}")
+    )
 
-      {:error, reason} ->
-        Mix.shell().error("Promotion failed: #{reason}")
-    end
+    Mix.shell().info("Created #{result.candidates_created} candidates")
+    Mix.shell().info("Batch ID: #{result.batch_id}")
   end
 
   # ============================================================================
