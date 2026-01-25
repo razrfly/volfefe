@@ -9,6 +9,7 @@
         <.text class="mt-1">Monitor and manage machine learning reprocessing jobs</.text>
       </div>
       <.catalyst_button
+        id="btn-clear-classifications"
         phx-click="clear_all_classifications"
         data-confirm="Are you sure? This will delete ALL classifications (both consensus and individual model results). Content will not be affected."
         color={:zinc}
@@ -76,7 +77,7 @@
           Rerun ML classification models on existing content. Use when deploying new models or fixing classification errors.
         </.text>
 
-        <.form for={@form} phx-submit="enqueue_reprocess" class="space-y-4">
+        <.form for={@form} id="reprocess-form" phx-submit="enqueue_reprocess" class="space-y-4">
           <!-- Model Type Selection -->
           <div>
             <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Model Type</label>

@@ -32,19 +32,20 @@
       <!-- Actions -->
       <div class="flex items-center gap-2">
         <%= if @candidate.status == "undiscovered" do %>
-          <.catalyst_button phx-click="start_investigation" color={:dark}>
+          <.catalyst_button id="btn-start-investigation" phx-click="start_investigation" color={:dark}>
             Start Investigation
           </.catalyst_button>
         <% end %>
 
         <%= if @candidate.status == "investigating" do %>
-          <.catalyst_button phx-click="show_resolve_modal" color={:dark}>
+          <.catalyst_button id="btn-resolve" phx-click="show_resolve_modal" color={:dark}>
             Resolve
           </.catalyst_button>
         <% end %>
 
         <%= if @candidate.status in ["undiscovered", "investigating"] do %>
           <.catalyst_button
+            id="btn-dismiss"
             phx-click="dismiss_candidate"
             color={:zinc}
             data-confirm="Are you sure you want to dismiss this candidate?"

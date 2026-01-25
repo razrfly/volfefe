@@ -188,14 +188,20 @@ defmodule Mix.Tasks.Polymarket.Crossmarket do
   defp find_similar_wallets(opts) do
     print_header("SIMILAR WALLET DETECTION")
 
-    {:ok, results} = find_similar_wallets_internal(opts)
-    print_similar_results(results)
+    case find_similar_wallets_internal(opts) do
+      {:ok, results} ->
+        print_similar_results(results)
 
-    if opts[:promote] && length(results.wallets) > 0 do
-      promote_results(results.wallets, opts, "crossmarket-similar")
+        if opts[:promote] && length(results.wallets) > 0 do
+          promote_results(results.wallets, opts, "crossmarket-similar")
+        end
+
+        {:ok, results}
+
+      {:error, reason} ->
+        Mix.shell().error("Search failed: #{reason}")
+        {:error, reason}
     end
-
-    {:ok, results}
   end
 
   defp find_similar_wallets_internal(opts) do
