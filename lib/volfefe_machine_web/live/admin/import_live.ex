@@ -251,13 +251,13 @@ defmodule VolfefeMachineWeb.Admin.ImportLive do
           <%= if @analysis.date_range do %>
             <% {first, last} = @analysis.date_range %>
             <p class="text-sm text-gray-600 mb-4">
-              📅 Date Range: <%= Date.to_string(DateTime.to_date(first)) %> to <%= Date.to_string(DateTime.to_date(last)) %>
+              Date Range: <%= Date.to_string(DateTime.to_date(first)) %> to <%= Date.to_string(DateTime.to_date(last)) %>
             </p>
           <% end %>
 
           <!-- Posting Stats -->
           <p class="text-sm text-gray-600 mb-4">
-            📊 Average: <%= @analysis.posting_stats.avg_per_day %> posts/day
+            Average: <%= @analysis.posting_stats.avg_per_day %> posts/day
           </p>
 
           <!-- Gaps -->
@@ -283,7 +283,7 @@ defmodule VolfefeMachineWeb.Admin.ImportLive do
             </div>
           <% else %>
             <div class="bg-green-50 border-l-4 border-green-400 p-4">
-              <p class="text-sm text-green-700">✅ No significant gaps detected</p>
+              <p class="text-sm text-green-700">No significant gaps detected</p>
             </div>
           <% end %>
         </div>
@@ -297,7 +297,7 @@ defmodule VolfefeMachineWeb.Admin.ImportLive do
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         <!-- Incremental Import -->
         <div class="bg-white shadow rounded-lg p-6 border border-gray-200">
-          <h3 class="text-lg font-semibold text-gray-900 mb-2">🔄 Incremental Import</h3>
+          <h3 class="text-lg font-semibold text-gray-900 mb-2">Incremental Import</h3>
           <p class="text-sm text-gray-600 mb-4">
             Import only new posts since last import. Automatically calculates optimal fetch limit.
           </p>
@@ -316,7 +316,7 @@ defmodule VolfefeMachineWeb.Admin.ImportLive do
 
         <!-- Backfill -->
         <div class="bg-white shadow rounded-lg p-6 border border-gray-200">
-          <h3 class="text-lg font-semibold text-gray-900 mb-2">🔍 Backfill Gap</h3>
+          <h3 class="text-lg font-semibold text-gray-900 mb-2">Backfill Gap</h3>
           <p class="text-sm text-gray-600 mb-4">
             Fill missing posts in a specific date range.
           </p>
@@ -348,7 +348,7 @@ defmodule VolfefeMachineWeb.Admin.ImportLive do
 
         <!-- Full Import -->
         <div class="bg-white shadow rounded-lg p-6 border border-gray-200">
-          <h3 class="text-lg font-semibold text-gray-900 mb-2">📚 Full Import</h3>
+          <h3 class="text-lg font-semibold text-gray-900 mb-2">Full Import</h3>
           <p class="text-sm text-gray-600 mb-4">
             Import with custom limit for large historical imports.
           </p>
@@ -454,9 +454,9 @@ defmodule VolfefeMachineWeb.Admin.ImportLive do
   defp format_job_state("available"), do: "Queued"
   defp format_job_state("scheduled"), do: "Scheduled"
   defp format_job_state("executing"), do: "Running"
-  defp format_job_state("completed"), do: "✅ Complete"
-  defp format_job_state("discarded"), do: "❌ Failed"
-  defp format_job_state("cancelled"), do: "🚫 Cancelled"
+  defp format_job_state("completed"), do: "Complete"
+  defp format_job_state("discarded"), do: "Failed"
+  defp format_job_state("cancelled"), do: "Cancelled"
   defp format_job_state(state), do: state
 
   defp job_status_badge_class("available"), do: "bg-gray-100 text-gray-800"

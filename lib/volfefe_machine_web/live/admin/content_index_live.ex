@@ -584,18 +584,18 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
                 </h3>
                 <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 space-y-4">
                   <div>
-                    <h4 class="text-xs font-semibold text-gray-700 mb-2">📈 Trading Signals</h4>
+                    <h4 class="text-xs font-semibold text-gray-700 mb-2">Trading Signals</h4>
                     <ul class="text-xs text-gray-500 space-y-1">
-                      <li>• Strategy: [Not yet implemented]</li>
-                      <li>• Signals: [Pending]</li>
-                      <li>• Risk Level: [Pending]</li>
+                      <li>Strategy: Not yet implemented</li>
+                      <li>Signals: Pending</li>
+                      <li>Risk Level: Pending</li>
                     </ul>
                   </div>
                   <div>
-                    <h4 class="text-xs font-semibold text-gray-700 mb-2">🔗 Related Content</h4>
+                    <h4 class="text-xs font-semibold text-gray-700 mb-2">Related Content</h4>
                     <ul class="text-xs text-gray-500 space-y-1">
-                      <li>• Similar posts: [Coming soon]</li>
-                      <li>• By same author: [Coming soon]</li>
+                      <li>Similar posts: Coming soon</li>
+                      <li>By same author: Coming soon</li>
                     </ul>
                   </div>
                 </div>
@@ -946,12 +946,12 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
           <% end %>
           <%= if @disagrees do %>
             <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">
-              ⚠️ Disagrees
+              Disagrees
             </span>
           <% end %>
           <%= if @is_ambiguous do %>
             <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
-              ⚠️ Ambiguous
+              Ambiguous
             </span>
           <% end %>
         </div>
@@ -1076,7 +1076,7 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
     ~H"""
     <div class="border-t border-gray-300 pt-3 mt-3">
       <h4 class="text-xs font-semibold text-gray-900 uppercase tracking-wider mb-2">
-        📊 Consensus Summary
+        Consensus Summary
       </h4>
       <div class="bg-white rounded-lg p-3 border border-gray-200 space-y-2">
         <div class="flex items-center justify-between">
@@ -1086,9 +1086,9 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
               <%= @consensus_count %>/<%= @total_models %> models (<%= @agreement_pct %>%)
             </span>
             <%= if @agreement_pct == 100 do %>
-              <span class="text-green-600">✓ Full consensus</span>
+              <span class="text-green-600">Full consensus</span>
             <% else %>
-              <span class="text-amber-600">⚠️ Partial agreement</span>
+              <span class="text-amber-600">Partial agreement</span>
             <% end %>
           </div>
         </div>
@@ -1165,22 +1165,22 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
       <div class="flex gap-1 flex-wrap">
         <%= if @entity_counts.org > 0 do %>
           <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800" title="Organizations">
-            🏢 <%= @entity_counts.org %>
+            ORG: <%= @entity_counts.org %>
           </span>
         <% end %>
         <%= if @entity_counts.loc > 0 do %>
           <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800" title="Locations">
-            📍 <%= @entity_counts.loc %>
+            LOC: <%= @entity_counts.loc %>
           </span>
         <% end %>
         <%= if @entity_counts.per > 0 do %>
           <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800" title="People">
-            👤 <%= @entity_counts.per %>
+            PER: <%= @entity_counts.per %>
           </span>
         <% end %>
         <%= if @entity_counts.misc > 0 do %>
           <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800" title="Miscellaneous">
-            🔖 <%= @entity_counts.misc %>
+            MISC: <%= @entity_counts.misc %>
           </span>
         <% end %>
       </div>
@@ -1213,7 +1213,7 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
           <%= if @entity_counts.org > 0 do %>
             <div class="bg-white rounded-lg p-3 border border-blue-100">
               <h4 class="text-xs font-semibold text-blue-900 mb-2 flex items-center gap-1">
-                🏢 Organizations (<%= @entity_counts.org %>)
+                Organizations (<%= @entity_counts.org %>)
               </h4>
               <ul class="text-xs text-gray-700 space-y-1">
                 <%= for entity <- Enum.filter(@entity_data.extracted, &(&1["type"] == "ORG")) do %>
@@ -1229,7 +1229,7 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
           <%= if @entity_counts.loc > 0 do %>
             <div class="bg-white rounded-lg p-3 border border-green-100">
               <h4 class="text-xs font-semibold text-green-900 mb-2 flex items-center gap-1">
-                📍 Locations (<%= @entity_counts.loc %>)
+                Locations (<%= @entity_counts.loc %>)
               </h4>
               <ul class="text-xs text-gray-700 space-y-1">
                 <%= for entity <- Enum.filter(@entity_data.extracted, &(&1["type"] == "LOC")) do %>
@@ -1245,7 +1245,7 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
           <%= if @entity_counts.per > 0 do %>
             <div class="bg-white rounded-lg p-3 border border-purple-100">
               <h4 class="text-xs font-semibold text-purple-900 mb-2 flex items-center gap-1">
-                👤 People (<%= @entity_counts.per %>)
+                People (<%= @entity_counts.per %>)
               </h4>
               <ul class="text-xs text-gray-700 space-y-1">
                 <%= for entity <- Enum.filter(@entity_data.extracted, &(&1["type"] == "PER")) do %>
@@ -1261,7 +1261,7 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
           <%= if @entity_counts.misc > 0 do %>
             <div class="bg-white rounded-lg p-3 border border-gray-200">
               <h4 class="text-xs font-semibold text-gray-900 mb-2 flex items-center gap-1">
-                🔖 Miscellaneous (<%= @entity_counts.misc %>)
+                Miscellaneous (<%= @entity_counts.misc %>)
               </h4>
               <ul class="text-xs text-gray-700 space-y-1">
                 <%= for entity <- Enum.filter(@entity_data.extracted, &(&1["type"] == "MISC")) do %>
@@ -1537,19 +1537,19 @@ defmodule VolfefeMachineWeb.Admin.ContentIndexLive do
       "high" ->
         ~H"""
         <span class="ml-2 text-xs px-2.5 py-1 bg-red-100 text-red-800 rounded-full font-semibold">
-          🔴 High Impact (<%= format_price_change(@max_price_change) %>)
+          High Impact (<%= format_price_change(@max_price_change) %>)
         </span>
         """
       "moderate" ->
         ~H"""
         <span class="ml-2 text-xs px-2.5 py-1 bg-yellow-100 text-yellow-800 rounded-full font-semibold">
-          🟡 Moderate (<%= format_price_change(@max_price_change) %>)
+          Moderate (<%= format_price_change(@max_price_change) %>)
         </span>
         """
       "low" ->
         ~H"""
         <span class="ml-2 text-xs px-2.5 py-1 bg-gray-100 text-gray-600 rounded-full">
-          ⚪ Low Impact (<%= format_price_change(@max_price_change) %>)
+          Low Impact (<%= format_price_change(@max_price_change) %>)
         </span>
         """
       _ ->

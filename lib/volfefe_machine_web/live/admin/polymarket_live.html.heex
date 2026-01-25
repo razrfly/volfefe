@@ -178,8 +178,10 @@
           <:body>
             <%= if length(@alerts) == 0 do %>
               <tr>
-                <td colspan="7" class="px-6 py-8 text-center text-zinc-500">
-                  No alerts found. Run discovery or wait for the monitor to detect suspicious trades.
+                <td colspan="7">
+                  <.empty_state>
+                    No alerts found. Run discovery or wait for the monitor to detect suspicious trades.
+                  </.empty_state>
                 </td>
               </tr>
             <% else %>
@@ -252,8 +254,10 @@
           <:body>
             <%= if length(@candidates) == 0 do %>
               <tr>
-                <td colspan="7" class="px-6 py-8 text-center text-zinc-500">
-                  No candidates found. Run discovery to identify potential insider wallets.
+                <td colspan="7">
+                  <.empty_state>
+                    No candidates found. Run discovery to identify potential insider wallets.
+                  </.empty_state>
                 </td>
               </tr>
             <% else %>
@@ -427,7 +431,9 @@
           <.subheading class="mb-4">Discovery Batch History</.subheading>
 
           <%= if length(@discovery_batches) == 0 do %>
-            <.text>No discovery batches yet. Run a discovery to get started.</.text>
+            <.empty_state>
+              No discovery batches yet. Run a discovery to get started.
+            </.empty_state>
           <% else %>
             <.data_table>
               <:header>
@@ -560,9 +566,9 @@
                 <span class="text-zinc-700 dark:text-zinc-300"><%= @coverage_health.concentration.percentage %>% from <%= @coverage_health.concentration.top_category %></span>
               </li>
             </ul>
-            <div class="mt-4 pt-4 border-t border-zinc-300 dark:border-zinc-600">
+            <div class="mt-4 pt-4 border-t border-zinc-950/10 dark:border-white/10">
               <.text>
-                Run <code class="bg-zinc-200 dark:bg-zinc-700 px-1 rounded font-mono text-sm">mix polymarket.ingest</code> to capture more trades
+                Run <code class="bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded font-mono text-sm">mix polymarket.ingest</code> to capture more trades
               </.text>
             </div>
           </.alert_banner>
@@ -606,20 +612,20 @@
           </div>
           <div class="p-6">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div class="p-4 bg-zinc-50 dark:bg-zinc-800 rounded">
-                <code class="text-sm text-zinc-700 dark:text-zinc-300 font-mono">mix polymarket.health</code>
+              <div class="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded">
+                <code class="text-sm text-zinc-950 dark:text-zinc-100 font-mono">mix polymarket.health</code>
                 <.text class="mt-1">Quick health check</.text>
               </div>
-              <div class="p-4 bg-zinc-50 dark:bg-zinc-800 rounded">
-                <code class="text-sm text-zinc-700 dark:text-zinc-300 font-mono">mix polymarket.coverage</code>
+              <div class="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded">
+                <code class="text-sm text-zinc-950 dark:text-zinc-100 font-mono">mix polymarket.coverage</code>
                 <.text class="mt-1">Full coverage report</.text>
               </div>
-              <div class="p-4 bg-zinc-50 dark:bg-zinc-800 rounded">
-                <code class="text-sm text-zinc-700 dark:text-zinc-300 font-mono">mix polymarket.ingest</code>
+              <div class="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded">
+                <code class="text-sm text-zinc-950 dark:text-zinc-100 font-mono">mix polymarket.ingest</code>
                 <.text class="mt-1">Manual trade ingestion</.text>
               </div>
-              <div class="p-4 bg-zinc-50 dark:bg-zinc-800 rounded">
-                <code class="text-sm text-zinc-700 dark:text-zinc-300 font-mono">mix polymarket.sync --full</code>
+              <div class="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded">
+                <code class="text-sm text-zinc-950 dark:text-zinc-100 font-mono">mix polymarket.sync --full</code>
                 <.text class="mt-1">Full market sync with scoring</.text>
               </div>
             </div>
