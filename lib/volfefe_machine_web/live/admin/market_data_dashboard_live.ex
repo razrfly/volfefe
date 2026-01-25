@@ -407,22 +407,22 @@ defmodule VolfefeMachineWeb.Admin.MarketDataDashboardLive do
   def tier_to_color(3), do: :amber
   def tier_to_color(_), do: :zinc
 
-  def state_icon("available"), do: "📋"
-  def state_icon("scheduled"), do: "⏰"
-  def state_icon("executing"), do: "🔄"
-  def state_icon("retryable"), do: "🔁"
-  def state_icon("completed"), do: "✅"
-  def state_icon("discarded"), do: "❌"
-  def state_icon("cancelled"), do: "🚫"
-  def state_icon(_), do: "❓"
+  def state_icon("available"), do: "Queued"
+  def state_icon("scheduled"), do: "Scheduled"
+  def state_icon("executing"), do: "Running"
+  def state_icon("retryable"), do: "Retry"
+  def state_icon("completed"), do: "Done"
+  def state_icon("discarded"), do: "Failed"
+  def state_icon("cancelled"), do: "Cancelled"
+  def state_icon(_), do: "Unknown"
 
   def queue_status_icon(stats) do
     cond do
-      stats.discarded > 0 -> "❌"
-      stats.retryable > 0 -> "⚠️"
-      stats.executing > 0 -> "🔄"
-      stats.available > 0 -> "📋"
-      true -> "✅"
+      stats.discarded > 0 -> "Failed"
+      stats.retryable > 0 -> "Warning"
+      stats.executing > 0 -> "Running"
+      stats.available > 0 -> "Queued"
+      true -> "OK"
     end
   end
 end

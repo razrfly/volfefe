@@ -240,11 +240,6 @@ defmodule VolfefeMachineWeb.Admin.ContentAnalysisLive do
     end
   end
 
-  def impact_emoji("high"), do: "🚨"
-  def impact_emoji("moderate"), do: "⚡"
-  def impact_emoji("low"), do: "📊"
-  def impact_emoji(_), do: "📉"
-
   # Catalyst badge color atoms
   def significance_to_color("high"), do: :red
   def significance_to_color("moderate"), do: :amber
@@ -265,13 +260,6 @@ defmodule VolfefeMachineWeb.Admin.ContentAnalysisLive do
   def window_label("4hr_after"), do: "4hr After"
   def window_label("24hr_after"), do: "24hr After"
   def window_label(window), do: window
-
-  def asset_icon("SPY"), do: "📈"
-  def asset_icon("QQQ"), do: "📊"
-  def asset_icon("DIA"), do: "🏭"
-  def asset_icon("VXX"), do: "⚡"
-  def asset_icon("GLD"), do: "💎"
-  def asset_icon(_), do: "📉"
 
   # SVG Chart Rendering
 
