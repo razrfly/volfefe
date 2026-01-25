@@ -258,6 +258,180 @@ defmodule VolfefeMachine.Polymarket do
   end
 
   @doc """
+  Ingest recent trades via blockchain subgraph (Goldsky).
+
+  This is the primary ingestion method that works reliably.
+  Uses the SubgraphClient with proper rate limiting.
+
+  ## Options
+
+  - `:limit` - Maximum trades to fetch (default: 2000)
+  - `:hours` - How many hours back to fetch (default: 24)
+
+  ## Returns
+
+  - `{:ok, %{inserted: n, updated: n, errors: n, unmapped: n}}`
+  - `{:error, :rate_limited}` - Rate limited, caller should retry later
+  - `{:error, reason}` - Other error
+  """
+  def ingest_trades_via_subgraph(opts \\ []) do
+    alias VolfefeMachine.Polymarket.{SubgraphClient, TokenMapping}
+
+    limit = Keyword.get(opts, :limit, 2000)
+    hours = Keyword.get(opts, :hours, 24)
+
+    Logger.info("[Subgraph Ingest] Starting: limit=#{limit}, hours=#{hours}")
+
+    # Calculate time range
+    to_ts = DateTime.utc_now() |> DateTime.to_unix()
+    from_ts = to_ts - (hours * 3600)
+
+    # Build token mapping from local DB
+    {:ok, local_mapping} = TokenMapping.build_mapping(include_inactive: true)
+    mapping_size = map_size(local_mapping)
+    Logger.info("[Subgraph Ingest] Token mapping loaded: #{mapping_size} tokens")
+
+    # Fetch events from subgraph
+    case SubgraphClient.get_order_filled_events(
+           from_timestamp: from_ts,
+           to_timestamp: to_ts,
+           limit: limit
+         ) do
+      {:ok, events} ->
+        Logger.info("[Subgraph Ingest] Fetched #{length(events)} events")
+        stats = process_subgraph_events(events, local_mapping)
+        Logger.info("[Subgraph Ingest] Complete: #{inspect(stats)}")
+        {:ok, stats}
+
+      {:error, :rate_limited} = error ->
+        Logger.warning("[Subgraph Ingest] Rate limited by subgraph")
+        error
+
+      {:error, reason} = error ->
+        Logger.error("[Subgraph Ingest] Failed: #{inspect(reason)}")
+        error
+    end
+  end
+
+  # Process subgraph events into trades
+  defp process_subgraph_events(events, token_mapping) do
+    alias VolfefeMachine.Polymarket.TokenMapping
+
+    results = Enum.map(events, fn event ->
+      # Determine which token ID to use (non-zero asset)
+      maker_asset = event["makerAssetId"]
+      taker_asset = event["takerAssetId"]
+
+      {token_id, side, wallet_address, token_is_maker} = cond do
+        maker_asset != "0" -> {maker_asset, "SELL", event["maker"], true}
+        taker_asset != "0" -> {taker_asset, "SELL", event["taker"], false}
+        true -> {maker_asset, "SELL", event["maker"], true}
+      end
+
+      # Look up market from token mapping
+      case TokenMapping.lookup(token_mapping, token_id) do
+        {:ok, %{market_id: market_id, condition_id: condition_id, outcome_index: outcome_index}} ->
+          insert_subgraph_trade(event, %{
+            market_id: market_id,
+            condition_id: condition_id,
+            outcome_index: outcome_index,
+            side: side,
+            wallet_address: wallet_address,
+            token_is_maker: token_is_maker
+          })
+
+        :not_found ->
+          :unmapped
+      end
+    end)
+
+    %{
+      inserted: Enum.count(results, &(&1 == :inserted)),
+      updated: Enum.count(results, &(&1 == :updated)),
+      errors: Enum.count(results, &(&1 == :error)),
+      unmapped: Enum.count(results, &(&1 == :unmapped))
+    }
+  end
+
+  # Insert a single trade from subgraph event
+  defp insert_subgraph_trade(event, mapping) do
+    tx_hash = event["id"]
+
+    # Check if already exists
+    case Repo.get_by(Trade, transaction_hash: tx_hash) do
+      nil ->
+        # Parse timestamp
+        timestamp = event["timestamp"]
+        |> String.to_integer()
+        |> DateTime.from_unix!()
+
+        # Calculate amounts (divide by 10^6 for USDC decimals)
+        maker_amount = parse_subgraph_amount(event["makerAmountFilled"])
+        taker_amount = parse_subgraph_amount(event["takerAmountFilled"])
+
+        # Determine size and price based on which asset is the market token
+        {size, usdc_size, price} = if mapping.token_is_maker do
+          s = maker_amount
+          u = taker_amount
+          p = if Decimal.compare(s, 0) == :gt, do: Decimal.div(u, s), else: Decimal.new(0)
+          {s, u, p}
+        else
+          s = taker_amount
+          u = maker_amount
+          p = if Decimal.compare(s, 0) == :gt, do: Decimal.div(u, s), else: Decimal.new(0)
+          {s, u, p}
+        end
+
+        outcome = if mapping.outcome_index == 0, do: "Yes", else: "No"
+
+        # Ensure wallet exists
+        {:ok, wallet} = get_or_create_wallet(mapping.wallet_address, %{})
+
+        attrs = %{
+          transaction_hash: tx_hash,
+          wallet_id: wallet.id,
+          wallet_address: mapping.wallet_address,
+          condition_id: mapping.condition_id,
+          market_id: mapping.market_id,
+          side: mapping.side,
+          outcome: outcome,
+          outcome_index: mapping.outcome_index,
+          size: size,
+          price: Decimal.round(price, 4),
+          usdc_size: usdc_size,
+          trade_timestamp: timestamp,
+          meta: %{
+            source: "subgraph",
+            maker: event["maker"],
+            taker: event["taker"],
+            makerAssetId: event["makerAssetId"],
+            takerAssetId: event["takerAssetId"]
+          }
+        }
+
+        case %Trade{} |> Trade.changeset(attrs) |> Repo.insert() do
+          {:ok, _trade} -> :inserted
+          {:error, _changeset} -> :error
+        end
+
+      _existing ->
+        :updated
+    end
+  end
+
+  defp parse_subgraph_amount(nil), do: Decimal.new(0)
+  defp parse_subgraph_amount(amount) when is_binary(amount) do
+    # Subgraph amounts are in wei (10^6 for USDC)
+    case Decimal.parse(amount) do
+      {decimal, ""} -> Decimal.div(decimal, Decimal.new(1_000_000))
+      _ -> Decimal.new(0)
+    end
+  end
+  defp parse_subgraph_amount(amount) when is_integer(amount) do
+    Decimal.div(Decimal.new(amount), Decimal.new(1_000_000))
+  end
+
+  @doc """
   Get trades for a market with optional filters.
 
   ## Options

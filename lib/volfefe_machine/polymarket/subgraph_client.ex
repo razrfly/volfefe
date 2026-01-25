@@ -55,7 +55,9 @@ defmodule VolfefeMachine.Polymarket.SubgraphClient do
   @default_timeout 30_000
   @default_limit 100
   @max_limit 1000  # The Graph's typical limit
-  @rate_limit_delay 100  # ms between requests
+  # Goldsky rate limit: 50 requests per 10 seconds (5/sec)
+  # 250ms delay = 4 req/sec, safely under the limit
+  @rate_limit_delay 250
 
   # ============================================
   # Order Filled Events (Trades)
@@ -631,8 +633,8 @@ defmodule VolfefeMachine.Polymarket.SubgraphClient do
         {:error, "Subgraph not found - may have been deprecated"}
 
       {:ok, %{status: 429}} ->
-        Logger.warning("Subgraph rate limited")
-        {:error, "Rate limited - please wait before retrying"}
+        Logger.warning("Subgraph rate limited - will retry after backoff")
+        {:error, :rate_limited}
 
       {:ok, %{status: code, body: body}} ->
         Logger.warning("Subgraph returned #{code}: #{inspect(body)}")

@@ -40,24 +40,38 @@ defmodule VolfefeMachine.Workers.Polymarket.TradeIngestionWorker do
   @impl Oban.Worker
   def perform(%Oban.Job{args: args}) do
     limit = Map.get(args, "limit", @default_limit)
+    hours = Map.get(args, "hours", 24)
 
-    Logger.info("[TradeIngestion] Starting ingestion, limit=#{limit}")
+    Logger.info("[TradeIngestion] Starting subgraph ingestion, limit=#{limit}, hours=#{hours}")
 
-    case Polymarket.ingest_recent_trades(limit: limit) do
+    # Use subgraph-based ingestion (Data API is unreachable)
+    case Polymarket.ingest_trades_via_subgraph(limit: limit, hours: hours) do
       {:ok, stats} ->
-        Logger.info("[TradeIngestion] Complete: inserted=#{stats.inserted}, updated=#{stats.updated}, errors=#{stats.errors}")
+        Logger.info("[TradeIngestion] Complete: inserted=#{stats.inserted}, updated=#{stats.updated}, errors=#{stats.errors}, unmapped=#{stats.unmapped}")
 
         # Return stats for job meta
         {:ok, %{
           inserted: stats.inserted,
           updated: stats.updated,
           errors: stats.errors,
+          unmapped: stats.unmapped,
           completed_at: DateTime.utc_now() |> DateTime.to_iso8601()
         }}
 
+      {:error, :rate_limited} ->
+        # Snooze for 5 minutes when rate limited by Goldsky
+        Logger.warning("[TradeIngestion] Rate limited by subgraph, snoozing for 5 minutes")
+        {:snooze, 300}
+
       {:error, reason} ->
-        Logger.error("[TradeIngestion] Failed: #{inspect(reason)}")
-        {:error, reason}
+        # Check for string-based rate limit errors
+        if is_binary(reason) and String.contains?(reason, "rate") do
+          Logger.warning("[TradeIngestion] Rate limited (string match), snoozing for 5 minutes")
+          {:snooze, 300}
+        else
+          Logger.error("[TradeIngestion] Failed: #{inspect(reason)}")
+          {:error, reason}
+        end
     end
   end
 end

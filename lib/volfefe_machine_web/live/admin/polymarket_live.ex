@@ -17,6 +17,7 @@ defmodule VolfefeMachineWeb.Admin.PolymarketLive do
   alias VolfefeMachine.Polymarket.DiversityMonitor
   alias VolfefeMachine.Polymarket.DataSourceHealth
   alias VolfefeMachine.Polymarket.TradeMonitor
+  alias VolfefeMachine.Polymarket.Validation
 
   @impl true
   def mount(_params, _session, socket) do
@@ -45,6 +46,7 @@ defmodule VolfefeMachineWeb.Admin.PolymarketLive do
       "coverage" -> :coverage
       "analytics" -> :analytics
       "insiders" -> :insiders
+      "pilot" -> :pilot
       _ -> :overview
     end
 
@@ -326,6 +328,88 @@ defmodule VolfefeMachineWeb.Admin.PolymarketLive do
   end
 
   @impl true
+  def handle_event("run_pilot_validation", _params, socket) do
+    case Validation.validate_detection() do
+      {:ok, results} ->
+        {:noreply,
+         socket
+         |> assign(:pilot_validation, results)
+         |> put_toast(:success, "Validation complete: #{results.detection_rate * 100}% detection rate")}
+
+      {:error, reason} ->
+        {:noreply, put_toast(socket, :error, "Validation failed: #{inspect(reason)}")}
+    end
+  end
+
+  @impl true
+  def handle_event("run_pilot_metrics", _params, socket) do
+    case Validation.calculate_metrics() do
+      {:ok, metrics} ->
+        {:noreply,
+         socket
+         |> assign(:pilot_metrics, metrics)
+         |> put_toast(:success, "Metrics calculated: F1=#{Float.round(metrics.f1_score * 100, 1)}%")}
+
+      {:error, reason} ->
+        {:noreply, put_toast(socket, :error, "Metrics calculation failed: #{inspect(reason)}")}
+    end
+  end
+
+  @impl true
+  def handle_event("run_pilot_batch", params, socket) do
+    limit = parse_batch_limit(params["limit"])
+
+    case Validation.run_batch_pilot(limit: limit) do
+      {:ok, results} ->
+        {:noreply,
+         socket
+         |> assign(:pilot_batch_results, results)
+         |> put_toast(:success, "Batch complete: #{results.markets_processed} markets, #{results.candidates_generated} candidates")}
+
+      {:error, reason} ->
+        {:noreply, put_toast(socket, :error, "Batch processing failed: #{inspect(reason)}")}
+    end
+  end
+
+  @impl true
+  def handle_event("run_pilot_optimize", _params, socket) do
+    case Validation.optimize_thresholds() do
+      {:ok, results} ->
+        best = List.first(results)
+        {:noreply,
+         socket
+         |> assign(:pilot_optimization, results)
+         |> put_toast(:success, "Optimization complete: best F1=#{Float.round(best.f1_score * 100, 1)}% at anomaly=#{best.anomaly_threshold}, prob=#{best.probability_threshold}")}
+
+      {:error, reason} ->
+        {:noreply, put_toast(socket, :error, "Optimization failed: #{inspect(reason)}")}
+    end
+  end
+
+  @impl true
+  def handle_event("analyze_false_negatives", _params, socket) do
+    case Validation.analyze_false_negatives() do
+      {:ok, analysis} ->
+        {:noreply,
+         socket
+         |> assign(:pilot_fn_analysis, analysis)
+         |> put_toast(:info, "Found #{analysis.total_missed} false negatives")}
+
+      {:error, reason} ->
+        {:noreply, put_toast(socket, :error, "Analysis failed: #{inspect(reason)}")}
+    end
+  end
+
+  defp parse_batch_limit(nil), do: 10
+  defp parse_batch_limit(""), do: 10
+  defp parse_batch_limit(str) when is_binary(str) do
+    case Integer.parse(str) do
+      {n, ""} -> min(max(n, 1), 50)
+      _ -> 10
+    end
+  end
+
+  @impl true
   def handle_info(:refresh_data, socket) do
     {:noreply, load_data(socket)}
   end
@@ -374,6 +458,7 @@ defmodule VolfefeMachineWeb.Admin.PolymarketLive do
     base_insider_stats = Polymarket.confirmed_insider_stats()
     trained_count = Enum.count(confirmed_insiders, & &1.used_for_training)
     insider_stats = Map.put(base_insider_stats, :trained, trained_count)
+    pilot_progress = Validation.pilot_progress()
 
     socket
     |> assign(:dashboard, dashboard)
@@ -388,6 +473,12 @@ defmodule VolfefeMachineWeb.Admin.PolymarketLive do
     |> assign(:candidates, Polymarket.list_investigation_candidates(limit: 50))
     |> assign(:patterns, Polymarket.list_insider_patterns(include_stats: true))
     |> assign(:discovery_batches, Polymarket.list_discovery_batches(limit: 20))
+    |> assign(:pilot_progress, pilot_progress)
+    |> assign_new(:pilot_validation, fn -> nil end)
+    |> assign_new(:pilot_metrics, fn -> nil end)
+    |> assign_new(:pilot_batch_results, fn -> nil end)
+    |> assign_new(:pilot_optimization, fn -> nil end)
+    |> assign_new(:pilot_fn_analysis, fn -> nil end)
   end
 
   defp generate_candidates_csv(candidates) do
@@ -571,4 +662,36 @@ defmodule VolfefeMachineWeb.Admin.PolymarketLive do
     end
   end
   def format_profit(_), do: "N/A"
+
+  # Pilot status helpers
+
+  def pilot_status_color(:ready_for_production), do: :green
+  def pilot_status_color(:pilot_in_progress), do: :amber
+  def pilot_status_color(:metrics_below_target), do: :amber
+  def pilot_status_color(:detection_poor), do: :red
+  def pilot_status_color(:need_more_insiders), do: :zinc
+  def pilot_status_color(_), do: :zinc
+
+  def pilot_status_label(:ready_for_production), do: "Ready for Production"
+  def pilot_status_label(:pilot_in_progress), do: "Pilot In Progress"
+  def pilot_status_label(:metrics_below_target), do: "Metrics Below Target"
+  def pilot_status_label(:detection_poor), do: "Poor Detection"
+  def pilot_status_label(:need_more_insiders), do: "Need More Data"
+  def pilot_status_label(_), do: "Unknown"
+
+  def format_percentage(nil), do: "N/A"
+  def format_percentage(f) when is_float(f), do: "#{Float.round(f * 100, 1)}%"
+  def format_percentage(n), do: "#{n}%"
+
+  def format_rate(nil), do: "N/A"
+  def format_rate(0), do: "0%"
+  def format_rate(f) when is_float(f) and f == 0.0, do: "0%"
+  def format_rate(f) when is_float(f), do: "#{Float.round(f * 100, 1)}%"
+  def format_rate(n), do: "#{n * 100}%"
+
+  def fn_reason_color("no_trade_data"), do: :zinc
+  def fn_reason_color("trade_not_scored"), do: :zinc
+  def fn_reason_color("low_anomaly_score"), do: :amber
+  def fn_reason_color("low_probability"), do: :amber
+  def fn_reason_color(_), do: :zinc
 end
