@@ -181,13 +181,14 @@ defmodule Mix.Tasks.Polymarket.Ingest do
 
     cond do
       use_api && has_subgraph_flags ->
-        Mix.shell().error("❌ Cannot use subgraph-only flags (--scan, --condition, --from, --to, --days) with --api")
+        Mix.shell().error("❌ Cannot use subgraph-only flags with --api")
+        Mix.shell().info("   Subgraph flags: --scan, --condition, --reference-cases, --from, --to, --days")
         Mix.shell().info("   Remove --api to use subgraph mode, or remove subgraph flags")
         exit({:shutdown, 1})
 
       !use_api && has_api_flags ->
         Mix.shell().error("❌ API-only flags require --api flag")
-        Mix.shell().info("   Flags like --market, --category, --all-active, --continuous require --api")
+        Mix.shell().info("   API flags: --recent, --market, --category, --all-active, --continuous, --interval")
         Mix.shell().info("   Add --api to use centralized API, or use subgraph mode (default)")
         exit({:shutdown, 1})
 
