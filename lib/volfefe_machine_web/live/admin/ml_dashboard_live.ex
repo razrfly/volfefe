@@ -341,14 +341,15 @@ defmodule VolfefeMachineWeb.Admin.MLDashboardLive do
   def job_content_info(%{"content_ids" => ids}) when is_list(ids), do: "#{length(ids)} items"
   def job_content_info(_), do: "unknown"
 
-  def state_badge_class("available"), do: "bg-blue-100 text-blue-800"
-  def state_badge_class("scheduled"), do: "bg-purple-100 text-purple-800"
-  def state_badge_class("executing"), do: "bg-yellow-100 text-yellow-800"
-  def state_badge_class("retryable"), do: "bg-orange-100 text-orange-800"
-  def state_badge_class("completed"), do: "bg-green-100 text-green-800"
-  def state_badge_class("discarded"), do: "bg-red-100 text-red-800"
-  def state_badge_class("cancelled"), do: "bg-gray-100 text-gray-800"
-  def state_badge_class(_), do: "bg-gray-100 text-gray-800"
+  # Catalyst badge color atoms for job states
+  def state_to_color("available"), do: :zinc
+  def state_to_color("scheduled"), do: :zinc
+  def state_to_color("executing"), do: :amber
+  def state_to_color("retryable"), do: :amber
+  def state_to_color("completed"), do: :green
+  def state_to_color("discarded"), do: :red
+  def state_to_color("cancelled"), do: :zinc
+  def state_to_color(_), do: :zinc
 
   def state_icon("available"), do: "📋"
   def state_icon("scheduled"), do: "⏰"

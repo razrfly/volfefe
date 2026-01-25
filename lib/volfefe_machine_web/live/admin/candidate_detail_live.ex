@@ -137,25 +137,43 @@ defmodule VolfefeMachineWeb.Admin.CandidateDetailLive do
     |> Enum.reject(&(&1.id == candidate.id))
   end
 
-  # Helper functions for templates
+  # Helper functions for templates - Catalyst badge color atoms
 
-  def priority_badge_class("critical"), do: "bg-red-100 text-red-800 ring-1 ring-red-600/20"
-  def priority_badge_class("high"), do: "bg-orange-100 text-orange-800 ring-1 ring-orange-600/20"
-  def priority_badge_class("medium"), do: "bg-yellow-100 text-yellow-800 ring-1 ring-yellow-600/20"
-  def priority_badge_class("low"), do: "bg-green-100 text-green-800 ring-1 ring-green-600/20"
-  def priority_badge_class(_), do: "bg-gray-100 text-gray-800 ring-1 ring-gray-600/20"
+  def priority_to_color("critical"), do: :red
+  def priority_to_color("high"), do: :amber
+  def priority_to_color("medium"), do: :zinc
+  def priority_to_color("low"), do: :green
+  def priority_to_color(_), do: :zinc
 
-  def status_badge_class("undiscovered"), do: "bg-blue-100 text-blue-800"
-  def status_badge_class("investigating"), do: "bg-yellow-100 text-yellow-800"
-  def status_badge_class("resolved"), do: "bg-green-100 text-green-800"
-  def status_badge_class("dismissed"), do: "bg-gray-100 text-gray-800"
-  def status_badge_class(_), do: "bg-gray-100 text-gray-800"
+  def status_to_color("undiscovered"), do: :zinc
+  def status_to_color("pending_review"), do: :amber
+  def status_to_color("investigating"), do: :amber
+  def status_to_color("resolved"), do: :green
+  def status_to_color("confirmed_insider"), do: :red
+  def status_to_color("likely_insider"), do: :red
+  def status_to_color("false_positive"), do: :green
+  def status_to_color("dismissed"), do: :zinc
+  def status_to_color("cleared"), do: :green
+  def status_to_color(_), do: :zinc
 
-  def severity_class("extreme"), do: "text-red-600 font-bold"
-  def severity_class("very_high"), do: "text-orange-600 font-semibold"
-  def severity_class("high"), do: "text-yellow-600"
-  def severity_class("elevated"), do: "text-blue-600"
-  def severity_class(_), do: "text-gray-600"
+  def pattern_match_color(data) when is_map(data) do
+    score = data["score"] || data["match"] || 0
+
+    cond do
+      is_number(score) and score >= 0.8 -> :red
+      is_number(score) and score >= 0.5 -> :amber
+      true -> :green
+    end
+  end
+
+  def pattern_match_color(_), do: :green
+
+  # Severity styling for anomaly breakdown visualization
+  def severity_class("extreme"), do: "text-red-600 dark:text-red-400 font-bold"
+  def severity_class("very_high"), do: "text-amber-600 dark:text-amber-400 font-semibold"
+  def severity_class("high"), do: "text-amber-500 dark:text-amber-400"
+  def severity_class("elevated"), do: "text-zinc-600 dark:text-zinc-400"
+  def severity_class(_), do: "text-zinc-500 dark:text-zinc-400"
 
   def format_probability(nil), do: "N/A"
   def format_probability(%Decimal{} = d), do: "#{Decimal.round(Decimal.mult(d, 100), 1)}%"
@@ -213,21 +231,10 @@ defmodule VolfefeMachineWeb.Admin.CandidateDetailLive do
   defp format_relative_seconds(seconds) when seconds < 86400, do: "#{div(seconds, 3600)}h ago"
   defp format_relative_seconds(seconds), do: "#{div(seconds, 86400)}d ago"
 
-  def severity_bar_color("extreme"), do: "bg-red-600"
-  def severity_bar_color("very_high"), do: "bg-orange-500"
-  def severity_bar_color("high"), do: "bg-yellow-500"
-  def severity_bar_color("elevated"), do: "bg-blue-500"
-  def severity_bar_color(_), do: "bg-gray-400"
-
-  def pattern_match_badge(data) when is_map(data) do
-    score = data["score"] || data["match"] || 0
-
-    cond do
-      is_number(score) and score >= 0.8 -> "bg-red-100 text-red-800"
-      is_number(score) and score >= 0.5 -> "bg-yellow-100 text-yellow-800"
-      true -> "bg-green-100 text-green-800"
-    end
-  end
-
-  def pattern_match_badge(_), do: "bg-green-100 text-green-800"
+  # Severity bar colors for anomaly visualization
+  def severity_bar_color("extreme"), do: "bg-red-600 dark:bg-red-500"
+  def severity_bar_color("very_high"), do: "bg-amber-500 dark:bg-amber-400"
+  def severity_bar_color("high"), do: "bg-amber-400 dark:bg-amber-300"
+  def severity_bar_color("elevated"), do: "bg-zinc-500 dark:bg-zinc-400"
+  def severity_bar_color(_), do: "bg-zinc-400 dark:bg-zinc-500"
 end

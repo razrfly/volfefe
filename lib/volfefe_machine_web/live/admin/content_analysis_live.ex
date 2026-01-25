@@ -245,19 +245,20 @@ defmodule VolfefeMachineWeb.Admin.ContentAnalysisLive do
   def impact_emoji("low"), do: "📊"
   def impact_emoji(_), do: "📉"
 
-  def significance_badge_class("high"), do: "bg-red-100 text-red-800 border-red-300"
-  def significance_badge_class("moderate"), do: "bg-yellow-100 text-yellow-800 border-yellow-300"
-  def significance_badge_class("noise"), do: "bg-gray-100 text-gray-600 border-gray-300"
-  def significance_badge_class(_), do: "bg-gray-100 text-gray-600 border-gray-300"
+  # Catalyst badge color atoms
+  def significance_to_color("high"), do: :red
+  def significance_to_color("moderate"), do: :amber
+  def significance_to_color("noise"), do: :zinc
+  def significance_to_color(_), do: :zinc
 
-  def sentiment_badge_class("positive"), do: "bg-green-100 text-green-800"
-  def sentiment_badge_class("negative"), do: "bg-red-100 text-red-800"
-  def sentiment_badge_class("neutral"), do: "bg-gray-100 text-gray-800"
-  def sentiment_badge_class(_), do: "bg-gray-100 text-gray-800"
+  def sentiment_to_color("positive"), do: :green
+  def sentiment_to_color("negative"), do: :red
+  def sentiment_to_color("neutral"), do: :zinc
+  def sentiment_to_color(_), do: :zinc
 
-  def price_change_class(value) when is_float(value) and value > 0, do: "text-green-600"
-  def price_change_class(value) when is_float(value) and value < 0, do: "text-red-600"
-  def price_change_class(_), do: "text-gray-600"
+  def price_change_class(value) when is_float(value) and value > 0, do: "text-green-600 dark:text-green-400"
+  def price_change_class(value) when is_float(value) and value < 0, do: "text-red-600 dark:text-red-400"
+  def price_change_class(_), do: "text-zinc-600 dark:text-zinc-400"
 
   def window_label("before"), do: "Before"
   def window_label("1hr_after"), do: "1hr After"
@@ -283,7 +284,7 @@ defmodule VolfefeMachineWeb.Admin.ContentAnalysisLive do
     if length(filtered_data) == 0 do
       assigns = %{}
       ~H"""
-      <div class="text-center py-12 text-gray-500">
+      <div class="text-center py-12 text-zinc-500 dark:text-zinc-400">
         <p>Select at least one asset to display the chart</p>
       </div>
       """
@@ -403,7 +404,7 @@ defmodule VolfefeMachineWeb.Admin.ContentAnalysisLive do
               y={scale_y(y, @y_min, @y_range, @chart_height)}
               text-anchor="end"
               dominant-baseline="middle"
-              class="text-xs fill-gray-600"
+              class="text-xs fill-zinc-600 dark:fill-zinc-400"
             >
               <%= y %>%
             </text>
@@ -415,7 +416,7 @@ defmodule VolfefeMachineWeb.Admin.ContentAnalysisLive do
               x={position * @x_scale}
               y={@chart_height + 25}
               text-anchor="middle"
-              class="text-sm fill-gray-700 font-medium"
+              class="text-sm fill-zinc-700 dark:fill-zinc-300 font-medium"
             >
               <%= window_label(window) %>
             </text>
@@ -493,7 +494,7 @@ defmodule VolfefeMachineWeb.Admin.ContentAnalysisLive do
           y={@height / 2}
           transform={"rotate(-90, 15, #{@height / 2})"}
           text-anchor="middle"
-          class="text-sm fill-gray-600 font-medium"
+          class="text-sm fill-zinc-600 dark:fill-zinc-400 font-medium"
         >
           Price Change (%)
         </text>
