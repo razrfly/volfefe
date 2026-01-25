@@ -209,8 +209,9 @@ defmodule VolfefeMachine.Polymarket.DataSourceHealth do
         Logger.warning("[DataSourceHealth] API health check failed: status #{status}")
         record_result(state, :api, {:failure, "HTTP #{status}"})
 
-      {:error, %{reason: reason}} ->
-        Logger.warning("[DataSourceHealth] API health check failed: #{inspect(reason)}")
+      {:error, exception} ->
+        reason = Exception.message(exception)
+        Logger.warning("[DataSourceHealth] API health check failed: #{reason}")
         record_result(state, :api, {:failure, reason})
     end
   end
