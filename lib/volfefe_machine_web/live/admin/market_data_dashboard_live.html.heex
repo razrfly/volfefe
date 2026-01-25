@@ -218,7 +218,7 @@
         Capture OHLCV data from TwelveData API for classified content at 4 time windows (before, 1hr, 4hr, 24hr after publication).
       </.text>
 
-      <.form for={@snapshot_form} phx-submit="enqueue_snapshots" phx-change="update_snapshot_limit" class="space-y-4">
+      <.form for={@snapshot_form} id="snapshot-form" phx-submit="enqueue_snapshots" phx-change="update_snapshot_limit" class="space-y-4">
         <!-- Content Selection -->
         <div>
           <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Content to Capture</label>
