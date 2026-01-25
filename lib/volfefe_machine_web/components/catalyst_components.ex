@@ -168,7 +168,7 @@ defmodule VolfefeMachineWeb.CatalystComponents do
 
     ~H"""
     <.dynamic_tag
-      name={@tag}
+      tag_name={@tag}
       class={[
         "text-2xl font-semibold text-zinc-950 sm:text-xl dark:text-white",
         @class
@@ -209,7 +209,7 @@ defmodule VolfefeMachineWeb.CatalystComponents do
 
     ~H"""
     <.dynamic_tag
-      name={@tag}
+      tag_name={@tag}
       class={[
         "text-base font-semibold text-zinc-950 sm:text-sm dark:text-white",
         @class

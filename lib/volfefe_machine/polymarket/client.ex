@@ -1,12 +1,19 @@
 defmodule VolfefeMachine.Polymarket.Client do
   @moduledoc """
-  HTTP client for Polymarket public APIs.
+  HTTP client for Polymarket public APIs with automatic failover.
 
   **Endpoints Used**:
   - `data-api.polymarket.com` - Trades, wallet activity, positions (PUBLIC)
   - `gamma-api.polymarket.com` - Market discovery (PUBLIC)
+  - Goldsky subgraph (fallback) - Blockchain-indexed trade data
 
   **No authentication required** - All endpoints are publicly accessible.
+
+  ## Automatic Failover
+
+  Trade-related operations automatically fall back to blockchain subgraph
+  when the centralized API is unavailable. Health status is tracked by
+  `DataSourceHealth` for intelligent failover decisions.
 
   ## Rate Limits
 
@@ -15,8 +22,11 @@ defmodule VolfefeMachine.Polymarket.Client do
 
   ## Usage
 
-      # Get recent trades
+      # Get recent trades (auto-failover enabled)
       {:ok, trades} = Client.get_trades(limit: 100)
+
+      # Force API-only (no failover)
+      {:ok, trades} = Client.get_trades(limit: 100, failover: false)
 
       # Get trades for specific market
       {:ok, trades} = Client.get_trades(market: "0x123...", limit: 100)
@@ -29,6 +39,9 @@ defmodule VolfefeMachine.Polymarket.Client do
   """
 
   require Logger
+
+  alias VolfefeMachine.Polymarket.DataSourceHealth
+  alias VolfefeMachine.Polymarket.SubgraphClient
 
   @data_api_base "https://data-api.polymarket.com"
   @gamma_api_base "https://gamma-api.polymarket.com"
@@ -43,12 +56,15 @@ defmodule VolfefeMachine.Polymarket.Client do
   @doc """
   Get recent trades, optionally filtered by market.
 
+  Automatically falls back to blockchain subgraph if centralized API fails.
+
   ## Parameters
 
   - `opts` - Keyword list of options:
     - `:market` - Filter by condition_id (optional)
     - `:limit` - Number of trades (default: 100)
     - `:offset` - Pagination offset (default: 0)
+    - `:failover` - Enable subgraph fallback (default: true)
 
   ## Returns
 
@@ -79,8 +95,12 @@ defmodule VolfefeMachine.Polymarket.Client do
 
       # With pagination
       {:ok, page2} = Client.get_trades(limit: 100, offset: 100)
+
+      # Disable failover (API only)
+      {:ok, trades} = Client.get_trades(limit: 50, failover: false)
   """
   def get_trades(opts \\ []) do
+    failover = Keyword.get(opts, :failover, true)
     market = Keyword.get(opts, :market)
     limit = Keyword.get(opts, :limit, @default_limit)
     offset = Keyword.get(opts, :offset, 0)
@@ -92,7 +112,7 @@ defmodule VolfefeMachine.Polymarket.Client do
 
     url = "#{@data_api_base}/trades#{params}"
 
-    case make_request(url) do
+    case make_request_with_health(url) do
       {:ok, trades} when is_list(trades) ->
         {:ok, trades}
 
@@ -100,7 +120,76 @@ defmodule VolfefeMachine.Polymarket.Client do
         Logger.warning("Unexpected trades response format: #{inspect(other)}")
         {:error, "Unexpected response format"}
 
-      error ->
+      {:error, reason} = error ->
+        if failover do
+          Logger.info("[Client] API failed (#{inspect(reason)}), falling back to subgraph")
+          broadcast_failover(:api, :subgraph, reason)
+          get_trades_from_subgraph(opts)
+        else
+          error
+        end
+    end
+  end
+
+  @doc false
+  def broadcast_failover(from_source, to_source, reason) do
+    Phoenix.PubSub.broadcast(
+      VolfefeMachine.PubSub,
+      "data_source:failover",
+      {:failover, %{from: from_source, to: to_source, reason: reason, timestamp: DateTime.utc_now()}}
+    )
+  end
+
+  @doc """
+  Get trades directly from subgraph (bypasses API).
+
+  ## Parameters
+
+  Same as `get_trades/1`.
+
+  ## Returns
+
+  - `{:ok, [trade]}` - List of trade maps (subgraph format)
+  - `{:error, reason}` - Error message
+  """
+  def get_trades_from_subgraph(opts \\ []) do
+    limit = Keyword.get(opts, :limit, @default_limit)
+    market = Keyword.get(opts, :market)
+
+    subgraph_opts = [
+      limit: limit,
+      order_by: "timestamp",
+      order_direction: "desc"
+    ]
+
+    result = if market do
+      # Get token IDs for this market and filter trades
+      case SubgraphClient.get_token_ids_for_condition(market) do
+        {:ok, []} ->
+          Logger.warning("[Client] No token IDs found for market #{market}")
+          {:ok, []}
+
+        {:ok, token_ids} ->
+          # Fetch trades for first token ID (Yes outcome)
+          # Note: For complete market coverage, would need to fetch both outcomes
+          first_token = List.first(token_ids)
+          SubgraphClient.get_order_filled_events(Keyword.put(subgraph_opts, :token_id, first_token))
+
+        error ->
+          error
+      end
+    else
+      SubgraphClient.get_order_filled_events(subgraph_opts)
+    end
+
+    case result do
+      {:ok, events} ->
+        record_subgraph_result(:success)
+        trades = transform_subgraph_events_to_trades(events)
+        {:ok, trades}
+
+      {:error, reason} = error ->
+        record_subgraph_result({:failure, reason})
         error
     end
   end
@@ -521,6 +610,121 @@ defmodule VolfefeMachine.Polymarket.Client do
       {:error, exception} ->
         Logger.error("Polymarket API request failed: #{inspect(exception)}")
         {:error, "HTTP request failed: #{inspect(exception)}"}
+    end
+  end
+
+  defp make_request_with_health(url) do
+    result = make_request(url)
+
+    case result do
+      {:ok, _} ->
+        record_api_result(:success)
+        result
+
+      {:error, reason} ->
+        record_api_result({:failure, reason})
+        result
+    end
+  end
+
+  defp record_api_result(:success) do
+    try do
+      DataSourceHealth.record_api_success()
+    rescue
+      _ -> :ok
+    end
+  end
+
+  defp record_api_result({:failure, _reason}) do
+    try do
+      DataSourceHealth.record_api_failure()
+    rescue
+      _ -> :ok
+    end
+  end
+
+  defp record_subgraph_result(:success) do
+    try do
+      DataSourceHealth.record_subgraph_success()
+    rescue
+      _ -> :ok
+    end
+  end
+
+  defp record_subgraph_result({:failure, _reason}) do
+    try do
+      DataSourceHealth.record_subgraph_failure()
+    rescue
+      _ -> :ok
+    end
+  end
+
+  # Transform subgraph order filled events to API-like trade format
+  defp transform_subgraph_events_to_trades(events) when is_list(events) do
+    Enum.map(events, &transform_subgraph_event/1)
+  end
+
+  defp transform_subgraph_event(event) do
+    # Subgraph events have different field names than API trades
+    # makerAssetId/takerAssetId are token IDs (256-bit integers)
+    # makerAmountFilled/takerAmountFilled are in wei (divide by 10^6 for USDC)
+
+    maker_amount = parse_wei_amount(event["makerAmountFilled"])
+    taker_amount = parse_wei_amount(event["takerAmountFilled"])
+
+    # Determine side: if takerAssetId is "0" (USDC), it's a BUY
+    side = if event["takerAssetId"] == "0", do: "BUY", else: "SELL"
+
+    # Calculate price from amounts
+    price = if maker_amount > 0, do: taker_amount / maker_amount, else: 0.0
+
+    %{
+      # Map subgraph fields to API-like fields
+      "proxyWallet" => event["taker"],
+      "maker" => event["maker"],
+      "side" => side,
+      "size" => to_string(maker_amount),
+      "price" => price,
+      "timestamp" => parse_timestamp(event["timestamp"]),
+      "makerAssetId" => event["makerAssetId"],
+      "takerAssetId" => event["takerAssetId"],
+      "makerAmountFilled" => event["makerAmountFilled"],
+      "takerAmountFilled" => event["takerAmountFilled"],
+      # Note: These fields are not available from subgraph
+      "conditionId" => nil,
+      "title" => nil,
+      "outcome" => nil,
+      "transactionHash" => extract_tx_hash(event["id"]),
+      "pseudonym" => nil,
+      # Mark as from subgraph for downstream handling
+      "_source" => "subgraph"
+    }
+  end
+
+  defp parse_wei_amount(nil), do: 0.0
+  defp parse_wei_amount(amount) when is_binary(amount) do
+    case Integer.parse(amount) do
+      {n, _} -> n / 1_000_000  # Convert from wei (10^6) to USDC
+      :error -> 0.0
+    end
+  end
+  defp parse_wei_amount(amount) when is_integer(amount), do: amount / 1_000_000
+
+  defp parse_timestamp(nil), do: nil
+  defp parse_timestamp(ts) when is_binary(ts) do
+    case Integer.parse(ts) do
+      {n, _} -> n
+      :error -> nil
+    end
+  end
+  defp parse_timestamp(ts) when is_integer(ts), do: ts
+
+  defp extract_tx_hash(nil), do: nil
+  defp extract_tx_hash(event_id) when is_binary(event_id) do
+    # Event ID format is typically "txHash-logIndex"
+    case String.split(event_id, "-") do
+      [tx_hash | _] -> tx_hash
+      _ -> event_id
     end
   end
 

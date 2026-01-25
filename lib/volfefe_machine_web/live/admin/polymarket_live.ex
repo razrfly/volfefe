@@ -15,12 +15,17 @@ defmodule VolfefeMachineWeb.Admin.PolymarketLive do
   alias VolfefeMachine.Polymarket
   alias VolfefeMachine.Polymarket.FormatHelpers
   alias VolfefeMachine.Polymarket.DiversityMonitor
+  alias VolfefeMachine.Polymarket.DataSourceHealth
+  alias VolfefeMachine.Polymarket.TradeMonitor
 
   @impl true
   def mount(_params, _session, socket) do
     if connected?(socket) do
       # Update stats every 10 seconds
       :timer.send_interval(10_000, self(), :refresh_data)
+
+      # Subscribe to data source failover events
+      Phoenix.PubSub.subscribe(VolfefeMachine.PubSub, "data_source:failover")
     end
 
     {:ok,
@@ -38,6 +43,8 @@ defmodule VolfefeMachineWeb.Admin.PolymarketLive do
       "patterns" -> :patterns
       "discovery" -> :discovery
       "coverage" -> :coverage
+      "analytics" -> :analytics
+      "insiders" -> :insiders
       _ -> :overview
     end
 
@@ -207,8 +214,112 @@ defmodule VolfefeMachineWeb.Admin.PolymarketLive do
   end
 
   @impl true
+  def handle_event("refresh_data_sources", _params, socket) do
+    case DataSourceHealth.check_now() do
+      {:ok, summary} ->
+        {:noreply,
+         socket
+         |> assign(:data_source_health, summary)
+         |> put_toast(:success, "Data source health refreshed")}
+
+      {:error, _reason} ->
+        {:noreply, put_toast(socket, :error, "Failed to refresh data source health")}
+    end
+  end
+
+  @impl true
+  def handle_event("recalculate_baselines", _params, socket) do
+    {:ok, %{updated: updated}} = Polymarket.calculate_insider_baselines()
+    {:noreply,
+     socket
+     |> put_toast(:success, "Recalculated #{updated} baselines")
+     |> load_data()}
+  end
+
+  @impl true
+  def handle_event("validate_patterns", _params, socket) do
+    {:ok, result} = Polymarket.validate_patterns()
+    {:noreply,
+     socket
+     |> put_toast(:success, "Validated #{result.validated} patterns")
+     |> load_data()}
+  end
+
+  @impl true
+  def handle_event("rescore_trades", _params, socket) do
+    {:ok, %{total: total, scored: scored}} = Polymarket.rescore_all_trades(batch_size: 1000)
+    {:noreply,
+     socket
+     |> put_toast(:success, "Rescored #{scored}/#{total} trades")
+     |> load_data()}
+  end
+
+  @impl true
+  def handle_event("run_feedback_iteration", _params, socket) do
+    {:ok, result} = Polymarket.run_feedback_loop()
+    {:noreply,
+     socket
+     |> put_toast(:success, "Feedback iteration #{result.iteration} complete")
+     |> load_data()}
+  end
+
+  @impl true
+  def handle_event("enable_monitor", _params, socket) do
+    try do
+      TradeMonitor.enable()
+      {:noreply,
+       socket
+       |> put_toast(:success, "Trade monitor enabled")
+       |> load_data()}
+    catch
+      :exit, _ ->
+        {:noreply, put_toast(socket, :error, "Trade monitor not running")}
+    end
+  end
+
+  @impl true
+  def handle_event("disable_monitor", _params, socket) do
+    try do
+      TradeMonitor.disable()
+      {:noreply,
+       socket
+       |> put_toast(:success, "Trade monitor disabled")
+       |> load_data()}
+    catch
+      :exit, _ ->
+        {:noreply, put_toast(socket, :error, "Trade monitor not running")}
+    end
+  end
+
+  @impl true
+  def handle_event("poll_now", _params, socket) do
+    try do
+      TradeMonitor.poll_now()
+      {:noreply,
+       socket
+       |> put_toast(:success, "Triggered manual poll")
+       |> load_data()}
+    catch
+      :exit, _ ->
+        {:noreply, put_toast(socket, :error, "Trade monitor not running")}
+    end
+  end
+
+  @impl true
   def handle_info(:refresh_data, socket) do
     {:noreply, load_data(socket)}
+  end
+
+  @impl true
+  def handle_info({:failover, %{from: from, to: to, reason: reason}}, socket) do
+    from_name = if from == :api, do: "API", else: "Subgraph"
+    to_name = if to == :subgraph, do: "Subgraph", else: "API"
+    reason_str = inspect(reason)
+
+    {:noreply,
+     socket
+     |> put_toast(:warning, "Data source failover: #{from_name} → #{to_name} (#{reason_str})")
+     |> load_data()}
   end
 
   # Private functions
@@ -237,12 +348,22 @@ defmodule VolfefeMachineWeb.Admin.PolymarketLive do
     investigation = Polymarket.investigation_dashboard()
     pattern_statistics = Polymarket.pattern_stats()
     coverage_health = DiversityMonitor.health_summary()
+    data_source_health = DataSourceHealth.health_summary()
+    feedback_stats = Polymarket.feedback_loop_stats()
+    confirmed_insiders = Polymarket.list_confirmed_insiders(limit: 50)
+    base_insider_stats = Polymarket.confirmed_insider_stats()
+    trained_count = Enum.count(confirmed_insiders, & &1.used_for_training)
+    insider_stats = Map.put(base_insider_stats, :trained, trained_count)
 
     socket
     |> assign(:dashboard, dashboard)
     |> assign(:investigation, investigation)
     |> assign(:pattern_stats, pattern_statistics)
     |> assign(:coverage_health, coverage_health)
+    |> assign(:data_source_health, data_source_health)
+    |> assign(:feedback_stats, feedback_stats)
+    |> assign(:confirmed_insiders, confirmed_insiders)
+    |> assign(:insider_stats, insider_stats)
     |> assign(:alerts, Polymarket.list_alerts(limit: 50))
     |> assign(:candidates, Polymarket.list_investigation_candidates(limit: 50))
     |> assign(:patterns, Polymarket.list_insider_patterns(include_stats: true))
@@ -369,4 +490,65 @@ defmodule VolfefeMachineWeb.Admin.PolymarketLive do
     |> String.reverse()
   end
   def format_number(n), do: "#{n}"
+
+  # Data source health helpers
+
+  def data_source_status_color(%{healthy: true}), do: :green
+  def data_source_status_color(%{healthy: false}), do: :red
+  def data_source_status_color(_), do: :zinc
+
+  def data_source_status_label(%{healthy: true}), do: "healthy"
+  def data_source_status_label(%{healthy: false}), do: "unhealthy"
+  def data_source_status_label(_), do: "unknown"
+
+  def recommended_source_icon(:subgraph), do: "🔗"
+  def recommended_source_icon(:api), do: "🌐"
+  def recommended_source_icon(_), do: "⚡"
+
+  def format_success_rate(rate) when is_number(rate) do
+    "#{Float.round(rate * 100, 1)}%"
+  end
+  def format_success_rate(_), do: "N/A"
+
+  def format_uptime(seconds) when seconds < 60, do: "#{seconds}s"
+  def format_uptime(seconds) when seconds < 3600 do
+    "#{div(seconds, 60)}m #{rem(seconds, 60)}s"
+  end
+  def format_uptime(seconds) do
+    hours = div(seconds, 3600)
+    mins = div(rem(seconds, 3600), 60)
+    "#{hours}h #{mins}m"
+  end
+
+  # Insider helpers
+
+  def confidence_to_color("high"), do: :green
+  def confidence_to_color("medium"), do: :amber
+  def confidence_to_color("low"), do: :zinc
+  def confidence_to_color(_), do: :zinc
+
+  def format_source("resolution_matched"), do: "Resolution Matched"
+  def format_source("manual_review"), do: "Manual Review"
+  def format_source("pattern_confirmed"), do: "Pattern Confirmed"
+  def format_source("reference_case"), do: "Reference Case"
+  def format_source(source) when is_binary(source), do: String.replace(source, "_", " ") |> String.capitalize()
+  def format_source(_), do: "Unknown"
+
+  def format_profit(nil), do: "N/A"
+  def format_profit(%Decimal{} = d) do
+    value = Decimal.to_float(d)
+    cond do
+      value >= 1000 -> "$#{Float.round(value / 1000, 1)}K"
+      value >= 0 -> "$#{Float.round(value, 2)}"
+      true -> "-$#{Float.round(abs(value), 2)}"
+    end
+  end
+  def format_profit(value) when is_number(value) do
+    cond do
+      value >= 1000 -> "$#{Float.round(value / 1000, 1)}K"
+      value >= 0 -> "$#{Float.round(value, 2)}"
+      true -> "-$#{Float.round(abs(value), 2)}"
+    end
+  end
+  def format_profit(_), do: "N/A"
 end

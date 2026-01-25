@@ -13,6 +13,15 @@
       </div>
       <div class="flex items-center space-x-4">
         <.status_indicator active={@dashboard.monitor_status[:enabled]} label={if @dashboard.monitor_status[:enabled], do: "Monitor Active", else: "Monitor Inactive"} />
+        <div class="flex items-center gap-2 px-3 py-1.5 rounded bg-zinc-100 dark:bg-zinc-800">
+          <span class="text-sm"><%= recommended_source_icon(@data_source_health.recommended_source) %></span>
+          <span class="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+            <%= String.capitalize(to_string(@data_source_health.recommended_source)) %>
+          </span>
+          <.badge color={data_source_status_color(@data_source_health[@data_source_health.recommended_source])}>
+            <%= data_source_status_label(@data_source_health[@data_source_health.recommended_source]) %>
+          </.badge>
+        </div>
         <.catalyst_button phx-click="run_discovery" color={:dark}>
           Run Discovery
         </.catalyst_button>
@@ -47,6 +56,15 @@
       Coverage
       <%= if @coverage_health.alert_count > 0 do %>
         <.badge color={:amber} class="ml-2"><%= @coverage_health.alert_count %></.badge>
+      <% end %>
+    </:tab>
+    <:tab id="tab-analytics" active={@active_tab == :analytics} phx-click="switch_tab" phx-value-tab="analytics">
+      Analytics
+    </:tab>
+    <:tab id="tab-insiders" active={@active_tab == :insiders} phx-click="switch_tab" phx-value-tab="insiders">
+      Insiders
+      <%= if @insider_stats.total > 0 do %>
+        <.badge color={:green} class="ml-2"><%= @insider_stats.total %></.badge>
       <% end %>
     </:tab>
   </.tabs>
@@ -361,6 +379,58 @@
     <!-- Discovery Tab -->
     <%= if @active_tab == :discovery do %>
       <div class="space-y-6">
+        <!-- Monitor Control Panel -->
+        <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 p-6 dark:bg-zinc-900 dark:ring-white/10">
+          <div class="flex justify-between items-start">
+            <div>
+              <.subheading>Real-Time Monitor</.subheading>
+              <.text class="mt-1">Continuous trade monitoring and alert generation</.text>
+            </div>
+            <div class="flex items-center gap-4">
+              <div class="flex items-center gap-2">
+                <.status_indicator active={@dashboard.monitor_status[:enabled]} label={if @dashboard.monitor_status[:enabled], do: "Active", else: "Inactive"} />
+              </div>
+              <div class="flex gap-2">
+                <%= if @dashboard.monitor_status[:enabled] do %>
+                  <.catalyst_button phx-click="disable_monitor" color={:zinc}>
+                    Disable
+                  </.catalyst_button>
+                <% else %>
+                  <.catalyst_button phx-click="enable_monitor" color={:dark}>
+                    Enable
+                  </.catalyst_button>
+                <% end %>
+                <.catalyst_button phx-click="poll_now" color={:zinc}>
+                  Poll Now
+                </.catalyst_button>
+              </div>
+            </div>
+          </div>
+
+          <%= if @dashboard.monitor_status[:enabled] do %>
+            <div class="mt-4 pt-4 border-t border-zinc-950/10 dark:border-white/10">
+              <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
+                <div>
+                  <.text>Poll Interval</.text>
+                  <span class="font-medium text-zinc-950 dark:text-white"><%= @dashboard.monitor_status[:poll_interval] || 30 %>s</span>
+                </div>
+                <div>
+                  <.text>Anomaly Threshold</.text>
+                  <span class="font-medium text-zinc-950 dark:text-white"><%= @dashboard.monitor_status[:anomaly_threshold] || 0.7 %></span>
+                </div>
+                <div>
+                  <.text>Probability Threshold</.text>
+                  <span class="font-medium text-zinc-950 dark:text-white"><%= @dashboard.monitor_status[:probability_threshold] || 0.5 %></span>
+                </div>
+                <div>
+                  <.text>Alerts Generated</.text>
+                  <span class="font-medium text-zinc-950 dark:text-white"><%= @dashboard.monitor_status[:alerts_generated] || 0 %></span>
+                </div>
+              </div>
+            </div>
+          <% end %>
+        </div>
+
         <!-- Discovery Controls -->
         <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 p-6 dark:bg-zinc-900 dark:ring-white/10">
           <div class="flex justify-between items-start mb-6">
@@ -605,6 +675,102 @@
           </div>
         </div>
 
+        <!-- Data Source Health -->
+        <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+          <div class="px-6 py-4 border-b border-zinc-950/10 dark:border-white/10">
+            <div class="flex items-center justify-between">
+              <div>
+                <.subheading>Data Source Health</.subheading>
+                <.text class="mt-1">Automatic failover between centralized API and blockchain subgraph</.text>
+              </div>
+              <.catalyst_button phx-click="refresh_data_sources" color={:zinc}>
+                Refresh
+              </.catalyst_button>
+            </div>
+          </div>
+          <div class="p-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <!-- Centralized API -->
+              <div class="p-4 rounded ring-1 ring-zinc-950/5 dark:ring-white/10">
+                <div class="flex items-center justify-between mb-3">
+                  <div class="flex items-center gap-2">
+                    <span class="text-lg">🌐</span>
+                    <span class="font-medium text-zinc-950 dark:text-white">Centralized API</span>
+                  </div>
+                  <.badge color={data_source_status_color(@data_source_health.api)}>
+                    <%= data_source_status_label(@data_source_health.api) %>
+                  </.badge>
+                </div>
+                <div class="space-y-2 text-sm">
+                  <div class="flex justify-between">
+                    <span class="text-zinc-500 dark:text-zinc-400">Success Rate</span>
+                    <span class="font-medium text-zinc-950 dark:text-white"><%= format_success_rate(@data_source_health.api.success_rate) %></span>
+                  </div>
+                  <%= if @data_source_health.api.last_success do %>
+                    <div class="flex justify-between">
+                      <span class="text-zinc-500 dark:text-zinc-400">Last Success</span>
+                      <span class="text-zinc-700 dark:text-zinc-300"><%= relative_time(@data_source_health.api.last_success) %></span>
+                    </div>
+                  <% end %>
+                  <%= if @data_source_health.api.last_failure do %>
+                    <div class="flex justify-between">
+                      <span class="text-zinc-500 dark:text-zinc-400">Last Failure</span>
+                      <span class="text-zinc-700 dark:text-zinc-300"><%= relative_time(@data_source_health.api.last_failure) %></span>
+                    </div>
+                  <% end %>
+                </div>
+              </div>
+
+              <!-- Blockchain Subgraph -->
+              <div class="p-4 rounded ring-1 ring-zinc-950/5 dark:ring-white/10">
+                <div class="flex items-center justify-between mb-3">
+                  <div class="flex items-center gap-2">
+                    <span class="text-lg">🔗</span>
+                    <span class="font-medium text-zinc-950 dark:text-white">Blockchain Subgraph</span>
+                  </div>
+                  <.badge color={data_source_status_color(@data_source_health.subgraph)}>
+                    <%= data_source_status_label(@data_source_health.subgraph) %>
+                  </.badge>
+                </div>
+                <div class="space-y-2 text-sm">
+                  <div class="flex justify-between">
+                    <span class="text-zinc-500 dark:text-zinc-400">Success Rate</span>
+                    <span class="font-medium text-zinc-950 dark:text-white"><%= format_success_rate(@data_source_health.subgraph.success_rate) %></span>
+                  </div>
+                  <%= if @data_source_health.subgraph.last_success do %>
+                    <div class="flex justify-between">
+                      <span class="text-zinc-500 dark:text-zinc-400">Last Success</span>
+                      <span class="text-zinc-700 dark:text-zinc-300"><%= relative_time(@data_source_health.subgraph.last_success) %></span>
+                    </div>
+                  <% end %>
+                  <%= if @data_source_health.subgraph.last_failure do %>
+                    <div class="flex justify-between">
+                      <span class="text-zinc-500 dark:text-zinc-400">Last Failure</span>
+                      <span class="text-zinc-700 dark:text-zinc-300"><%= relative_time(@data_source_health.subgraph.last_failure) %></span>
+                    </div>
+                  <% end %>
+                </div>
+              </div>
+            </div>
+
+            <!-- Recommended Source -->
+            <div class="mt-4 pt-4 border-t border-zinc-950/10 dark:border-white/10">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <span class="text-sm text-zinc-500 dark:text-zinc-400">Active Data Source:</span>
+                  <span class="text-lg"><%= recommended_source_icon(@data_source_health.recommended_source) %></span>
+                  <span class="font-medium text-zinc-950 dark:text-white">
+                    <%= if @data_source_health.recommended_source == :subgraph, do: "Blockchain Subgraph", else: "Centralized API" %>
+                  </span>
+                </div>
+                <%= if @data_source_health.uptime_seconds > 0 do %>
+                  <.text>Monitor uptime: <%= format_uptime(@data_source_health.uptime_seconds) %></.text>
+                <% end %>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Quick Actions -->
         <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
           <div class="px-6 py-4 border-b border-zinc-950/10 dark:border-white/10">
@@ -627,6 +793,283 @@
               <div class="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded">
                 <code class="text-sm text-zinc-950 dark:text-zinc-100 font-mono">mix polymarket.sync --full</code>
                 <.text class="mt-1">Full market sync with scoring</.text>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    <% end %>
+
+    <!-- Analytics Tab -->
+    <%= if @active_tab == :analytics do %>
+      <div class="space-y-6">
+        <!-- Feedback Loop Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <.stat_card title="Confirmed Insiders" value={@feedback_stats.confirmed_insiders.total}>
+            <:detail>
+              <span class="inline-flex items-center gap-2">
+                <.badge color={:green}><%= @feedback_stats.confirmed_insiders.trained %> trained</.badge>
+                <.badge color={:zinc}><%= @feedback_stats.confirmed_insiders.untrained %> untrained</.badge>
+              </span>
+            </:detail>
+          </.stat_card>
+
+          <.stat_card title="Baselines" value={@feedback_stats.baselines.total}>
+            <:detail>
+              <span class="inline-flex items-center gap-2">
+                <.badge color={:green}><%= @feedback_stats.baselines.with_insider_data %> with insider data</.badge>
+              </span>
+            </:detail>
+          </.stat_card>
+
+          <.stat_card title="Avg Separation Score" value={Float.round(@feedback_stats.baselines.avg_separation_score, 3)}>
+            <:detail>
+              Higher = better insider vs normal separation
+            </:detail>
+          </.stat_card>
+
+          <.stat_card title="Pattern Performance" value={"#{Float.round(@feedback_stats.patterns.avg_f1_score * 100, 1)}%"}>
+            <:detail>
+              <span class="inline-flex items-center gap-2">
+                Best F1: <%= Float.round(@feedback_stats.patterns.best_f1_score * 100, 1) %>%
+              </span>
+            </:detail>
+          </.stat_card>
+        </div>
+
+        <!-- Actions Panel -->
+        <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 p-6 dark:bg-zinc-900 dark:ring-white/10">
+          <div class="flex justify-between items-start mb-6">
+            <div>
+              <.subheading>Feedback Loop Operations</.subheading>
+              <.text class="mt-1">Run ML pipeline operations to improve detection accuracy</.text>
+            </div>
+            <.catalyst_button phx-click="run_feedback_iteration" color={:dark}>
+              Run Full Iteration
+            </.catalyst_button>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded">
+              <div class="flex flex-col h-full">
+                <span class="text-sm font-medium text-zinc-950 dark:text-white mb-2">Recalculate Baselines</span>
+                <.text class="flex-grow mb-3">Update insider/normal behavior baselines from confirmed data</.text>
+                <.catalyst_button phx-click="recalculate_baselines" color={:zinc} class="w-full">
+                  Run
+                </.catalyst_button>
+              </div>
+            </div>
+
+            <div class="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded">
+              <div class="flex flex-col h-full">
+                <span class="text-sm font-medium text-zinc-950 dark:text-white mb-2">Validate Patterns</span>
+                <.text class="flex-grow mb-3">Re-evaluate pattern effectiveness against confirmed insiders</.text>
+                <.catalyst_button phx-click="validate_patterns" color={:zinc} class="w-full">
+                  Run
+                </.catalyst_button>
+              </div>
+            </div>
+
+            <div class="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded">
+              <div class="flex flex-col h-full">
+                <span class="text-sm font-medium text-zinc-950 dark:text-white mb-2">Rescore Trades</span>
+                <.text class="flex-grow mb-3">Apply current baselines to all trades</.text>
+                <.catalyst_button phx-click="rescore_trades" color={:zinc} class="w-full">
+                  Run
+                </.catalyst_button>
+              </div>
+            </div>
+
+            <div class="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded">
+              <div class="flex flex-col h-full">
+                <span class="text-sm font-medium text-zinc-950 dark:text-white mb-2">Run Discovery</span>
+                <.text class="flex-grow mb-3">Find new candidates with updated scoring</.text>
+                <.catalyst_button phx-click="run_discovery" color={:zinc} class="w-full">
+                  Run
+                </.catalyst_button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Discovery Stats -->
+        <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+          <div class="px-6 py-4 border-b border-zinc-950/10 dark:border-white/10">
+            <.subheading>Discovery Pipeline</.subheading>
+            <.text class="mt-1">Candidate discovery and resolution metrics</.text>
+          </div>
+          <div class="p-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div class="text-center p-4 bg-zinc-50 dark:bg-zinc-800 rounded">
+                <.text>Total Batches</.text>
+                <p class="text-2xl font-bold text-zinc-950 dark:text-white"><%= @feedback_stats.discovery.total_batches %></p>
+              </div>
+              <div class="text-center p-4 bg-zinc-50 dark:bg-zinc-800 rounded">
+                <.text>Total Candidates</.text>
+                <p class="text-2xl font-bold text-zinc-950 dark:text-white"><%= @feedback_stats.discovery.total_candidates %></p>
+              </div>
+              <div class="text-center p-4 bg-zinc-50 dark:bg-zinc-800 rounded">
+                <.text>Resolved</.text>
+                <p class="text-2xl font-bold text-zinc-950 dark:text-white"><%= @feedback_stats.discovery.resolved %></p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pattern Health -->
+        <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+          <div class="px-6 py-4 border-b border-zinc-950/10 dark:border-white/10">
+            <.subheading>Pattern Health</.subheading>
+            <.text class="mt-1">Detection pattern performance metrics</.text>
+          </div>
+          <div class="p-6">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <.stat_card title="Total Patterns" value={@feedback_stats.patterns.total} />
+              <.stat_card title="Avg F1 Score" value={"#{Float.round(@feedback_stats.patterns.avg_f1_score * 100, 1)}%"} />
+              <.stat_card title="Best F1 Score" value={"#{Float.round(@feedback_stats.patterns.best_f1_score * 100, 1)}%"} />
+              <.stat_card title="Active" value={@pattern_stats.active_patterns} />
+            </div>
+          </div>
+        </div>
+
+        <!-- CLI Commands -->
+        <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+          <div class="px-6 py-4 border-b border-zinc-950/10 dark:border-white/10">
+            <.subheading>CLI Commands</.subheading>
+          </div>
+          <div class="p-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded">
+                <code class="text-sm text-zinc-950 dark:text-zinc-100 font-mono">mix polymarket.baselines</code>
+                <.text class="mt-1">Show baseline health and recalculate</.text>
+              </div>
+              <div class="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded">
+                <code class="text-sm text-zinc-950 dark:text-zinc-100 font-mono">mix polymarket.validate</code>
+                <.text class="mt-1">Validate pattern performance</.text>
+              </div>
+              <div class="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded">
+                <code class="text-sm text-zinc-950 dark:text-zinc-100 font-mono">mix polymarket.backtest</code>
+                <.text class="mt-1">Backtest against reference cases</.text>
+              </div>
+              <div class="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded">
+                <code class="text-sm text-zinc-950 dark:text-zinc-100 font-mono">mix polymarket.rescore</code>
+                <.text class="mt-1">Rescore all trades with current baselines</.text>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    <% end %>
+
+    <!-- Insiders Tab -->
+    <%= if @active_tab == :insiders do %>
+      <div class="space-y-6">
+        <!-- Insider Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <.stat_card title="Total Confirmed" value={@insider_stats.total}>
+            <:detail>
+              Confirmed insider wallets
+            </:detail>
+          </.stat_card>
+
+          <.stat_card title="High Confidence" value={Map.get(@insider_stats.by_confidence, "high", 0)}>
+            <:detail>
+              <%= Map.get(@insider_stats.by_confidence, "medium", 0) %> medium, <%= Map.get(@insider_stats.by_confidence, "low", 0) %> low
+            </:detail>
+          </.stat_card>
+
+          <.stat_card title="Resolution Confirmed" value={Map.get(@insider_stats.by_source, "resolution_matched", 0)}>
+            <:detail>
+              <%= Map.get(@insider_stats.by_source, "manual_review", 0) %> manual review
+            </:detail>
+          </.stat_card>
+
+          <.stat_card title="Used for Training" value={@insider_stats.trained}>
+            <:detail>
+              <%= @insider_stats.total - @insider_stats.trained %> pending training
+            </:detail>
+          </.stat_card>
+        </div>
+
+        <!-- Confirmed Insiders Table -->
+        <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+          <div class="px-6 py-4 border-b border-zinc-950/10 dark:border-white/10">
+            <div class="flex items-center justify-between">
+              <div>
+                <.subheading>Confirmed Insiders</.subheading>
+                <.text class="mt-1">Wallets confirmed as insider trading</.text>
+              </div>
+            </div>
+          </div>
+
+          <.data_table>
+            <:header>
+              <th class="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Wallet</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Confidence</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Source</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Profit</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Trade Size</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Training</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Confirmed</th>
+            </:header>
+            <:body>
+              <%= if length(@confirmed_insiders) == 0 do %>
+                <tr>
+                  <td colspan="7">
+                    <.empty_state>
+                      No confirmed insiders yet. Investigate candidates and confirm findings.
+                    </.empty_state>
+                  </td>
+                </tr>
+              <% else %>
+                <%= for insider <- @confirmed_insiders do %>
+                  <tr class="hover:bg-zinc-950/2.5 dark:hover:bg-white/2.5">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <span class="font-mono text-sm"><%= format_wallet(insider.wallet_address) %></span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <.badge color={confidence_to_color(insider.confidence_level)}>
+                        <%= insider.confidence_level %>
+                      </.badge>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <span class="text-sm text-zinc-700 dark:text-zinc-300"><%= format_source(insider.confirmation_source) %></span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <span class="text-sm font-medium"><%= format_profit(insider.estimated_profit) %></span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <span class="text-sm text-zinc-700 dark:text-zinc-300"><%= format_profit(insider.trade_size) %></span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <.badge color={if insider.used_for_training, do: :green, else: :zinc}>
+                        <%= if insider.used_for_training, do: "trained", else: "pending" %>
+                      </.badge>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-zinc-500">
+                      <%= relative_time(insider.confirmed_at) %>
+                    </td>
+                  </tr>
+                <% end %>
+              <% end %>
+            </:body>
+          </.data_table>
+        </div>
+
+        <!-- CLI Commands -->
+        <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+          <div class="px-6 py-4 border-b border-zinc-950/10 dark:border-white/10">
+            <.subheading>CLI Commands</.subheading>
+          </div>
+          <div class="p-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded">
+                <code class="text-sm text-zinc-950 dark:text-zinc-100 font-mono">mix polymarket.references</code>
+                <.text class="mt-1">Show reference cases and confirmed insiders</.text>
+              </div>
+              <div class="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded">
+                <code class="text-sm text-zinc-950 dark:text-zinc-100 font-mono">mix polymarket.confirm &lt;wallet&gt;</code>
+                <.text class="mt-1">Confirm an insider wallet</.text>
               </div>
             </div>
           </div>

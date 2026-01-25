@@ -13,6 +13,8 @@ defmodule VolfefeMachine.Application do
       {Oban, Application.fetch_env!(:volfefe_machine, Oban)},
       {DNSCluster, query: Application.get_env(:volfefe_machine, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: VolfefeMachine.PubSub},
+      # Data source health monitoring for failover decisions
+      VolfefeMachine.Polymarket.DataSourceHealth,
       # Trade monitoring for real-time insider detection
       {VolfefeMachine.Polymarket.TradeMonitor, monitor_opts()},
       # Start to serve requests, typically the last entry

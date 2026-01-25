@@ -1,103 +1,86 @@
 defmodule Mix.Tasks.Polymarket.Ingest do
   @moduledoc """
-  Ingest trades from Polymarket API or blockchain subgraph.
+  Ingest trades from Polymarket blockchain subgraph (default) or centralized API.
+
+  **Default: Blockchain subgraph** - More reliable, no geo-blocking, complete history.
+  Use `--api` flag to explicitly use the centralized API when needed.
 
   Supports multiple ingestion strategies for casting a wide net across all markets.
 
   ## Usage
 
-      # Ingest recent trades across all markets (default)
+      # DEFAULT: Ingest from blockchain subgraph (last 7 days)
       mix polymarket.ingest
-      mix polymarket.ingest --recent --limit 5000
+      mix polymarket.ingest --days 30
+      mix polymarket.ingest --from 2025-10-01 --to 2025-10-15
 
-      # Ingest from specific market
-      mix polymarket.ingest --market 0xabc123...
+      # TARGETED: Ingest trades for specific market
+      mix polymarket.ingest --condition 0x123... --from 2025-10-01
+      mix polymarket.ingest --reference-cases
 
-      # Ingest from all markets in a category
-      mix polymarket.ingest --category crypto
-      mix polymarket.ingest --category sports --limit 1000
+      # SCAN MODE: Analyze trades by market without ingesting
+      mix polymarket.ingest --scan --days 7 --top 20
 
-      # Ingest from all currently active markets
-      mix polymarket.ingest --all-active
-
-      # Continuous mode (run until stopped)
-      mix polymarket.ingest --continuous --interval 300
-
-      # HISTORICAL: Ingest from blockchain subgraph (bypasses API geo-blocking)
-      mix polymarket.ingest --subgraph --from 2025-10-01 --to 2025-10-15
-      mix polymarket.ingest --subgraph --days 30
-
-      # TARGETED: Ingest trades for specific market (e.g., reference cases)
-      mix polymarket.ingest --subgraph --condition 0x123... --from 2025-10-01
-      mix polymarket.ingest --subgraph --reference-cases
-
-      # SCAN MODE: Analyze trades by market without ingesting (Phase 1 discovery)
-      mix polymarket.ingest --subgraph --from 2025-10-01 --to 2025-10-15 --scan
-      mix polymarket.ingest --subgraph --days 7 --scan --top 20
+      # API MODE: Use centralized API instead of subgraph (less reliable)
+      mix polymarket.ingest --api --recent --limit 5000
+      mix polymarket.ingest --api --market 0xabc123...
+      mix polymarket.ingest --api --category crypto --limit 1000
+      mix polymarket.ingest --api --all-active
+      mix polymarket.ingest --api --continuous --interval 300
 
   ## Options
 
-      --recent         Ingest recent trades across all markets (default)
-      --market ID      Ingest from specific market condition ID
-      --category CAT   Ingest from all markets in category
-                       (politics, corporate, legal, crypto, sports, entertainment, science, other)
-      --all-active     Ingest from all currently active markets
-      --limit N        Maximum trades to ingest (default: 2000)
-      --continuous     Run continuously until stopped
-      --interval SEC   Seconds between continuous runs (default: 300)
-      --verbose        Show detailed output
+      --api            Use centralized API instead of subgraph (fallback mode)
 
-      --subgraph       Use blockchain subgraph for historical data (bypasses geo-blocking)
-      --from DATE      Start date for subgraph mode (YYYY-MM-DD)
-      --to DATE        End date for subgraph mode (YYYY-MM-DD, default: today)
-      --days N         Alternative to --from/--to: ingest last N days
-      --condition ID   Ingest trades for specific condition_id (use with --subgraph)
+      # Subgraph options (default):
+      --from DATE      Start date (YYYY-MM-DD)
+      --to DATE        End date (YYYY-MM-DD, default: today)
+      --days N         Alternative to --from/--to: ingest last N days (default: 7)
+      --condition ID   Ingest trades for specific condition_id
       --reference-cases Ingest trades for all reference cases with condition_ids
       --scan           Scan mode: analyze trades grouped by market (no ingestion)
       --top N          Show top N markets by volume in scan mode (default: 10)
 
-  ## Categories
+      # API-only options (require --api flag):
+      --recent         Ingest recent trades across all markets
+      --market ID      Ingest from specific market condition ID
+      --category CAT   Ingest from all markets in category
+                       (politics, corporate, legal, crypto, sports, entertainment, science, other)
+      --all-active     Ingest from all currently active markets
+      --continuous     Run continuously until stopped
+      --interval SEC   Seconds between continuous runs (default: 300)
+
+      # Common options:
+      --limit N        Maximum trades to ingest (default: 2000 for API, 100000 for subgraph)
+      --verbose        Show detailed output
+
+  ## Categories (API mode only)
 
   Valid categories: politics, corporate, legal, crypto, sports, entertainment, science, other
 
   ## Examples
 
-      $ mix polymarket.ingest --category crypto --limit 500
+      # Default: Subgraph ingestion (last 7 days)
+      $ mix polymarket.ingest --days 7
 
       ═══════════════════════════════════════════════════════════════
-      POLYMARKET TRADE INGESTION
-      ═══════════════════════════════════════════════════════════════
-
-      Mode: Category (crypto)
-      Limit: 500 trades per market
-
-      Ingesting from 23 markets...
-
-      ✅ Ingestion complete!
-         Markets processed: 23
-         Trades inserted: 1,245
-         Trades updated: 89
-         Errors: 0
-
-      $ mix polymarket.ingest --subgraph --from 2025-10-08 --to 2025-10-12
-
-      ═══════════════════════════════════════════════════════════════
-      POLYMARKET SUBGRAPH INGESTION (Historical)
+      POLYMARKET SUBGRAPH INGESTION (Default)
       ═══════════════════════════════════════════════════════════════
 
       Source: Blockchain subgraph (The Graph/Goldsky)
-      Date range: 2025-10-08 to 2025-10-12
+      Date range: 2025-01-18 to 2025-01-25
 
       Fetching trades from subgraph...
       Building token ID mapping (366 markets)...
 
-      ✅ Historical ingestion complete!
+      ✅ Ingestion complete!
          Trades fetched: 15,234
          Trades mapped: 12,456 (81.8%)
          Trades inserted: 11,234
          Unmapped (unknown markets): 2,778
 
-      $ mix polymarket.ingest --subgraph --from 2025-10-08 --to 2025-10-12 --scan --top 5
+      # Scan mode (analyze without ingesting)
+      $ mix polymarket.ingest --scan --days 7 --top 5
 
       ═══════════════════════════════════════════════════════════════
       POLYMARKET SUBGRAPH SCAN (Date-Range Analysis)
@@ -121,7 +104,25 @@ defmodule Mix.Tasks.Polymarket.Ingest do
       1. 0x14a3dfeba8b22a32fe...
          Volume: $456,123.45 | Trades: 2,345
          Wallets: 189 | Whale trades (>$1K): 45
-         Period: 2025-10-08 09:15 → 2025-10-12 23:45
+         Period: 2025-01-18 09:15 → 2025-01-25 23:45
+
+      # API mode (fallback when subgraph unavailable)
+      $ mix polymarket.ingest --api --category crypto --limit 500
+
+      ═══════════════════════════════════════════════════════════════
+      POLYMARKET TRADE INGESTION (API Mode)
+      ═══════════════════════════════════════════════════════════════
+
+      Mode: Category (crypto)
+      Limit: 500 trades per market
+
+      Ingesting from 23 markets...
+
+      ✅ Ingestion complete!
+         Markets processed: 23
+         Trades inserted: 1,245
+         Trades updated: 89
+         Errors: 0
   """
 
   use Mix.Task
@@ -141,72 +142,82 @@ defmodule Mix.Tasks.Polymarket.Ingest do
 
     {opts, _, _} = OptionParser.parse(args,
       switches: [
+        # Data source selection (subgraph is default, --api to use centralized API)
+        api: :boolean,
+        subgraph: :boolean,  # Kept for backwards compatibility (now default)
+        # API-only options
         recent: :boolean,
         market: :string,
         category: :string,
         all_active: :boolean,
-        limit: :integer,
         continuous: :boolean,
         interval: :integer,
-        verbose: :boolean,
-        # Subgraph options
-        subgraph: :boolean,
+        # Subgraph options (default mode)
         from: :string,
         to: :string,
         days: :integer,
         condition: :string,
         reference_cases: :boolean,
         scan: :boolean,
-        top: :integer
+        top: :integer,
+        # Common options
+        limit: :integer,
+        verbose: :boolean
       ],
-      aliases: [m: :market, c: :category, l: :limit, v: :verbose]
+      aliases: [m: :market, c: :category, l: :limit, v: :verbose, a: :api]
     )
 
+    # Determine data source: --api uses centralized API, otherwise subgraph (default)
+    use_api = opts[:api] == true
+
     cond do
-      opts[:subgraph] && opts[:scan] ->
+      # API MODE: Centralized API (fallback/legacy mode)
+      use_api && opts[:continuous] ->
+        print_api_header()
+        run_continuous(opts)
+
+      use_api && opts[:market] ->
+        print_api_header()
+        ingest_market(opts[:market], opts)
+        print_api_footer()
+
+      use_api && opts[:category] ->
+        print_api_header()
+        ingest_category(opts[:category], opts)
+        print_api_footer()
+
+      use_api && opts[:all_active] ->
+        print_api_header()
+        ingest_all_active(opts)
+        print_api_footer()
+
+      use_api ->
+        print_api_header()
+        # API default: recent trades
+        ingest_recent(opts)
+        print_api_footer()
+
+      # SUBGRAPH MODE: Blockchain subgraph (default)
+      opts[:scan] ->
         print_scan_header()
         scan_from_subgraph(opts)
         print_scan_footer()
 
-      opts[:subgraph] && opts[:reference_cases] ->
+      opts[:reference_cases] ->
         print_subgraph_header()
         ingest_reference_cases_from_subgraph(opts)
         print_subgraph_footer()
 
-      opts[:subgraph] && opts[:condition] ->
+      opts[:condition] ->
         print_subgraph_header()
         ingest_condition_from_subgraph(opts[:condition], opts)
         print_subgraph_footer()
 
-      opts[:subgraph] ->
+      true ->
+        # Default: subgraph ingestion
         print_subgraph_header()
         ingest_from_subgraph(opts)
         print_subgraph_footer()
-
-      opts[:continuous] ->
-        print_header()
-        run_continuous(opts)
-
-      opts[:market] ->
-        print_header()
-        ingest_market(opts[:market], opts)
-        print_footer()
-
-      opts[:category] ->
-        print_header()
-        ingest_category(opts[:category], opts)
-        print_footer()
-
-      opts[:all_active] ->
-        print_header()
-        ingest_all_active(opts)
-        print_footer()
-
-      true ->
-        print_header()
-        # Default: recent trades
-        ingest_recent(opts)
-        print_footer()
     end
   end
 
@@ -386,17 +397,21 @@ defmodule Mix.Tasks.Polymarket.Ingest do
     end)
   end
 
-  defp print_header do
+  defp print_api_header do
     Mix.shell().info("")
     Mix.shell().info(String.duplicate("═", 65))
-    Mix.shell().info("POLYMARKET TRADE INGESTION")
+    Mix.shell().info("POLYMARKET TRADE INGESTION (API Mode)")
     Mix.shell().info(String.duplicate("═", 65))
+    Mix.shell().info("")
+    Mix.shell().info("⚠️  Using centralized API (less reliable than subgraph)")
+    Mix.shell().info("   Remove --api flag to use blockchain subgraph instead")
     Mix.shell().info("")
   end
 
-  defp print_footer do
+  defp print_api_footer do
     Mix.shell().info(String.duplicate("─", 65))
     Mix.shell().info("Check coverage: mix polymarket.coverage")
+    Mix.shell().info("Tip: Use subgraph (default) for more reliable ingestion")
     Mix.shell().info("")
   end
 
@@ -1242,7 +1257,7 @@ defmodule Mix.Tasks.Polymarket.Ingest do
   defp print_subgraph_header do
     Mix.shell().info("")
     Mix.shell().info(String.duplicate("═", 65))
-    Mix.shell().info("POLYMARKET SUBGRAPH INGESTION (Historical)")
+    Mix.shell().info("POLYMARKET SUBGRAPH INGESTION (Default)")
     Mix.shell().info(String.duplicate("═", 65))
     Mix.shell().info("")
   end
