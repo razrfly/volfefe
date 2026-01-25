@@ -51,7 +51,9 @@ defmodule Mix.Tasks.Polymarket.Ingest do
       --interval SEC   Seconds between continuous runs (default: 300)
 
       # Common options:
-      --limit N        Maximum trades to ingest (default: 2000 for API, 100000 for subgraph)
+      --limit N        Maximum trades to ingest
+                       API mode defaults: --recent=2000, --market=10000, --category=500, --all-active=200
+                       Subgraph mode default: 100000
       --verbose        Show detailed output
 
   ## Categories (API mode only)
@@ -169,6 +171,29 @@ defmodule Mix.Tasks.Polymarket.Ingest do
 
     # Determine data source: --api uses centralized API, otherwise subgraph (default)
     use_api = opts[:api] == true
+
+    # Validate flag combinations
+    api_only_flags = [:recent, :market, :category, :all_active, :continuous, :interval]
+    subgraph_only_flags = [:scan, :condition, :reference_cases, :from, :to, :days]
+
+    has_api_flags = Enum.any?(api_only_flags, &opts[&1])
+    has_subgraph_flags = Enum.any?(subgraph_only_flags, &opts[&1])
+
+    cond do
+      use_api && has_subgraph_flags ->
+        Mix.shell().error("❌ Cannot use subgraph-only flags (--scan, --condition, --from, --to, --days) with --api")
+        Mix.shell().info("   Remove --api to use subgraph mode, or remove subgraph flags")
+        exit({:shutdown, 1})
+
+      !use_api && has_api_flags ->
+        Mix.shell().error("❌ API-only flags require --api flag")
+        Mix.shell().info("   Flags like --market, --category, --all-active, --continuous require --api")
+        Mix.shell().info("   Add --api to use centralized API, or use subgraph mode (default)")
+        exit({:shutdown, 1})
+
+      true ->
+        :ok
+    end
 
     cond do
       # API MODE: Centralized API (fallback/legacy mode)
