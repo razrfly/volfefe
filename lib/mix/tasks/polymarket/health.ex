@@ -1,9 +1,9 @@
 defmodule Mix.Tasks.Polymarket.Health do
   @moduledoc """
-  Check pipeline health and coverage diversity alerts.
+  Check pipeline health, coverage diversity, and data source status.
 
   Quick health check for the wide-net ingestion pipeline.
-  Shows any issues with coverage, staleness, or concentration.
+  Shows any issues with coverage, staleness, concentration, or API availability.
 
   ## Usage
 
@@ -13,10 +13,31 @@ defmodule Mix.Tasks.Polymarket.Health do
       # Show full category breakdown
       mix polymarket.health --full
 
+      # Show data source health (API vs Subgraph)
+      mix polymarket.health --sources
+
       # JSON output for monitoring
       mix polymarket.health --json
 
   ## Examples
+
+      $ mix polymarket.health --sources
+
+      ═══════════════════════════════════════════════════════════════
+      DATA SOURCE HEALTH
+      ═══════════════════════════════════════════════════════════════
+
+      Centralized API:
+        Status: ❌ unhealthy
+        Success Rate: 0.0%
+        Last Failure: timeout
+
+      Blockchain Subgraph:
+        Status: ✅ healthy
+        Success Rate: 100.0%
+        Last Success: 2s ago
+
+      🔗 Recommended Source: subgraph
 
       $ mix polymarket.health
 
@@ -43,6 +64,7 @@ defmodule Mix.Tasks.Polymarket.Health do
 
   use Mix.Task
   alias VolfefeMachine.Polymarket.DiversityMonitor
+  alias VolfefeMachine.Polymarket.DataSourceHealth
 
   @shortdoc "Check pipeline health and coverage diversity"
 
@@ -53,18 +75,88 @@ defmodule Mix.Tasks.Polymarket.Health do
     {opts, _, _} = OptionParser.parse(args,
       switches: [
         full: :boolean,
-        json: :boolean
+        json: :boolean,
+        sources: :boolean
       ],
-      aliases: [f: :full, j: :json]
+      aliases: [f: :full, j: :json, s: :sources]
     )
 
-    if opts[:json] do
-      print_json()
-    else
-      print_header()
-      print_health_check(opts[:full])
-      print_footer()
+    cond do
+      opts[:json] ->
+        print_json()
+
+      opts[:sources] ->
+        print_source_health()
+
+      true ->
+        print_header()
+        print_health_check(opts[:full])
+        print_footer()
     end
+  end
+
+  defp print_source_health do
+    Mix.shell().info("")
+    Mix.shell().info(String.duplicate("═", 65))
+    Mix.shell().info("DATA SOURCE HEALTH")
+    Mix.shell().info(String.duplicate("═", 65))
+    Mix.shell().info("")
+
+    # Force a health check
+    case DataSourceHealth.check_now() do
+      {:ok, summary} ->
+        # API Health
+        Mix.shell().info("Centralized API:")
+        print_source_status(summary.api)
+        Mix.shell().info("")
+
+        # Subgraph Health
+        Mix.shell().info("Blockchain Subgraph:")
+        print_source_status(summary.subgraph)
+        Mix.shell().info("")
+
+        # Recommendation
+        Mix.shell().info(String.duplicate("─", 65))
+        rec = summary.recommended_source
+        icon = if rec == :subgraph, do: "🔗", else: "🌐"
+        Mix.shell().info("#{icon} Recommended Source: #{rec}")
+
+        # Uptime
+        if summary.uptime_seconds > 0 do
+          Mix.shell().info("   Monitor uptime: #{format_uptime(summary.uptime_seconds)}")
+        end
+
+        Mix.shell().info("")
+
+      {:error, :not_running} ->
+        Mix.shell().error("DataSourceHealth monitor not running")
+        Mix.shell().info("")
+    end
+  end
+
+  defp print_source_status(source) do
+    status_icon = if source.healthy, do: "✅", else: "❌"
+    status_text = if source.healthy, do: "healthy", else: "unhealthy"
+    success_rate = Float.round(source.success_rate * 100, 1)
+
+    Mix.shell().info("  Status: #{status_icon} #{status_text}")
+    Mix.shell().info("  Success Rate: #{success_rate}%")
+
+    if source.last_success do
+      Mix.shell().info("  Last Success: #{format_time_ago(source.last_success)}")
+    end
+
+    if source.last_failure do
+      Mix.shell().info("  Last Failure: #{format_time_ago(source.last_failure)}")
+    end
+  end
+
+  defp format_uptime(seconds) when seconds < 60, do: "#{seconds}s"
+  defp format_uptime(seconds) when seconds < 3600, do: "#{div(seconds, 60)}m #{rem(seconds, 60)}s"
+  defp format_uptime(seconds) do
+    hours = div(seconds, 3600)
+    mins = div(rem(seconds, 3600), 60)
+    "#{hours}h #{mins}m"
   end
 
   defp print_json do

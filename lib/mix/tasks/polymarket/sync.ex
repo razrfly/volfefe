@@ -1,6 +1,6 @@
 defmodule Mix.Tasks.Polymarket.Sync do
   @moduledoc """
-  Sync markets from Polymarket API.
+  Sync markets from Polymarket API with optional subgraph trade ingestion.
 
   Discovers new markets, updates metadata, and detects resolution changes.
   Essential for maintaining wide-net coverage across all categories.
@@ -22,14 +22,34 @@ defmodule Mix.Tasks.Polymarket.Sync do
       # Full sync with resolution checking
       mix polymarket.sync --full
 
+      # Sync markets + fetch trades from blockchain subgraph
+      mix polymarket.sync --subgraph-trades
+
+      # Full sync with subgraph trades
+      mix polymarket.sync --full --subgraph-trades
+
   ## Options
 
       --active             Sync only active markets
       --closed             Include closed/resolved markets
       --check-resolutions  Detect newly resolved markets and score their trades
+      --subgraph-trades    Fetch trades from blockchain subgraph for synced markets
       --full               Full sync: active + closed + resolution check + scoring
       --limit N            Maximum markets to sync (default: 1000)
+      --trade-limit N      Maximum trades per market (default: 1000)
       --verbose            Show detailed output
+
+  ## Subgraph Trades
+
+  When using --subgraph-trades, the task will:
+  1. For each synced market, look up its token IDs from the subgraph
+  2. Fetch trades from the blockchain subgraph (bypasses centralized API)
+  3. Store trades with their market association
+
+  This is useful when:
+  - The centralized API is timing out or unavailable
+  - You need complete historical trade data
+  - You want blockchain-verified trade records
 
   ## Resolution Detection
 
@@ -41,7 +61,7 @@ defmodule Mix.Tasks.Polymarket.Sync do
 
   ## Examples
 
-      $ mix polymarket.sync --full
+      $ mix polymarket.sync --full --subgraph-trades
 
       ═══════════════════════════════════════════════════════════════
       POLYMARKET MARKET SYNC
@@ -53,24 +73,20 @@ defmodule Mix.Tasks.Polymarket.Sync do
       Phase 2: Syncing closed markets...
       ✅ Closed: 45 inserted, 89 updated
 
-      Phase 3: Checking for new resolutions...
-      Found 3 newly resolved markets:
-        - Will XRP reach $3 by January 10?
-        - Leicester City FC win on 2026-01-05?
-        - Fed rate decision January 2026
+      Phase 3: Fetching trades from subgraph...
+      ✅ Fetched 12,456 trades from blockchain subgraph
 
-      Phase 4: Calculating trade outcomes...
+      Phase 4: Checking for new resolutions...
+      Found 3 newly resolved markets
+
+      Phase 5: Calculating trade outcomes...
       ✅ Updated 456 trades with was_correct/profit_loss
 
-      Phase 5: Scoring newly-resolved trades...
+      Phase 6: Scoring newly-resolved trades...
       ✅ Scored 456 trades
 
       ═══════════════════════════════════════════════════════════════
       SYNC COMPLETE
-      ├─ Markets synced: 524
-      ├─ Newly resolved: 3
-      ├─ Trades updated: 456
-      └─ Trades scored: 456
   """
 
   use Mix.Task
@@ -78,7 +94,7 @@ defmodule Mix.Tasks.Polymarket.Sync do
   import Ecto.Query
   alias VolfefeMachine.Repo
   alias VolfefeMachine.Polymarket
-  alias VolfefeMachine.Polymarket.{Market, Trade}
+  alias VolfefeMachine.Polymarket.{Market, Trade, SubgraphClient}
 
   @shortdoc "Sync markets from Polymarket"
 
@@ -91,8 +107,10 @@ defmodule Mix.Tasks.Polymarket.Sync do
         active: :boolean,
         closed: :boolean,
         check_resolutions: :boolean,
+        subgraph_trades: :boolean,
         full: :boolean,
         limit: :integer,
+        trade_limit: :integer,
         verbose: :boolean
       ],
       aliases: [l: :limit, v: :verbose]
@@ -105,6 +123,7 @@ defmodule Mix.Tasks.Polymarket.Sync do
       active_updated: 0,
       closed_inserted: 0,
       closed_updated: 0,
+      subgraph_trades: 0,
       newly_resolved: 0,
       trades_updated: 0,
       trades_scored: 0,
@@ -112,17 +131,20 @@ defmodule Mix.Tasks.Polymarket.Sync do
     }
 
     # Determine what to sync
-    do_active = opts[:active] || opts[:full] || (!opts[:closed] && !opts[:check_resolutions])
+    do_active = opts[:active] || opts[:full] || (!opts[:closed] && !opts[:check_resolutions] && !opts[:subgraph_trades])
     do_closed = opts[:closed] || opts[:full]
+    do_subgraph_trades = opts[:subgraph_trades]
     do_resolutions = opts[:check_resolutions] || opts[:full]
 
     limit = opts[:limit] || 1000
+    trade_limit = opts[:trade_limit] || 1000
     verbose = opts[:verbose] || false
 
     results =
       results
       |> maybe_sync_active(do_active, limit, verbose)
       |> maybe_sync_closed(do_closed, limit, verbose)
+      |> maybe_fetch_subgraph_trades(do_subgraph_trades, trade_limit, verbose)
       |> maybe_check_resolutions(do_resolutions, verbose)
 
     print_summary(results)
@@ -174,6 +196,135 @@ defmodule Mix.Tasks.Polymarket.Sync do
       {:error, reason} ->
         Mix.shell().error("❌ Closed sync failed: #{inspect(reason)}")
         %{results | errors: results.errors + 1}
+    end
+  end
+
+  defp maybe_fetch_subgraph_trades(results, do_fetch, _trade_limit, _verbose) when do_fetch != true, do: results
+  defp maybe_fetch_subgraph_trades(results, true, trade_limit, verbose) do
+    Mix.shell().info("Phase 3: Fetching trades from blockchain subgraph...")
+
+    # Get recently synced markets that have token IDs available
+    markets = Repo.all(
+      from m in Market,
+        where: m.active == true or not is_nil(m.resolved_outcome),
+        order_by: [desc: m.updated_at],
+        limit: 100
+    )
+
+    if length(markets) == 0 do
+      Mix.shell().info("   No markets available for trade fetching")
+      Mix.shell().info("")
+      results
+    else
+      total_trades = fetch_trades_for_markets(markets, trade_limit, verbose)
+
+      Mix.shell().info("✅ Fetched #{total_trades} trades from blockchain subgraph")
+      Mix.shell().info("")
+
+      %{results | subgraph_trades: total_trades}
+    end
+  end
+
+  defp fetch_trades_for_markets(markets, trade_limit, verbose) do
+    Enum.reduce(markets, 0, fn market, acc ->
+      # Look up token IDs for this market from subgraph
+      case SubgraphClient.get_token_ids_for_condition(market.condition_id) do
+        {:ok, []} ->
+          if verbose, do: Mix.shell().info("   No token IDs for: #{truncate(market.question, 40)}")
+          acc
+
+        {:ok, token_ids} ->
+          # Fetch trades for each token ID
+          trades_fetched = Enum.reduce(token_ids, 0, fn token_id, token_acc ->
+            case SubgraphClient.get_order_filled_events(token_id: token_id, limit: trade_limit) do
+              {:ok, events} ->
+                # Store trades
+                stored = store_subgraph_trades(events, market)
+                if verbose && stored > 0 do
+                  Mix.shell().info("   #{stored} trades for: #{truncate(market.question, 40)}")
+                end
+                token_acc + stored
+
+              {:error, reason} ->
+                if verbose, do: Mix.shell().error("   Error fetching trades: #{inspect(reason)}")
+                token_acc
+            end
+          end)
+
+          acc + trades_fetched
+
+        {:error, reason} ->
+          if verbose, do: Mix.shell().error("   Error looking up token IDs: #{inspect(reason)}")
+          acc
+      end
+    end)
+  end
+
+  defp store_subgraph_trades(events, market) when is_list(events) do
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    # Transform subgraph events to trade records
+    trades = Enum.map(events, fn event ->
+      %{
+        market_id: market.id,
+        condition_id: market.condition_id,
+        wallet_address: event["taker"],
+        maker_address: event["maker"],
+        side: if(event["takerAssetId"] == "0", do: "BUY", else: "SELL"),
+        size: parse_wei_amount(event["makerAmountFilled"]),
+        price: calculate_price(event),
+        timestamp: parse_event_timestamp(event["timestamp"]),
+        transaction_hash: extract_tx_hash(event["id"]),
+        token_id: event["makerAssetId"],
+        source: "subgraph",
+        inserted_at: now,
+        updated_at: now
+      }
+    end)
+
+    # Upsert trades (avoid duplicates by transaction_hash)
+    {inserted, _} = Repo.insert_all(
+      Trade,
+      trades,
+      on_conflict: :nothing,
+      conflict_target: [:transaction_hash]
+    )
+
+    inserted
+  end
+
+  defp parse_wei_amount(nil), do: Decimal.new("0")
+  defp parse_wei_amount(amount) when is_binary(amount) do
+    case Integer.parse(amount) do
+      {n, _} -> Decimal.div(Decimal.new(n), Decimal.new(1_000_000))
+      :error -> Decimal.new("0")
+    end
+  end
+
+  defp calculate_price(event) do
+    maker_amount = parse_wei_amount(event["makerAmountFilled"])
+    taker_amount = parse_wei_amount(event["takerAmountFilled"])
+
+    if Decimal.compare(maker_amount, Decimal.new(0)) == :gt do
+      Decimal.div(taker_amount, maker_amount)
+    else
+      Decimal.new("0")
+    end
+  end
+
+  defp parse_event_timestamp(nil), do: nil
+  defp parse_event_timestamp(ts) when is_binary(ts) do
+    case Integer.parse(ts) do
+      {n, _} -> DateTime.from_unix!(n)
+      :error -> nil
+    end
+  end
+
+  defp extract_tx_hash(nil), do: nil
+  defp extract_tx_hash(event_id) when is_binary(event_id) do
+    case String.split(event_id, "-") do
+      [tx_hash | _] -> tx_hash
+      _ -> event_id
     end
   end
 
@@ -276,6 +427,11 @@ defmodule Mix.Tasks.Polymarket.Sync do
                     results.closed_inserted + results.closed_updated
 
     Mix.shell().info("├─ Markets synced: #{total_markets}")
+
+    if results.subgraph_trades > 0 do
+      Mix.shell().info("├─ Subgraph trades: #{results.subgraph_trades}")
+    end
+
     Mix.shell().info("├─ Newly resolved: #{results.newly_resolved}")
     Mix.shell().info("├─ Trades updated: #{results.trades_updated}")
     Mix.shell().info("└─ Trades scored: #{results.trades_scored}")
