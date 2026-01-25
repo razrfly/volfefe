@@ -36,7 +36,9 @@ defmodule Mix.Tasks.Polymarket.Sync do
       --subgraph-trades    Fetch trades from blockchain subgraph for synced markets
       --full               Full sync: active + closed + resolution check + scoring
       --limit N            Maximum markets to sync (default: 1000)
-      --trade-limit N      Maximum trades per market (default: 1000)
+      --trade-limit N      Maximum trades per token ID (default: 1000)
+                           Note: Multi-outcome markets have multiple token IDs, so total
+                           trades per market may exceed this limit.
       --verbose            Show detailed output
 
   ## Subgraph Trades

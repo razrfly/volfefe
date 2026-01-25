@@ -200,16 +200,16 @@ defmodule VolfefeMachine.Polymarket.DataSourceHealth do
     # Quick health check against gamma API (markets endpoint)
     url = "https://gamma-api.polymarket.com/markets?limit=1"
 
-    case HTTPoison.get(url, [], recv_timeout: @api_timeout, timeout: @api_timeout) do
-      {:ok, %HTTPoison.Response{status_code: 200}} ->
+    case Req.get(url, receive_timeout: @api_timeout) do
+      {:ok, %{status: 200}} ->
         Logger.debug("[DataSourceHealth] API health check: OK")
         record_result(state, :api, :success)
 
-      {:ok, %HTTPoison.Response{status_code: status}} ->
+      {:ok, %{status: status}} ->
         Logger.warning("[DataSourceHealth] API health check failed: status #{status}")
         record_result(state, :api, {:failure, "HTTP #{status}"})
 
-      {:error, %HTTPoison.Error{reason: reason}} ->
+      {:error, %{reason: reason}} ->
         Logger.warning("[DataSourceHealth] API health check failed: #{inspect(reason)}")
         record_result(state, :api, {:failure, reason})
     end

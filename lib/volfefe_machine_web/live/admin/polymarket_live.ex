@@ -229,38 +229,58 @@ defmodule VolfefeMachineWeb.Admin.PolymarketLive do
 
   @impl true
   def handle_event("recalculate_baselines", _params, socket) do
-    {:ok, %{updated: updated}} = Polymarket.calculate_insider_baselines()
-    {:noreply,
-     socket
-     |> put_toast(:success, "Recalculated #{updated} baselines")
-     |> load_data()}
+    try do
+      {:ok, %{updated: updated}} = Polymarket.calculate_insider_baselines()
+      {:noreply,
+       socket
+       |> put_toast(:success, "Recalculated #{updated} baselines")
+       |> load_data()}
+    rescue
+      e ->
+        {:noreply, put_toast(socket, :error, "Failed to recalculate baselines: #{Exception.message(e)}")}
+    end
   end
 
   @impl true
   def handle_event("validate_patterns", _params, socket) do
-    {:ok, result} = Polymarket.validate_patterns()
-    {:noreply,
-     socket
-     |> put_toast(:success, "Validated #{result.validated} patterns")
-     |> load_data()}
+    try do
+      {:ok, result} = Polymarket.validate_patterns()
+      {:noreply,
+       socket
+       |> put_toast(:success, "Validated #{result.validated} patterns")
+       |> load_data()}
+    rescue
+      e ->
+        {:noreply, put_toast(socket, :error, "Failed to validate patterns: #{Exception.message(e)}")}
+    end
   end
 
   @impl true
   def handle_event("rescore_trades", _params, socket) do
-    {:ok, %{total: total, scored: scored}} = Polymarket.rescore_all_trades(batch_size: 1000)
-    {:noreply,
-     socket
-     |> put_toast(:success, "Rescored #{scored}/#{total} trades")
-     |> load_data()}
+    try do
+      {:ok, %{total: total, scored: scored}} = Polymarket.rescore_all_trades(batch_size: 1000)
+      {:noreply,
+       socket
+       |> put_toast(:success, "Rescored #{scored}/#{total} trades")
+       |> load_data()}
+    rescue
+      e ->
+        {:noreply, put_toast(socket, :error, "Failed to rescore trades: #{Exception.message(e)}")}
+    end
   end
 
   @impl true
   def handle_event("run_feedback_iteration", _params, socket) do
-    {:ok, result} = Polymarket.run_feedback_loop()
-    {:noreply,
-     socket
-     |> put_toast(:success, "Feedback iteration #{result.iteration} complete")
-     |> load_data()}
+    try do
+      {:ok, result} = Polymarket.run_feedback_loop()
+      {:noreply,
+       socket
+       |> put_toast(:success, "Feedback iteration #{result.iteration} complete")
+       |> load_data()}
+    rescue
+      e ->
+        {:noreply, put_toast(socket, :error, "Failed to run feedback loop: #{Exception.message(e)}")}
+    end
   end
 
   @impl true
