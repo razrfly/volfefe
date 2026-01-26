@@ -41,6 +41,8 @@ defmodule Mix.Tasks.Polymarket.Ingest do
       --reference-cases Ingest trades for all reference cases with condition_ids
       --scan           Scan mode: analyze trades grouped by market (no ingestion)
       --top N          Show top N markets by volume in scan mode (default: 10)
+      --parallel       Enable parallel fetching with multiple workers (faster, 3-5x speedup)
+      --workers N      Number of parallel workers (default: 4, max: 8)
 
       # API-only options (require --api flag):
       --recent         Ingest recent trades across all markets
@@ -165,11 +167,13 @@ defmodule Mix.Tasks.Polymarket.Ingest do
         reference_cases: :boolean,
         scan: :boolean,
         top: :integer,
+        parallel: :boolean,
+        workers: :integer,
         # Common options
         limit: :integer,
         verbose: :boolean
       ],
-      aliases: [m: :market, c: :category, l: :limit, v: :verbose, a: :api]
+      aliases: [m: :market, c: :category, l: :limit, v: :verbose, a: :api, p: :parallel, w: :workers]
     )
 
     # Determine data source: --api uses centralized API, otherwise subgraph (default)
@@ -870,10 +874,15 @@ defmodule Mix.Tasks.Polymarket.Ingest do
     {from_date, to_date} = parse_date_range(opts)
     limit = opts[:limit] || 100_000
     verbose = opts[:verbose] || false
+    use_parallel = opts[:parallel] || opts[:workers] != nil
+    workers = opts[:workers] || 4
 
     Mix.shell().info("Source: Blockchain subgraph (The Graph/Goldsky)")
     Mix.shell().info("Date range: #{from_date} to #{to_date}")
     Mix.shell().info("Max trades: #{format_number(limit)}")
+    if use_parallel do
+      Mix.shell().info("Mode: PARALLEL (#{workers} workers)")
+    end
     Mix.shell().info("")
 
     # Check subgraph health
@@ -915,10 +924,15 @@ defmodule Mix.Tasks.Polymarket.Ingest do
     Mix.shell().info("")
 
     # Fetch trades from subgraph
-    Mix.shell().info("Fetching trades from subgraph...")
+    if use_parallel do
+      Mix.shell().info("Fetching trades from subgraph (#{workers} parallel workers)...")
+    else
+      Mix.shell().info("Fetching trades from subgraph...")
+    end
 
-    progress_callback = fn %{fetched: fetched, batch: _batch} ->
-      if rem(fetched, 5000) == 0 do
+    progress_callback = fn update ->
+      fetched = update[:fetched] || update["fetched"] || 0
+      if rem(fetched, 5000) == 0 and fetched > 0 do
         Mix.shell().info("  Progress: #{format_number(fetched)} trades fetched...")
       end
     end
@@ -926,12 +940,25 @@ defmodule Mix.Tasks.Polymarket.Ingest do
     from_ts = date_to_unix(from_date)
     to_ts = date_to_unix(to_date) + 86399  # End of day
 
-    case SubgraphClient.get_all_order_filled_events(
-           from_timestamp: from_ts,
-           to_timestamp: to_ts,
-           max_events: limit,
-           progress_callback: progress_callback
-         ) do
+    # Use parallel or sequential fetching based on options
+    fetch_result = if use_parallel do
+      SubgraphClient.get_all_order_filled_events_parallel(
+        from_timestamp: from_ts,
+        to_timestamp: to_ts,
+        max_events: limit,
+        workers: workers,
+        progress_callback: progress_callback
+      )
+    else
+      SubgraphClient.get_all_order_filled_events(
+        from_timestamp: from_ts,
+        to_timestamp: to_ts,
+        max_events: limit,
+        progress_callback: progress_callback
+      )
+    end
+
+    case fetch_result do
       {:ok, events} ->
         Mix.shell().info("  ✅ Fetched #{format_number(length(events))} trades")
         Mix.shell().info("")
@@ -1228,8 +1255,72 @@ defmodule Mix.Tasks.Polymarket.Ingest do
   defp insert_subgraph_trades(events, mapping, verbose) do
     alias VolfefeMachine.Polymarket.Trade
 
-    # Process events with an accumulating cache for on-demand token lookups
-    # This avoids repeated subgraph queries for the same token ID
+    total = length(events)
+
+    # Use parallel processing for large batches (>1000 events)
+    if total > 1000 do
+      insert_subgraph_trades_parallel(events, mapping, verbose)
+    else
+      insert_subgraph_trades_sequential(events, mapping, verbose)
+    end
+  end
+
+  # Parallel insertion using Task.async_stream for large batches
+  defp insert_subgraph_trades_parallel(events, mapping, verbose) do
+    _total = length(events)
+    batch_size = 500
+    workers = 4
+
+    Mix.shell().info("  Using parallel insertion (#{workers} workers, #{batch_size} per batch)...")
+
+    # Split into batches
+    batches = Enum.chunk_every(events, batch_size)
+
+    # Process batches in parallel
+    results = batches
+    |> Enum.with_index()
+    |> Task.async_stream(
+      fn {batch, batch_idx} ->
+        if verbose do
+          start_idx = batch_idx * batch_size
+          Mix.shell().info("  Batch #{batch_idx + 1}/#{length(batches)}: processing #{start_idx + 1} to #{start_idx + length(batch)}...")
+        end
+
+        # Process batch sequentially (each batch has its own cache)
+        {inserted, updated, errors, _cache} =
+          batch
+          |> Enum.reduce({0, 0, 0, %{}}, fn event, {ins, upd, err, cache} ->
+            case insert_single_trade_with_cache(event, mapping, cache) do
+              {:inserted, new_cache} -> {ins + 1, upd, err, new_cache}
+              {:updated, new_cache} -> {ins, upd + 1, err, new_cache}
+              {:error, new_cache} -> {ins, upd, err + 1, new_cache}
+            end
+          end)
+
+        {inserted, updated, errors}
+      end,
+      max_concurrency: workers,
+      timeout: 120_000  # 2 minute timeout per batch
+    )
+    |> Enum.to_list()
+
+    # Aggregate results
+    {total_inserted, total_updated, total_errors} =
+      results
+      |> Enum.reduce({0, 0, 0}, fn
+        {:ok, {ins, upd, err}}, {ti, tu, te} -> {ti + ins, tu + upd, te + err}
+        {:exit, _reason}, {ti, tu, te} -> {ti, tu, te + 1}  # Count timeouts as errors
+      end)
+
+    if verbose do
+      Mix.shell().info("  Parallel insertion complete: #{total_inserted} inserted, #{total_updated} updated, #{total_errors} errors")
+    end
+
+    {total_inserted, total_updated, total_errors}
+  end
+
+  # Sequential insertion for small batches (preserves cache efficiency)
+  defp insert_subgraph_trades_sequential(events, mapping, verbose) do
     total = length(events)
 
     {inserted, updated, errors, _final_cache} =

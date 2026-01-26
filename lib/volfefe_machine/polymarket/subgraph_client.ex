@@ -188,6 +188,173 @@ defmodule VolfefeMachine.Polymarket.SubgraphClient do
     |> get_all_order_filled_events()
   end
 
+  @doc """
+  Fetch order filled events for a date range using parallel workers.
+
+  Convenience function combining date conversion with parallel fetching.
+
+  ## Parameters
+
+  - `from_date` - Start date (Date or DateTime)
+  - `to_date` - End date (Date or DateTime)
+  - `opts` - Additional options:
+    - `:workers` - Number of parallel workers (default: 4)
+    - `:max_events` - Maximum total events (default: 100_000)
+    - `:progress_callback` - Progress update function
+
+  ## Example
+
+      {:ok, events} = SubgraphClient.get_order_filled_events_for_range_parallel(
+        ~D[2024-01-01],
+        ~D[2024-02-01],
+        workers: 4
+      )
+  """
+  def get_order_filled_events_for_range_parallel(from_date, to_date, opts \\ []) do
+    from_ts = to_unix_timestamp(from_date)
+    to_ts = to_unix_timestamp(to_date)
+
+    opts
+    |> Keyword.put(:from_timestamp, from_ts)
+    |> Keyword.put(:to_timestamp, to_ts)
+    |> get_all_order_filled_events_parallel()
+  end
+
+  @doc """
+  Fetch order filled events in parallel using multiple workers.
+
+  Splits the time range into chunks and fetches each chunk concurrently,
+  then merges and deduplicates results by transaction ID.
+
+  ## Parameters
+
+  - `opts` - Keyword list of options:
+    - `:from_timestamp` - Start timestamp (required)
+    - `:to_timestamp` - End timestamp (required)
+    - `:workers` - Number of parallel workers (default: 4)
+    - `:max_events` - Maximum total events to fetch (default: 100_000)
+    - `:progress_callback` - Function called with progress updates
+
+  ## Returns
+
+  - `{:ok, [event]}` - Deduplicated list of events
+  - `{:error, reason}` - Error message
+
+  ## Example
+
+      {:ok, events} = SubgraphClient.get_all_order_filled_events_parallel(
+        from_timestamp: 1704067200,  # Jan 1, 2024
+        to_timestamp: 1706745600,    # Feb 1, 2024
+        workers: 4,
+        max_events: 50_000
+      )
+  """
+  def get_all_order_filled_events_parallel(opts \\ []) do
+    from_ts = Keyword.fetch!(opts, :from_timestamp)
+    to_ts = Keyword.fetch!(opts, :to_timestamp)
+    workers = Keyword.get(opts, :workers, 4)
+    max_events = Keyword.get(opts, :max_events, 100_000)
+    progress_callback = Keyword.get(opts, :progress_callback, fn _ -> :ok end)
+
+    # Split time range into chunks for parallel processing
+    total_duration = to_ts - from_ts
+    chunk_duration = div(total_duration, workers)
+
+    chunks = for i <- 0..(workers - 1) do
+      chunk_start = from_ts + (i * chunk_duration)
+      chunk_end = if i == workers - 1, do: to_ts, else: from_ts + ((i + 1) * chunk_duration) - 1
+      {i, chunk_start, chunk_end}
+    end
+
+    Logger.info("[Parallel Fetch] Starting #{workers} workers for #{total_duration}s range")
+
+    # Track progress across all workers
+    progress_agent = start_progress_agent()
+
+    # Fetch chunks in parallel with staggered start to avoid rate limit bursts
+    results = chunks
+    |> Task.async_stream(
+      fn {worker_id, chunk_start, chunk_end} ->
+        # Stagger worker starts by 150ms each to spread rate limit load
+        Process.sleep(worker_id * 150)
+
+        worker_opts = opts
+        |> Keyword.put(:from_timestamp, chunk_start)
+        |> Keyword.put(:to_timestamp, chunk_end)
+        |> Keyword.put(:max_events, div(max_events, workers) + 1000)  # Buffer for overlap
+        |> Keyword.put(:progress_callback, fn update ->
+          update_progress_agent(progress_agent, update, progress_callback)
+        end)
+
+        Logger.debug("[Worker #{worker_id}] Fetching #{chunk_start} to #{chunk_end}")
+
+        case get_all_order_filled_events(worker_opts) do
+          {:ok, events} ->
+            Logger.debug("[Worker #{worker_id}] Fetched #{length(events)} events")
+            {:ok, events}
+          error ->
+            Logger.warning("[Worker #{worker_id}] Failed: #{inspect(error)}")
+            error
+        end
+      end,
+      max_concurrency: workers,
+      timeout: 300_000,  # 5 minute timeout per worker
+      on_timeout: :kill_task
+    )
+    |> Enum.to_list()
+
+    stop_progress_agent(progress_agent)
+
+    # Collect successful results and merge
+    {successes, failures} = Enum.split_with(results, fn
+      {:ok, {:ok, _}} -> true
+      _ -> false
+    end)
+
+    if length(failures) > 0 do
+      Logger.warning("[Parallel Fetch] #{length(failures)} workers failed")
+    end
+
+    # Merge and deduplicate by transaction ID
+    all_events = successes
+    |> Enum.flat_map(fn {:ok, {:ok, events}} -> events end)
+    |> deduplicate_events()
+    |> Enum.sort_by(& &1["timestamp"], :desc)
+    |> Enum.take(max_events)
+
+    Logger.info("[Parallel Fetch] Complete: #{length(all_events)} unique events from #{length(successes)} workers")
+
+    {:ok, all_events}
+  end
+
+  # Deduplicate events by their unique event ID
+  defp deduplicate_events(events) do
+    events
+    |> Enum.uniq_by(fn event ->
+      # Use the event id which is unique per event in the subgraph
+      event["id"]
+    end)
+  end
+
+  # Progress tracking for parallel workers
+  defp start_progress_agent do
+    {:ok, agent} = Agent.start_link(fn -> %{total: 0, batches: 0} end)
+    agent
+  end
+
+  defp update_progress_agent(agent, %{fetched: _fetched, batch: batch}, callback) do
+    Agent.update(agent, fn state ->
+      new_total = state.total + batch
+      new_batches = state.batches + 1
+      callback.(%{fetched: new_total, batch: batch, batches: new_batches})
+      %{total: new_total, batches: new_batches}
+    end)
+  end
+
+  defp stop_progress_agent(agent) do
+    Agent.stop(agent)
+  end
+
   # ============================================
   # User Balances (Positions)
   # ============================================

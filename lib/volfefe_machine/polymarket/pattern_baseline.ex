@@ -43,6 +43,10 @@ defmodule VolfefeMachine.Polymarket.PatternBaseline do
     field :normal_p99, :decimal
     field :normal_sample_count, :integer
 
+    # For Welford's online algorithm (incremental updates)
+    field :normal_m2, :decimal  # Sum of squared differences from mean
+    field :last_trade_timestamp, :utc_datetime  # Track last processed trade
+
     # Insider distribution (from confirmed insiders)
     field :insider_mean, :decimal
     field :insider_stddev, :decimal
@@ -60,6 +64,7 @@ defmodule VolfefeMachine.Polymarket.PatternBaseline do
   @optional_fields ~w(
     normal_mean normal_stddev normal_median
     normal_p75 normal_p90 normal_p95 normal_p99 normal_sample_count
+    normal_m2 last_trade_timestamp
     insider_mean insider_stddev insider_sample_count
     separation_score calculated_at
   )a
@@ -88,7 +93,7 @@ defmodule VolfefeMachine.Polymarket.PatternBaseline do
   Returns nil if stddev is 0 or nil.
   """
   def calculate_zscore(%__MODULE__{normal_mean: mean, normal_stddev: stddev}, value)
-      when not is_nil(mean) and not is_nil(stddev) do
+      when not is_nil(mean) and not is_nil(stddev) and not is_nil(value) do
     stddev_float = Decimal.to_float(stddev)
 
     if stddev_float > 0 do
@@ -100,6 +105,8 @@ defmodule VolfefeMachine.Polymarket.PatternBaseline do
     end
   end
 
+  # Return nil for nil values - don't convert to 0!
+  def calculate_zscore(_, nil), do: nil
   def calculate_zscore(_, _), do: nil
 
   @doc """
@@ -131,5 +138,6 @@ defmodule VolfefeMachine.Polymarket.PatternBaseline do
   defp ensure_float(%Decimal{} = d), do: Decimal.to_float(d)
   defp ensure_float(n) when is_float(n), do: n
   defp ensure_float(n) when is_integer(n), do: n * 1.0
-  defp ensure_float(nil), do: 0.0
+  # Don't convert nil to 0 - this was causing all nil values to get fake z-scores!
+  defp ensure_float(nil), do: nil
 end
