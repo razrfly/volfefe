@@ -35,11 +35,11 @@ defmodule VolfefeMachine.Polymarket.MarketEnricher do
   require Logger
   import Ecto.Query
   alias VolfefeMachine.Repo
-  alias VolfefeMachine.Polymarket.{Market, Trade, SubgraphClient}
+  alias VolfefeMachine.Polymarket.{Market, Trade, SubgraphClient, VpnClient}
 
   @clob_api_base "https://clob.polymarket.com"
   @gamma_api_base "https://gamma-api.polymarket.com"
-  @http_timeout 30_000
+  @http_timeout 60_000
 
   @doc """
   Enrich stub markets using CLOB API (requires VPN for US users).
@@ -187,11 +187,12 @@ defmodule VolfefeMachine.Polymarket.MarketEnricher do
 
   defp fetch_gamma_markets(condition_ids) when is_list(condition_ids) do
     # Gamma API requires repeated params: condition_ids=X&condition_ids=Y
+    # Requires VPN for US users (geo-blocked)
     params = Enum.map(condition_ids, fn cid -> "condition_ids=#{cid}" end)
     query_string = Enum.join(params, "&")
     url = "#{@gamma_api_base}/markets?#{query_string}"
 
-    case Req.get(url, receive_timeout: @http_timeout) do
+    case VpnClient.get(url, receive_timeout: @http_timeout) do
       {:ok, %{status: 200, body: body}} when is_list(body) ->
         {:ok, body}
 
@@ -638,12 +639,13 @@ defmodule VolfefeMachine.Polymarket.MarketEnricher do
   end
 
   defp fetch_clob_markets(opts) do
+    # CLOB API requires VPN for US users (geo-blocked)
     limit = Keyword.get(opts, :limit, 100)
     offset = Keyword.get(opts, :offset, 0)
 
     url = "#{@clob_api_base}/markets?limit=#{limit}&offset=#{offset}"
 
-    case Req.get(url, receive_timeout: @http_timeout) do
+    case VpnClient.get(url, receive_timeout: @http_timeout) do
       {:ok, %{status: 200, body: body}} ->
         {:ok, body}
 

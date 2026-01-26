@@ -37,6 +37,7 @@ defmodule Mix.Tasks.Polymarket.Ingest do
       --to DATE        End date (YYYY-MM-DD, default: today)
       --days N         Alternative to --from/--to: ingest last N days (default: 7)
       --condition ID   Ingest trades for specific condition_id
+      --resolved       Ingest trades for all resolved markets (have resolved_outcome)
       --reference-cases Ingest trades for all reference cases with condition_ids
       --scan           Scan mode: analyze trades grouped by market (no ingestion)
       --top N          Show top N markets by volume in scan mode (default: 10)
@@ -159,6 +160,7 @@ defmodule Mix.Tasks.Polymarket.Ingest do
         to: :string,
         days: :integer,
         condition: :string,
+        resolved: :boolean,
         reference_cases: :boolean,
         scan: :boolean,
         top: :integer,
@@ -174,7 +176,7 @@ defmodule Mix.Tasks.Polymarket.Ingest do
 
     # Validate flag combinations
     api_only_flags = [:recent, :market, :category, :all_active, :continuous, :interval]
-    subgraph_only_flags = [:scan, :condition, :reference_cases, :from, :to, :days]
+    subgraph_only_flags = [:scan, :condition, :resolved, :reference_cases, :from, :to, :days]
 
     has_api_flags = Enum.any?(api_only_flags, &opts[&1])
     has_subgraph_flags = Enum.any?(subgraph_only_flags, &opts[&1])
@@ -232,6 +234,11 @@ defmodule Mix.Tasks.Polymarket.Ingest do
       opts[:reference_cases] ->
         print_subgraph_header()
         ingest_reference_cases_from_subgraph(opts)
+        print_subgraph_footer()
+
+      opts[:resolved] ->
+        print_subgraph_header()
+        ingest_resolved_markets_from_subgraph(opts)
         print_subgraph_footer()
 
       opts[:condition] ->
@@ -539,6 +546,105 @@ defmodule Mix.Tasks.Polymarket.Ingest do
     end
   end
 
+  # Ingest trades for all resolved markets
+  defp ingest_resolved_markets_from_subgraph(opts) do
+    alias VolfefeMachine.Polymarket.Market
+
+    Mix.shell().info("Mode: Resolved Markets (Phase 3 Data)")
+    Mix.shell().info("Source: Blockchain subgraph (The Graph/Goldsky)")
+    Mix.shell().info("")
+
+    # Get all markets with resolved_outcome set
+    resolved_markets = from(m in Market,
+      where: not is_nil(m.resolved_outcome),
+      where: not is_nil(m.end_date),
+      order_by: [desc: m.end_date]
+    ) |> Repo.all()
+
+    if length(resolved_markets) == 0 do
+      Mix.shell().info("⚠️  No resolved markets found!")
+      Mix.shell().info("")
+      Mix.shell().info("Run this first to sync market data:")
+      Mix.shell().info("  mix polymarket.sync --full")
+      Mix.shell().info("")
+    else
+      Mix.shell().info("Found #{length(resolved_markets)} resolved markets:")
+      Mix.shell().info("")
+
+      # Show sample of markets
+      Enum.take(resolved_markets, 5) |> Enum.each(fn m ->
+        end_date_str = if m.end_date, do: DateTime.to_date(m.end_date) |> Date.to_string(), else: "N/A"
+        Mix.shell().info("  • #{truncate(m.question, 50)} (#{end_date_str})")
+      end)
+      if length(resolved_markets) > 5 do
+        Mix.shell().info("  ... and #{length(resolved_markets) - 5} more")
+      end
+
+      Mix.shell().info("")
+      Mix.shell().info(String.duplicate("─", 65))
+      Mix.shell().info("")
+
+      # Process each resolved market
+      results = Enum.with_index(resolved_markets) |> Enum.map(fn {market, idx} ->
+        if rem(idx + 1, 25) == 0 or idx == 0 do
+          Mix.shell().info("  Progress: #{idx + 1}/#{length(resolved_markets)} markets...")
+        end
+        ingest_resolved_market(market, opts)
+      end)
+
+      # Summary
+      {total_fetched, total_inserted, total_updated, total_errors, markets_with_trades} =
+        Enum.reduce(results, {0, 0, 0, 0, 0}, fn
+          {:ok, stats}, {f, i, u, e, m} ->
+            has_trades = if stats.fetched > 0, do: 1, else: 0
+            {f + stats.fetched, i + stats.inserted, u + stats.updated, e + stats.errors, m + has_trades}
+          {:error, _}, {f, i, u, e, m} ->
+            {f, i, u, e + 1, m}
+        end)
+
+      Mix.shell().info("")
+      Mix.shell().info(String.duplicate("═", 65))
+      Mix.shell().info("RESOLVED MARKET INGESTION SUMMARY")
+      Mix.shell().info(String.duplicate("═", 65))
+      Mix.shell().info("   Markets processed: #{length(resolved_markets)}")
+      Mix.shell().info("   Markets with trades: #{markets_with_trades}")
+      Mix.shell().info("   Total trades fetched: #{format_number(total_fetched)}")
+      Mix.shell().info("   Trades inserted: #{format_number(total_inserted)}")
+      Mix.shell().info("   Trades updated: #{format_number(total_updated)}")
+      Mix.shell().info("   Errors: #{total_errors}")
+    end
+  end
+
+  defp ingest_resolved_market(market, opts) do
+    # Determine date range based on market end_date
+    # Go back 30 days before resolution for comprehensive coverage
+    {from_date, to_date} = case market.end_date do
+      nil ->
+        parse_date_range(opts)
+
+      end_date ->
+        from = Date.add(DateTime.to_date(end_date), -30)
+        to = Date.add(DateTime.to_date(end_date), 1)  # Include resolution day
+        {from, to}
+    end
+
+    result = ingest_condition_from_subgraph(market.condition_id, Keyword.merge(opts, [
+      from: Date.to_iso8601(from_date),
+      to: Date.to_iso8601(to_date),
+      resolved_market_id: market.id,
+      # Suppress individual market output
+      quiet: true
+    ]))
+
+    case result do
+      {:ok, stats} ->
+        {:ok, stats}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
   defp ingest_reference_case(ref_case, opts) do
     Mix.shell().info("🔍 #{ref_case.case_name}")
 
@@ -586,8 +692,9 @@ defmodule Mix.Tasks.Polymarket.Ingest do
     {from_date, to_date} = parse_date_range(opts)
     limit = opts[:limit] || 50_000
     verbose = opts[:verbose] || false
+    quiet = opts[:quiet] || false
 
-    unless opts[:reference_cases] do
+    unless opts[:reference_cases] || quiet do
       Mix.shell().info("Mode: Single Condition (Targeted)")
       Mix.shell().info("Source: Blockchain subgraph (The Graph/Goldsky)")
       Mix.shell().info("Condition ID: #{truncate(condition_id, 40)}...")
@@ -596,11 +703,13 @@ defmodule Mix.Tasks.Polymarket.Ingest do
       Mix.shell().info("")
     end
 
-    # Check subgraph health
-    case SubgraphClient.subgraph_healthy?(:orderbook) do
-      {:ok, true} -> :ok
-      {:ok, false} -> Mix.shell().info("⚠️  Subgraph may be behind")
-      {:error, _} -> :ok
+    # Check subgraph health (only show for non-quiet mode)
+    unless quiet do
+      case SubgraphClient.subgraph_healthy?(:orderbook) do
+        {:ok, true} -> :ok
+        {:ok, false} -> Mix.shell().info("⚠️  Subgraph may be behind")
+        {:error, _} -> :ok
+      end
     end
 
     # Get token IDs for this condition_id
@@ -611,20 +720,20 @@ defmodule Mix.Tasks.Polymarket.Ingest do
     token_ids = case market do
       nil ->
         # No local market, need to find token IDs from subgraph
-        Mix.shell().info("   Looking up token IDs from subgraph...")
+        unless quiet, do: Mix.shell().info("   Looking up token IDs from subgraph...")
         case SubgraphClient.get_token_ids_for_condition(condition_id, max_events: 1000) do
           {:ok, ids} when ids != [] ->
-            Mix.shell().info("   Found #{length(ids)} token IDs")
+            unless quiet, do: Mix.shell().info("   Found #{length(ids)} token IDs")
             ids
           _ ->
-            Mix.shell().info("   ⚠️  Could not determine token IDs")
+            unless quiet, do: Mix.shell().info("   ⚠️  Could not determine token IDs")
             []
         end
 
       market ->
         case TokenMapping.extract_token_ids(market.meta) do
           {:ok, ids} ->
-            Mix.shell().info("   Found #{length(ids)} token IDs from local DB")
+            unless quiet, do: Mix.shell().info("   Found #{length(ids)} token IDs from local DB")
             ids
           _ ->
             []
@@ -632,7 +741,7 @@ defmodule Mix.Tasks.Polymarket.Ingest do
     end
 
     if token_ids == [] do
-      Mix.shell().error("   ❌ No token IDs found for this market")
+      unless quiet, do: Mix.shell().error("   ❌ No token IDs found for this market")
       {:error, "No token IDs found"}
     else
       # Fetch trades from subgraph for these specific token IDs

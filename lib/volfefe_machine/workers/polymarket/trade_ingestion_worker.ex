@@ -25,6 +25,7 @@ defmodule VolfefeMachine.Workers.Polymarket.TradeIngestionWorker do
   ## Job Arguments
 
     * `:limit` - Maximum trades to ingest (optional, default: 2000)
+    * `:hours` - Hours of history to fetch (optional, default: 24)
   """
 
   use Oban.Worker,
@@ -65,8 +66,8 @@ defmodule VolfefeMachine.Workers.Polymarket.TradeIngestionWorker do
         {:snooze, 300}
 
       {:error, reason} ->
-        # Check for string-based rate limit errors
-        if is_binary(reason) and String.contains?(reason, "rate") do
+        # Check for string-based rate limit errors (case-insensitive)
+        if is_binary(reason) and String.contains?(String.downcase(reason), "rate") do
           Logger.warning("[TradeIngestion] Rate limited (string match), snoozing for 5 minutes")
           {:snooze, 300}
         else

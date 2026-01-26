@@ -40,6 +40,17 @@ if slack_webhook || discord_webhook do
     ]
 end
 
+# VPN Proxy Configuration for Polymarket API Access
+# Polymarket geo-blocks US IPs - route CLOB/Gamma API calls through VPN proxy
+vpn_proxy_enabled = System.get_env("VPN_PROXY_ENABLED", "false") == "true"
+vpn_proxy_host = System.get_env("VPN_PROXY_HOST", "localhost")
+vpn_proxy_port = String.to_integer(System.get_env("VPN_PROXY_PORT", "8888"))
+
+config :volfefe_machine, :vpn_proxy,
+  enabled: vpn_proxy_enabled,
+  host: vpn_proxy_host,
+  port: vpn_proxy_port
+
 if config_env() == :prod do
   database_url =
     System.get_env("DATABASE_URL") ||

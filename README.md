@@ -644,10 +644,86 @@ mix polymarket.confirm --id 1 --notes "Pre-event timing matches"
 | Source | Endpoint | Data Available |
 |--------|----------|----------------|
 | Polymarket Subgraph | `api.goldsky.com/.../orderbook-subgraph` | All trades since Nov 2022 |
-| Polymarket API | `data-api.polymarket.com` | Recent trades (geo-blocked in some regions) |
-| Gamma API | `gamma-api.polymarket.com` | Market metadata |
+| Polymarket API | `data-api.polymarket.com` | Recent trades (geo-blocked in US) |
+| Gamma API | `gamma-api.polymarket.com` | Market metadata (geo-blocked in US) |
+| CLOB API | `clob.polymarket.com` | Active market data (geo-blocked in US) |
 
-**Note:** The subgraph bypasses geo-blocking and provides complete historical data.
+**Note:** The subgraph bypasses geo-blocking and provides complete historical data. For CLOB and Gamma APIs, see VPN Setup below.
+
+### VPN Setup (Required for US Users)
+
+Polymarket geo-blocks US IP addresses for their CLOB and Gamma APIs (regulatory compliance). The application uses a Docker-based VPN proxy to route only Polymarket API calls through VPN, without affecting the rest of your network traffic.
+
+#### Prerequisites
+
+- Docker Desktop installed and running
+- ProtonVPN account with WireGuard access
+
+#### Setup Steps
+
+1. **Get WireGuard credentials from ProtonVPN:**
+   - Go to https://account.proton.me → VPN → WireGuard
+   - Click "Generate Key" (or use existing)
+   - Copy the `PrivateKey` value
+
+2. **Add credentials to `.env`:**
+   ```bash
+   # VPN Proxy for Polymarket API Access
+   PROTONVPN_WIREGUARD_PRIVATE_KEY=your_wireguard_private_key_here
+   VPN_PROXY_ENABLED=true
+   VPN_PROXY_HOST=localhost
+   VPN_PROXY_PORT=8888
+   ```
+
+3. **Start the VPN proxy container:**
+   ```bash
+   docker compose -f docker-compose.vpn.yml up -d
+   ```
+
+4. **Verify connection:**
+   ```bash
+   # Check container is running
+   docker logs vpn-proxy | grep "Public IP"
+   # Should show: Public IP address is X.X.X.X (Netherlands, ...)
+
+   # Test API access through proxy
+   curl -x http://localhost:8888 "https://gamma-api.polymarket.com/markets?limit=1"
+   ```
+
+#### Usage
+
+When the VPN proxy is running and `VPN_PROXY_ENABLED=true`, the application automatically routes Polymarket API calls (CLOB, Gamma) through the VPN tunnel. The subgraph API does not require VPN.
+
+```bash
+# Start VPN proxy
+docker compose -f docker-compose.vpn.yml up -d
+
+# Run with VPN enabled
+export VPN_PROXY_ENABLED=true
+mix phx.server
+
+# Or for one-off commands
+export VPN_PROXY_ENABLED=true
+mix polymarket.health
+```
+
+#### Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| Container won't start | Ensure Docker Desktop is running |
+| "Connection refused" on port 8888 | Check `docker logs vpn-proxy` for errors |
+| API still returning 403/blocked | Verify VPN connected: `docker logs vpn-proxy \| grep "Public IP"` |
+| Rate limiting from Polymarket | The VPN is working; reduce request frequency |
+| Enrichment/metadata fetch failing | Ensure `VPN_PROXY_ENABLED=true` is set |
+
+#### Stopping the VPN
+
+```bash
+docker compose -f docker-compose.vpn.yml down
+```
+
+**Note:** When the VPN proxy is stopped or `VPN_PROXY_ENABLED=false`, CLOB and Gamma API calls will fail for US users. The subgraph-based trade ingestion will continue to work.
 
 ---
 
