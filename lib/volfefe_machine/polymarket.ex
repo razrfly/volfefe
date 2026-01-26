@@ -1479,6 +1479,19 @@ defmodule VolfefeMachine.Polymarket do
       # Calculate statistics
       stats = calculate_distribution_stats(values)
 
+      # Calculate M2 for Welford's algorithm (enables incremental updates)
+      # M2 = sum of squared differences from mean = variance * (n - 1)
+      mean_float = Decimal.to_float(stats.mean)
+      m2 = values
+        |> Enum.reduce(0.0, fn val, acc ->
+          val_float = ensure_float_for_welford(val)
+          diff = val_float - mean_float
+          acc + diff * diff
+        end)
+
+      # Get latest trade timestamp
+      latest_timestamp = get_latest_trade_timestamp(category)
+
       attrs = %{
         market_category: category,
         metric_name: metric,
@@ -1490,6 +1503,8 @@ defmodule VolfefeMachine.Polymarket do
         normal_p95: stats.p95,
         normal_p99: stats.p99,
         normal_sample_count: length(values),
+        normal_m2: Decimal.from_float(m2),
+        last_trade_timestamp: latest_timestamp,
         calculated_at: DateTime.utc_now()
       }
 
@@ -1507,6 +1522,160 @@ defmodule VolfefeMachine.Polymarket do
       end
     end
   end
+
+  @doc """
+  Incrementally update baselines with new trades only.
+
+  Uses Welford's online algorithm for numerically stable incremental
+  mean and variance calculation. Much faster than full recalculation.
+
+  ## Parameters
+
+  - `opts` - Keyword list of options:
+    - `:categories` - List of categories to update (default: all)
+    - `:force_full` - Force full recalculation (default: false)
+
+  ## Returns
+
+  - `{:ok, %{updated: n, new_trades_processed: m}}` - Stats
+  """
+  def update_baselines_incremental(opts \\ []) do
+    categories = Keyword.get(opts, :categories, PatternBaseline.market_categories())
+    force_full = Keyword.get(opts, :force_full, false)
+    metrics = PatternBaseline.metric_names()
+
+    Logger.info("Incremental baseline update starting...")
+
+    results =
+      for category <- categories, metric <- metrics do
+        case get_baseline(metric, category) do
+          {:ok, baseline} when not force_full and not is_nil(baseline.last_trade_timestamp) ->
+            # Incremental update - only process new trades
+            update_baseline_incrementally(baseline, metric, category)
+
+          _ ->
+            # No existing baseline or forcing full - do full calculation
+            calculate_metric_baseline(metric, category)
+        end
+      end
+
+    updated = Enum.count(results, &match?({:ok, _}, &1))
+    new_trades = results
+    |> Enum.filter(&match?({:ok, %{new_trades: _}}, &1))
+    |> Enum.map(fn {:ok, %{new_trades: n}} -> n end)
+    |> Enum.sum()
+
+    Logger.info("Incremental update complete: #{updated} baselines updated, #{new_trades} new trades processed")
+
+    {:ok, %{updated: updated, new_trades_processed: new_trades}}
+  end
+
+  @doc """
+  Update a single baseline incrementally using Welford's algorithm.
+  """
+  def update_baseline_incrementally(%PatternBaseline{} = baseline, metric, category) do
+    # Get new trades since last update
+    new_values = get_metric_values_since(metric, category, baseline.last_trade_timestamp)
+
+    if length(new_values) == 0 do
+      Logger.debug("No new trades for #{metric}/#{category}")
+      {:ok, %{new_trades: 0}}
+    else
+      Logger.debug("Processing #{length(new_values)} new trades for #{metric}/#{category}")
+
+      # Get current state
+      n = baseline.normal_sample_count || 0
+      mean = if baseline.normal_mean, do: Decimal.to_float(baseline.normal_mean), else: 0.0
+      m2 = if baseline.normal_m2, do: Decimal.to_float(baseline.normal_m2), else: 0.0
+
+      # Apply Welford's algorithm for each new value
+      {new_n, new_mean, new_m2} =
+        Enum.reduce(new_values, {n, mean, m2}, fn value, {count, cur_mean, cur_m2} ->
+          val = ensure_float_for_welford(value)
+          new_count = count + 1
+          delta = val - cur_mean
+          updated_mean = cur_mean + delta / new_count
+          delta2 = val - updated_mean
+          updated_m2 = cur_m2 + delta * delta2
+          {new_count, updated_mean, updated_m2}
+        end)
+
+      # Calculate new variance and stddev
+      new_variance = if new_n > 1, do: new_m2 / (new_n - 1), else: 0.0
+      new_stddev = :math.sqrt(new_variance)
+
+      # Get latest trade timestamp
+      latest_timestamp = get_latest_trade_timestamp(category)
+
+      # Update baseline
+      attrs = %{
+        normal_mean: Decimal.from_float(new_mean),
+        normal_stddev: Decimal.from_float(new_stddev),
+        normal_m2: Decimal.from_float(new_m2),
+        normal_sample_count: new_n,
+        last_trade_timestamp: latest_timestamp,
+        calculated_at: DateTime.utc_now()
+      }
+
+      {:ok, updated} =
+        baseline
+        |> PatternBaseline.changeset(attrs)
+        |> Repo.update()
+
+      {:ok, %{baseline: updated, new_trades: length(new_values)}}
+    end
+  end
+
+  # Get metric values only for trades after a given timestamp
+  defp get_metric_values_since(metric, category, since_timestamp) do
+    base_query =
+      if category == "all" do
+        from(t in Trade,
+          join: m in Market, on: t.market_id == m.id,
+          where: not is_nil(m.resolved_outcome) and t.trade_timestamp > ^since_timestamp
+        )
+      else
+        category_atom = String.to_existing_atom(category)
+        from(t in Trade,
+          join: m in Market, on: t.market_id == m.id,
+          where: not is_nil(m.resolved_outcome) and m.category == ^category_atom and t.trade_timestamp > ^since_timestamp
+        )
+      end
+
+    query = case metric do
+      "size" -> from(t in base_query, select: t.size, where: not is_nil(t.size))
+      "usdc_size" -> from(t in base_query, select: t.usdc_size, where: not is_nil(t.usdc_size))
+      "timing" -> from(t in base_query, select: t.hours_before_resolution, where: not is_nil(t.hours_before_resolution))
+      "wallet_age" -> from(t in base_query, select: t.wallet_age_days, where: not is_nil(t.wallet_age_days))
+      "wallet_activity" -> from(t in base_query, select: t.wallet_trade_count, where: not is_nil(t.wallet_trade_count))
+      "price_extremity" -> from(t in base_query, select: t.price_extremity, where: not is_nil(t.price_extremity))
+      _ -> from(t in base_query, select: t.size, where: not is_nil(t.size))
+    end
+
+    Repo.all(query)
+  end
+
+  # Get the latest trade timestamp for a category
+  defp get_latest_trade_timestamp(category) do
+    query =
+      if category == "all" do
+        from(t in Trade, select: max(t.trade_timestamp))
+      else
+        category_atom = String.to_existing_atom(category)
+        from(t in Trade,
+          join: m in Market, on: t.market_id == m.id,
+          where: m.category == ^category_atom,
+          select: max(t.trade_timestamp)
+        )
+      end
+
+    Repo.one(query)
+  end
+
+  defp ensure_float_for_welford(%Decimal{} = d), do: Decimal.to_float(d)
+  defp ensure_float_for_welford(n) when is_float(n), do: n
+  defp ensure_float_for_welford(n) when is_integer(n), do: n * 1.0
+  defp ensure_float_for_welford(nil), do: 0.0  # Shouldn't happen due to query filters
 
   @doc """
   Get a baseline by metric and category.
@@ -3822,50 +3991,56 @@ defmodule VolfefeMachine.Polymarket do
 
     Logger.info("Scoring unscored trades...")
 
-    # Get trades without scores that have a market_id
-    query = from(t in Trade,
-      left_join: ts in TradeScore, on: ts.trade_id == t.id,
-      where: is_nil(ts.id) and not is_nil(t.market_id),
-      select: t,
-      order_by: [desc: t.trade_timestamp]
-    )
+    # Process in batches using pagination to avoid loading all into memory
+    score_unscored_batch(batch_size, limit, 0, 0, 0)
+  end
 
-    query = if limit, do: from(q in query, limit: ^limit), else: query
+  defp score_unscored_batch(batch_size, limit, offset, scored_acc, error_acc) do
+    # Check if we've hit the limit
+    if limit && scored_acc + error_acc >= limit do
+      Logger.info("Scoring complete: #{scored_acc} succeeded, #{error_acc} errors")
+      {:ok, %{scored: scored_acc, errors: error_acc, total: scored_acc + error_acc}}
+    else
+      # Fetch one batch at a time
+      fetch_limit = if limit, do: min(batch_size, limit - scored_acc - error_acc), else: batch_size
 
-    trades = Repo.all(query)
-    total = length(trades)
+      query = from(t in Trade,
+        left_join: ts in TradeScore, on: ts.trade_id == t.id,
+        where: is_nil(ts.id) and not is_nil(t.market_id),
+        select: t,
+        order_by: [asc: t.id],
+        limit: ^fetch_limit
+      )
 
-    Logger.info("Scoring #{total} unscored trades in batches of #{batch_size}")
+      trades = Repo.all(query)
+      batch_count = length(trades)
 
-    # Process in batches
-    results = trades
-      |> Enum.chunk_every(batch_size)
-      |> Enum.with_index()
-      |> Enum.flat_map(fn {batch, idx} ->
-        batch_num = idx + 1
-        total_batches = ceil(total / batch_size)
-        if rem(batch_num, 10) == 0 or batch_num == total_batches do
-          Logger.info("Processing batch #{batch_num}/#{total_batches}")
-        end
-
-        Enum.map(batch, fn trade ->
+      if batch_count == 0 do
+        Logger.info("Scoring complete: #{scored_acc} succeeded, #{error_acc} errors")
+        {:ok, %{scored: scored_acc, errors: error_acc, total: scored_acc + error_acc}}
+      else
+        # Process this batch
+        results = Enum.map(trades, fn trade ->
           case score_trade(trade) do
             {:ok, _score} -> :ok
             {:error, _reason} -> :error
           end
         end)
-      end)
 
-    scored = Enum.count(results, &(&1 == :ok))
-    errors = Enum.count(results, &(&1 == :error))
+        batch_scored = Enum.count(results, &(&1 == :ok))
+        batch_errors = Enum.count(results, &(&1 == :error))
 
-    Logger.info("Scoring complete: #{scored} succeeded, #{errors} errors")
+        new_scored = scored_acc + batch_scored
+        new_errors = error_acc + batch_errors
 
-    {:ok, %{
-      scored: scored,
-      errors: errors,
-      total: total
-    }}
+        if rem(new_scored + new_errors, 10000) < batch_size do
+          Logger.info("Progress: #{new_scored} scored, #{new_errors} errors")
+        end
+
+        # Continue with next batch
+        score_unscored_batch(batch_size, limit, offset + batch_count, new_scored, new_errors)
+      end
+    end
   end
 
   @doc """

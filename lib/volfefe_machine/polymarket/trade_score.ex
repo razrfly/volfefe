@@ -44,7 +44,7 @@ defmodule VolfefeMachine.Polymarket.TradeScore do
 
     field :transaction_hash, :string
 
-    # Z-Scores (standard deviations from mean)
+    # === Core Z-Scores (Features 1-7) ===
     field :size_zscore, :decimal
     field :timing_zscore, :decimal
     field :wallet_age_zscore, :decimal
@@ -53,9 +53,47 @@ defmodule VolfefeMachine.Polymarket.TradeScore do
     field :position_concentration_zscore, :decimal
     field :funding_proximity_zscore, :decimal
 
-    # Combined scores
+    # === Extended Features (8-15) ===
+    # Raw normalized values
+    field :raw_size_normalized, :decimal
+    field :raw_price, :decimal
+    field :raw_hours_before_resolution, :decimal
+    field :raw_wallet_age_days, :integer
+    field :raw_wallet_trade_count, :integer
+
+    # Binary/categorical features
+    field :is_buy, :boolean
+    field :outcome_index, :integer
+
+    # Derived confidence
+    field :price_confidence, :decimal
+
+    # === Wallet-Level Features (16-19) ===
+    field :wallet_win_rate, :decimal
+    field :wallet_volume_zscore, :decimal
+    field :wallet_unique_markets_normalized, :decimal
+    field :funding_amount_normalized, :decimal
+
+    # === Contextual Features (20-22) ===
+    field :trade_hour_sin, :decimal
+    field :trade_hour_cos, :decimal
+    field :trade_day_sin, :decimal
+    field :trade_day_cos, :decimal
+
+    # === Scores ===
+    # Rule-based combined scores
     field :anomaly_score, :decimal
     field :insider_probability, :decimal
+
+    # ML model outputs
+    field :ml_anomaly_score, :decimal
+    field :ml_confidence, :decimal
+
+    # Ensemble (rules + ML)
+    field :ensemble_score, :decimal
+
+    # Trinity pattern flag
+    field :trinity_pattern, :boolean, default: false
 
     # Pattern matches
     field :matched_patterns, :map
@@ -74,7 +112,14 @@ defmodule VolfefeMachine.Polymarket.TradeScore do
     size_zscore timing_zscore wallet_age_zscore
     wallet_activity_zscore price_extremity_zscore
     position_concentration_zscore funding_proximity_zscore
+    raw_size_normalized raw_price raw_hours_before_resolution
+    raw_wallet_age_days raw_wallet_trade_count
+    is_buy outcome_index price_confidence
+    wallet_win_rate wallet_volume_zscore
+    wallet_unique_markets_normalized funding_amount_normalized
+    trade_hour_sin trade_hour_cos trade_day_sin trade_day_cos
     anomaly_score insider_probability
+    ml_anomaly_score ml_confidence ensemble_score trinity_pattern
     matched_patterns highest_pattern_score
     discovery_rank scored_at
   )a
