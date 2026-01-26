@@ -51,6 +51,9 @@ defmodule Mix.Tasks.Polymarket.Rescore do
 
   use Mix.Task
   alias VolfefeMachine.Polymarket
+  alias VolfefeMachine.Polymarket.TradeScore
+  alias VolfefeMachine.Repo
+  import Ecto.Query
 
   @shortdoc "Rescore all trades with current baselines"
 
@@ -75,6 +78,10 @@ defmodule Mix.Tasks.Polymarket.Rescore do
     batch_size = opts[:batch] || 500
 
     cond do
+      opts[:force] ->
+        # Clear existing scores and rescore all trades
+        clear_existing_scores()
+        score_unscored_trades(batch_size, limit)
       opts[:unscored] ->
         score_unscored_trades(batch_size, limit)
       opts[:all] ->
@@ -86,6 +93,13 @@ defmodule Mix.Tasks.Polymarket.Rescore do
     end
 
     print_footer()
+  end
+
+  defp clear_existing_scores do
+    Mix.shell().info("Clearing existing trade scores...")
+    {count, _} = Repo.delete_all(from(ts in TradeScore))
+    Mix.shell().info("✓ Cleared #{format_number(count)} existing scores")
+    Mix.shell().info("")
   end
 
   defp score_unscored_trades(batch_size, limit) do

@@ -13,7 +13,9 @@ Output: JSON with anomaly scores and predictions
 
 import sys
 import json
+import os
 import numpy as np
+from pathlib import Path
 from typing import List, Dict, Any, Optional
 import warnings
 
@@ -135,10 +137,39 @@ class AnomalyDetector:
             'n_estimators': self.n_estimators
         }, path)
 
+    # Trusted directory for model files (relative to priv/ml)
+    TRUSTED_MODEL_DIR = Path(__file__).parent / "models"
+
     @classmethod
     def load(cls, path: str) -> 'AnomalyDetector':
-        """Load model from disk."""
-        data = joblib.load(path)
+        """Load model from disk with path validation."""
+        # Resolve to absolute path
+        resolved_path = Path(path).resolve()
+
+        # Ensure trusted model directory exists for validation
+        trusted_dir = cls.TRUSTED_MODEL_DIR.resolve()
+
+        # Validate path is within trusted directory or is an allowed filename pattern
+        # Allow paths within priv/ml/models/ or paths ending in .joblib within priv/
+        priv_dir = Path(__file__).parent.parent.resolve()
+
+        is_trusted = (
+            # Within explicit models directory
+            str(resolved_path).startswith(str(trusted_dir)) or
+            # Or within priv directory with .joblib extension
+            (str(resolved_path).startswith(str(priv_dir)) and resolved_path.suffix == '.joblib')
+        )
+
+        if not is_trusted:
+            raise ValueError(
+                f"Untrusted model path: {path}. "
+                f"Models must be within {trusted_dir} or {priv_dir}/*.joblib"
+            )
+
+        if not resolved_path.exists():
+            raise FileNotFoundError(f"Model file not found: {path}")
+
+        data = joblib.load(str(resolved_path))
         detector = cls(
             contamination=data['contamination'],
             n_estimators=data['n_estimators']
@@ -181,7 +212,23 @@ def process_input(input_data: Dict[str, Any]) -> Dict[str, Any]:
     if features.ndim == 1:
         features = features.reshape(1, -1)
 
-    # Handle NaN/None values
+    # Coerce features to numeric dtype to handle None/mixed types
+    # Replace None with np.nan, then convert to float
+    def to_numeric(val):
+        if val is None:
+            return np.nan
+        try:
+            return float(val)
+        except (TypeError, ValueError):
+            return np.nan
+
+    # Apply numeric conversion element-wise if array has object dtype
+    if features.dtype == object:
+        features = np.vectorize(to_numeric)(features).astype(np.float64)
+    else:
+        features = features.astype(np.float64)
+
+    # Handle NaN/inf values
     features = np.nan_to_num(features, nan=0.0, posinf=0.0, neginf=0.0)
 
     detector = AnomalyDetector(contamination=contamination, n_estimators=n_estimators)

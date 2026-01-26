@@ -252,9 +252,17 @@ defmodule VolfefeMachine.Polymarket.SubgraphClient do
   def get_all_order_filled_events_parallel(opts \\ []) do
     from_ts = Keyword.fetch!(opts, :from_timestamp)
     to_ts = Keyword.fetch!(opts, :to_timestamp)
-    workers = Keyword.get(opts, :workers, 4)
+    workers_raw = Keyword.get(opts, :workers, 4)
     max_events = Keyword.get(opts, :max_events, 100_000)
     progress_callback = Keyword.get(opts, :progress_callback, fn _ -> :ok end)
+
+    # Validate and clamp workers to avoid div/0 and ensure sensible parallelism
+    workers = cond do
+      not is_integer(workers_raw) -> 1
+      workers_raw < 1 -> 1
+      workers_raw > 32 -> 32  # Cap at reasonable max
+      true -> workers_raw
+    end
 
     # Split time range into chunks for parallel processing
     total_duration = to_ts - from_ts
