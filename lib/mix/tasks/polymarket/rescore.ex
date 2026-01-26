@@ -62,9 +62,11 @@ defmodule Mix.Tasks.Polymarket.Rescore do
       switches: [
         limit: :integer,
         batch: :integer,
-        force: :boolean
+        force: :boolean,
+        unscored: :boolean,
+        all: :boolean
       ],
-      aliases: [l: :limit, b: :batch, f: :force]
+      aliases: [l: :limit, b: :batch, f: :force, u: :unscored, a: :all]
     )
 
     print_header()
@@ -72,7 +74,41 @@ defmodule Mix.Tasks.Polymarket.Rescore do
     limit = opts[:limit]
     batch_size = opts[:batch] || 500
 
-    Mix.shell().info("Re-scoring trades in batches of #{batch_size}...")
+    cond do
+      opts[:unscored] ->
+        score_unscored_trades(batch_size, limit)
+      opts[:all] ->
+        # Score unscored first, then rescore existing
+        score_unscored_trades(batch_size, limit)
+        rescore_existing_trades(batch_size, limit)
+      true ->
+        rescore_existing_trades(batch_size, limit)
+    end
+
+    print_footer()
+  end
+
+  defp score_unscored_trades(batch_size, limit) do
+    Mix.shell().info("Scoring UNSCORED trades in batches of #{batch_size}...")
+    if limit do
+      Mix.shell().info("Limit: #{format_number(limit)} trades")
+    end
+    Mix.shell().info("")
+
+    {:ok, result} = Polymarket.score_unscored_trades(batch_size: batch_size, limit: limit)
+    Mix.shell().info("✅ Scoring complete!")
+    Mix.shell().info("   New scores: #{format_number(result.scored)}")
+    Mix.shell().info("   Errors: #{result.errors}")
+
+    if result.errors > 0 do
+      Mix.shell().info("")
+      Mix.shell().info("⚠️  #{result.errors} trades failed to score")
+    end
+    Mix.shell().info("")
+  end
+
+  defp rescore_existing_trades(batch_size, limit) do
+    Mix.shell().info("Re-scoring EXISTING trades in batches of #{batch_size}...")
     if limit do
       Mix.shell().info("Limit: #{format_number(limit)} trades")
     end
@@ -89,12 +125,8 @@ defmodule Mix.Tasks.Polymarket.Rescore do
     if result.errors > 0 do
       Mix.shell().info("")
       Mix.shell().info("⚠️  #{result.errors} trades failed to rescore")
-      Mix.shell().info("   Check logs for details")
     end
-
     Mix.shell().info("")
-
-    print_footer()
   end
 
   defp print_header do

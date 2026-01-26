@@ -87,10 +87,6 @@ defmodule VolfefeMachine.Polymarket.MarketEnricher do
 
         Logger.info("[MarketEnricher] CLOB enrichment complete: enriched=#{results.enriched}, unchanged=#{results.unchanged}, errors=#{results.errors}")
         {:ok, results}
-
-      {:error, reason} ->
-        Logger.error("[MarketEnricher] Failed to build CLOB mapping: #{inspect(reason)}")
-        {:error, reason}
     end
   end
 
@@ -158,7 +154,6 @@ defmodule VolfefeMachine.Polymarket.MarketEnricher do
                     else
                       case apply_gamma_enrichment(market, gamma_data) do
                         :enriched -> %{acc3 | enriched: acc3.enriched + 1}
-                        :unchanged -> %{acc3 | unchanged: acc3.unchanged + 1}
                         :error -> %{acc3 | errors: acc3.errors + 1}
                       end
                     end

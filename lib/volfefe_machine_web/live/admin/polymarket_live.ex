@@ -335,9 +335,6 @@ defmodule VolfefeMachineWeb.Admin.PolymarketLive do
          socket
          |> assign(:pilot_validation, results)
          |> put_toast(:success, "Validation complete: #{results.detection_rate * 100}% detection rate")}
-
-      {:error, reason} ->
-        {:noreply, put_toast(socket, :error, "Validation failed: #{inspect(reason)}")}
     end
   end
 
@@ -349,9 +346,6 @@ defmodule VolfefeMachineWeb.Admin.PolymarketLive do
          socket
          |> assign(:pilot_metrics, metrics)
          |> put_toast(:success, "Metrics calculated: F1=#{Float.round(metrics.f1_score * 100, 1)}%")}
-
-      {:error, reason} ->
-        {:noreply, put_toast(socket, :error, "Metrics calculation failed: #{inspect(reason)}")}
     end
   end
 
@@ -365,9 +359,6 @@ defmodule VolfefeMachineWeb.Admin.PolymarketLive do
          socket
          |> assign(:pilot_batch_results, results)
          |> put_toast(:success, "Batch complete: #{results.markets_processed} markets, #{results.candidates_generated} candidates")}
-
-      {:error, reason} ->
-        {:noreply, put_toast(socket, :error, "Batch processing failed: #{inspect(reason)}")}
     end
   end
 
@@ -386,9 +377,6 @@ defmodule VolfefeMachineWeb.Admin.PolymarketLive do
          socket
          |> assign(:pilot_optimization, results)
          |> put_toast(:success, "Optimization complete: best F1=#{Float.round(best.f1_score * 100, 1)}% at anomaly=#{best.anomaly_threshold}, prob=#{best.probability_threshold}")}
-
-      {:error, reason} ->
-        {:noreply, put_toast(socket, :error, "Optimization failed: #{inspect(reason)}")}
     end
   end
 
@@ -400,9 +388,6 @@ defmodule VolfefeMachineWeb.Admin.PolymarketLive do
          socket
          |> assign(:pilot_fn_analysis, analysis)
          |> put_toast(:info, "Found #{analysis.total_missed} false negatives")}
-
-      {:error, reason} ->
-        {:noreply, put_toast(socket, :error, "Analysis failed: #{inspect(reason)}")}
     end
   end
 

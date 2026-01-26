@@ -197,10 +197,6 @@ defmodule Mix.Tasks.Polymarket.Crossmarket do
         end
 
         {:ok, results}
-
-      {:error, reason} ->
-        Mix.shell().error("Search failed: #{reason}")
-        {:error, reason}
     end
   end
 

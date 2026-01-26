@@ -3812,6 +3812,63 @@ defmodule VolfefeMachine.Polymarket do
   end
 
   @doc """
+  Score trades that have never been scored.
+
+  Creates new TradeScore records for trades that don't have one yet.
+  """
+  def score_unscored_trades(opts \\ []) do
+    batch_size = Keyword.get(opts, :batch_size, 500)
+    limit = Keyword.get(opts, :limit)
+
+    Logger.info("Scoring unscored trades...")
+
+    # Get trades without scores that have a market_id
+    query = from(t in Trade,
+      left_join: ts in TradeScore, on: ts.trade_id == t.id,
+      where: is_nil(ts.id) and not is_nil(t.market_id),
+      select: t,
+      order_by: [desc: t.trade_timestamp]
+    )
+
+    query = if limit, do: from(q in query, limit: ^limit), else: query
+
+    trades = Repo.all(query)
+    total = length(trades)
+
+    Logger.info("Scoring #{total} unscored trades in batches of #{batch_size}")
+
+    # Process in batches
+    results = trades
+      |> Enum.chunk_every(batch_size)
+      |> Enum.with_index()
+      |> Enum.flat_map(fn {batch, idx} ->
+        batch_num = idx + 1
+        total_batches = ceil(total / batch_size)
+        if rem(batch_num, 10) == 0 or batch_num == total_batches do
+          Logger.info("Processing batch #{batch_num}/#{total_batches}")
+        end
+
+        Enum.map(batch, fn trade ->
+          case score_trade(trade) do
+            {:ok, _score} -> :ok
+            {:error, _reason} -> :error
+          end
+        end)
+      end)
+
+    scored = Enum.count(results, &(&1 == :ok))
+    errors = Enum.count(results, &(&1 == :error))
+
+    Logger.info("Scoring complete: #{scored} succeeded, #{errors} errors")
+
+    {:ok, %{
+      scored: scored,
+      errors: errors,
+      total: total
+    }}
+  end
+
+  @doc """
   Compare two feedback loop iterations.
 
   Shows improvement metrics between iterations.

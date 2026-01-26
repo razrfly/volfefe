@@ -73,10 +73,6 @@ defmodule VolfefeMachine.Workers.Polymarket.MarketEnrichmentWorker do
           post_stats: post_stats,
           completed_at: DateTime.utc_now() |> DateTime.to_iso8601()
         }}
-
-      {:error, reason} ->
-        Logger.error("[MarketEnrichment] Failed: #{inspect(reason)}")
-        {:error, reason}
     end
   end
 end
