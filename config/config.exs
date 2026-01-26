@@ -79,12 +79,14 @@ config :volfefe_machine, Oban,
     {Oban.Plugins.Lifeline, rescue_after: :timer.minutes(30)},
     {Oban.Plugins.Cron,
      crontab: [
-       # Trade ingestion every 5 minutes - wide net coverage
-       {"*/5 * * * *", VolfefeMachine.Workers.Polymarket.TradeIngestionWorker},
+       # Trade ingestion every 2 minutes - accelerated Phase 2 ingestion
+       {"*/2 * * * *", VolfefeMachine.Workers.Polymarket.TradeIngestionWorker},
        # Market sync hourly with resolution checking
        {"0 * * * *", VolfefeMachine.Workers.Polymarket.MarketSyncWorker, args: %{check_resolutions: true}},
        # Diversity check every 30 minutes - coverage health monitoring
-       {"*/30 * * * *", VolfefeMachine.Workers.Polymarket.DiversityCheckWorker}
+       {"*/30 * * * *", VolfefeMachine.Workers.Polymarket.DiversityCheckWorker},
+       # Market enrichment every hour (at :15) - Phase 2A metadata enrichment
+       {"15 * * * *", VolfefeMachine.Workers.Polymarket.MarketEnrichmentWorker}
      ]}
   ]
 

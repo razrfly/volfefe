@@ -279,6 +279,7 @@ defmodule VolfefeMachine.Polymarket do
 
     limit = Keyword.get(opts, :limit, 2000)
     hours = Keyword.get(opts, :hours, 24)
+    build_subgraph_mapping = Keyword.get(opts, :build_subgraph_mapping, true)
 
     Logger.info("[Subgraph Ingest] Starting: limit=#{limit}, hours=#{hours}")
 
@@ -288,8 +289,26 @@ defmodule VolfefeMachine.Polymarket do
 
     # Build token mapping from local DB
     {:ok, local_mapping} = TokenMapping.build_mapping(include_inactive: true)
-    mapping_size = map_size(local_mapping)
-    Logger.info("[Subgraph Ingest] Token mapping loaded: #{mapping_size} tokens")
+    Logger.info("[Subgraph Ingest] Local token mapping: #{map_size(local_mapping)} tokens")
+
+    # Optionally build subgraph token mapping for better coverage
+    # This increases mapping coverage from ~2% to ~80%+
+    subgraph_mapping = if build_subgraph_mapping do
+      case SubgraphClient.build_subgraph_token_mapping(max_mappings: 30_000) do
+        {:ok, mapping} ->
+          Logger.info("[Subgraph Ingest] Subgraph token mapping: #{map_size(mapping)} tokens")
+          mapping
+        {:error, reason} ->
+          Logger.warning("[Subgraph Ingest] Failed to build subgraph mapping: #{inspect(reason)}")
+          %{}
+      end
+    else
+      %{}
+    end
+
+    combined_mapping = {local_mapping, subgraph_mapping}
+    total_tokens = map_size(local_mapping) + map_size(subgraph_mapping)
+    Logger.info("[Subgraph Ingest] Combined mapping: #{total_tokens} tokens")
 
     # Fetch events from subgraph
     case SubgraphClient.get_order_filled_events(
@@ -299,7 +318,7 @@ defmodule VolfefeMachine.Polymarket do
          ) do
       {:ok, events} ->
         Logger.info("[Subgraph Ingest] Fetched #{length(events)} events")
-        stats = process_subgraph_events(events, local_mapping)
+        stats = process_subgraph_events(events, combined_mapping)
         Logger.info("[Subgraph Ingest] Complete: #{inspect(stats)}")
         {:ok, stats}
 
@@ -314,8 +333,10 @@ defmodule VolfefeMachine.Polymarket do
   end
 
   # Process subgraph events into trades
-  defp process_subgraph_events(events, token_mapping) do
+  # combined_mapping is a tuple {local_mapping, subgraph_mapping}
+  defp process_subgraph_events(events, combined_mapping) do
     alias VolfefeMachine.Polymarket.TokenMapping
+    {local_mapping, subgraph_mapping} = combined_mapping
 
     results = Enum.map(events, fn event ->
       # Determine which token ID to use (non-zero asset)
@@ -328,8 +349,30 @@ defmodule VolfefeMachine.Polymarket do
         true -> {maker_asset, "SELL", event["maker"], true}
       end
 
-      # Look up market from token mapping
-      case TokenMapping.lookup(token_mapping, token_id) do
+      # Look up market from combined mapping (local first, then subgraph, then auto-create)
+      mapping_result = case TokenMapping.lookup(local_mapping, token_id) do
+        {:ok, info} -> {:ok, info}
+        :not_found ->
+          # Try subgraph mapping
+          case Map.get(subgraph_mapping, token_id) do
+            %{condition_id: cond_id, outcome_index: out_idx} ->
+              # Find or create market from condition_id
+              case find_or_create_market_id(cond_id) do
+                nil -> :not_found
+                market_id -> {:ok, %{market_id: market_id, condition_id: cond_id, outcome_index: out_idx || 0}}
+              end
+            nil ->
+              # No mapping found - auto-create stub market from token_id
+              # Use token_id as synthetic condition_id (allows tracking trades)
+              synthetic_cond_id = "token_#{String.slice(token_id, 0..31)}"
+              case find_or_create_market_from_token(synthetic_cond_id, token_id) do
+                nil -> :not_found
+                market_id -> {:ok, %{market_id: market_id, condition_id: synthetic_cond_id, outcome_index: 0}}
+              end
+          end
+      end
+
+      case mapping_result do
         {:ok, %{market_id: market_id, condition_id: condition_id, outcome_index: outcome_index}} ->
           insert_subgraph_trade(event, %{
             market_id: market_id,
@@ -351,6 +394,81 @@ defmodule VolfefeMachine.Polymarket do
       errors: Enum.count(results, &(&1 == :error)),
       unmapped: Enum.count(results, &(&1 == :unmapped))
     }
+  end
+
+  # Find or create market by condition_id
+  # Creates a minimal "stub" market if one doesn't exist, allowing trade tracking
+  defp find_or_create_market_id(condition_id) when is_binary(condition_id) do
+    import Ecto.Query
+    alias VolfefeMachine.Polymarket.Market
+
+    case Repo.one(from m in Market, where: m.condition_id == ^condition_id, select: m.id, limit: 1) do
+      nil ->
+        # Create a minimal stub market for trade tracking
+        # This allows us to ingest trades even without full market metadata
+        attrs = %{
+          condition_id: condition_id,
+          question: "[Pending Discovery] condition: #{String.slice(condition_id, 0..15)}...",
+          outcomes: %{"options" => ["Yes", "No"]},
+          outcome_prices: %{"Yes" => "0.5", "No" => "0.5"},
+          category: :other,
+          is_active: true,
+          meta: %{
+            source: "subgraph_discovery",
+            discovered_at: DateTime.utc_now() |> DateTime.to_iso8601(),
+            needs_metadata: true
+          }
+        }
+
+        case %Market{} |> Market.changeset(attrs) |> Repo.insert() do
+          {:ok, market} ->
+            Logger.debug("[Market Discovery] Created stub market for #{String.slice(condition_id, 0..15)}...")
+            market.id
+          {:error, _changeset} ->
+            # Race condition - another process created it, try lookup again
+            Repo.one(from m in Market, where: m.condition_id == ^condition_id, select: m.id, limit: 1)
+        end
+
+      market_id ->
+        market_id
+    end
+  end
+
+  # Find or create market from token_id (when no condition_id mapping exists)
+  # Creates a stub market to allow trade tracking even without market metadata
+  defp find_or_create_market_from_token(synthetic_cond_id, token_id) when is_binary(synthetic_cond_id) do
+    import Ecto.Query
+    alias VolfefeMachine.Polymarket.Market
+
+    case Repo.one(from m in Market, where: m.condition_id == ^synthetic_cond_id, select: m.id, limit: 1) do
+      nil ->
+        attrs = %{
+          condition_id: synthetic_cond_id,
+          question: "[Unknown Market] token: #{String.slice(token_id, 0..15)}...",
+          outcomes: %{"options" => ["Yes", "No"]},
+          outcome_prices: %{"Yes" => "0.5", "No" => "0.5"},
+          category: :other,
+          is_active: true,
+          meta: %{
+            source: "token_discovery",
+            token_id: token_id,
+            discovered_at: DateTime.utc_now() |> DateTime.to_iso8601(),
+            needs_metadata: true,
+            needs_condition_mapping: true
+          }
+        }
+
+        case %Market{} |> Market.changeset(attrs) |> Repo.insert() do
+          {:ok, market} ->
+            Logger.debug("[Token Discovery] Created stub market for token #{String.slice(token_id, 0..15)}...")
+            market.id
+          {:error, _changeset} ->
+            Repo.one(from m in Market, where: m.condition_id == ^synthetic_cond_id, select: m.id, limit: 1)
+        end
+
+      market_id ->
+        market_id
+    end
   end
 
   # Insert a single trade from subgraph event
