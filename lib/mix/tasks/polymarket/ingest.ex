@@ -631,7 +631,6 @@ defmodule Mix.Tasks.Polymarket.Ingest do
     result = ingest_condition_from_subgraph(market.condition_id, Keyword.merge(opts, [
       from: Date.to_iso8601(from_date),
       to: Date.to_iso8601(to_date),
-      resolved_market_id: market.id,
       # Suppress individual market output
       quiet: true
     ]))

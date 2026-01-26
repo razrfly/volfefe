@@ -662,7 +662,7 @@ Polymarket geo-blocks US IP addresses for their CLOB and Gamma APIs (regulatory 
 #### Setup Steps
 
 1. **Get WireGuard credentials from ProtonVPN:**
-   - Go to https://account.proton.me → VPN → WireGuard
+   - Go to [Proton Account](https://account.proton.me) → VPN → WireGuard
    - Click "Generate Key" (or use existing)
    - Copy the `PrivateKey` value
 
