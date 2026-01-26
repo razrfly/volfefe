@@ -67,6 +67,12 @@
         <.badge color={:green} class="ml-2"><%= @insider_stats.total %></.badge>
       <% end %>
     </:tab>
+    <:tab id="tab-pilot" active={@active_tab == :pilot} phx-click="switch_tab" phx-value-tab="pilot">
+      Pilot
+      <.badge color={pilot_status_color(@pilot_progress.status)} class="ml-2">
+        <%= if @pilot_progress.status == :ready_for_production, do: "✓", else: "⚙" %>
+      </.badge>
+    </:tab>
   </.tabs>
 
   <!-- Tab Content -->
@@ -1070,6 +1076,345 @@
               <div class="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded">
                 <code class="text-sm text-zinc-950 dark:text-zinc-100 font-mono">mix polymarket.confirm &lt;wallet&gt;</code>
                 <.text class="mt-1">Confirm an insider wallet</.text>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    <% end %>
+
+    <!-- Pilot Tab -->
+    <%= if @active_tab == :pilot do %>
+      <div class="space-y-6">
+        <!-- Pilot Status Banner -->
+        <div class={[
+          "rounded p-6 ring-1",
+          case @pilot_progress.status do
+            :ready_for_production -> "bg-green-50 ring-green-200 dark:bg-green-900/20 dark:ring-green-700"
+            :pilot_in_progress -> "bg-amber-50 ring-amber-200 dark:bg-amber-900/20 dark:ring-amber-700"
+            :metrics_below_target -> "bg-amber-50 ring-amber-200 dark:bg-amber-900/20 dark:ring-amber-700"
+            _ -> "bg-zinc-50 ring-zinc-200 dark:bg-zinc-800/50 dark:ring-zinc-700"
+          end
+        ]}>
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="flex items-center space-x-4">
+                <.badge color={pilot_status_color(@pilot_progress.status)} class="text-base px-3 py-1.5">
+                  <%= pilot_status_label(@pilot_progress.status) %>
+                </.badge>
+                <div>
+                  <.heading level={:h2}>
+                    Pilot Validation Dashboard
+                  </.heading>
+                  <.text class="mt-1">Testing detection system against confirmed insiders</.text>
+                </div>
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <.catalyst_button phx-click="run_pilot_validation" color={:dark}>
+                Run Validation
+              </.catalyst_button>
+              <.catalyst_button phx-click="run_pilot_metrics" color={:zinc}>
+                Calculate Metrics
+              </.catalyst_button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Key Metrics Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <.stat_card title="Detection Rate" value={format_rate(@pilot_progress.validation.detection_rate)}>
+            <:detail>
+              <%= @pilot_progress.validation.insiders_detected %>/<%= @pilot_progress.validation.insiders_total %> insiders detected
+            </:detail>
+          </.stat_card>
+
+          <.stat_card title="Precision" value={format_rate(@pilot_progress.metrics.precision)}>
+            <:detail>
+              Of flagged candidates, how many are real?
+            </:detail>
+          </.stat_card>
+
+          <.stat_card title="Recall" value={format_rate(@pilot_progress.metrics.recall)}>
+            <:detail>
+              Of real insiders, how many did we flag?
+            </:detail>
+          </.stat_card>
+
+          <.stat_card title="F1 Score" value={format_rate(@pilot_progress.metrics.f1_score)}>
+            <:detail>
+              Target: ≥85% for production readiness
+            </:detail>
+          </.stat_card>
+        </div>
+
+        <!-- Pilot Markets Status -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <.stat_card title="Pilot Markets" value={@pilot_progress.pilot_markets.total}>
+            <:detail>High-volume resolved markets</:detail>
+          </.stat_card>
+
+          <.stat_card title="With Trade Data" value={@pilot_progress.pilot_markets.with_trade_data}>
+            <:detail>
+              <%= @pilot_progress.pilot_markets.pending %> pending ingestion
+            </:detail>
+          </.stat_card>
+
+          <.stat_card title="With Candidates" value={@pilot_progress.pilot_markets.with_candidates}>
+            <:detail>Markets with detected anomalies</:detail>
+          </.stat_card>
+
+          <.stat_card title="Confirmed Insiders" value={@pilot_progress.coverage.total_insiders}>
+            <:detail>Training dataset size</:detail>
+          </.stat_card>
+        </div>
+
+        <!-- Next Actions -->
+        <%= if length(@pilot_progress.next_actions) > 0 do %>
+          <.alert_banner type={:info}>
+            <:title>Recommended Next Actions</:title>
+            <ul class="space-y-2 mt-2">
+              <%= for action <- @pilot_progress.next_actions do %>
+                <li class="flex items-center gap-2 text-sm">
+                  <span class="text-zinc-700 dark:text-zinc-300">→ <%= action %></span>
+                </li>
+              <% end %>
+            </ul>
+          </.alert_banner>
+        <% end %>
+
+        <!-- Batch Processing -->
+        <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 p-6 dark:bg-zinc-900 dark:ring-white/10">
+          <div class="flex justify-between items-start mb-6">
+            <div>
+              <.subheading>Batch Pilot Processing</.subheading>
+              <.text class="mt-1">Process high-volume markets in bulk</.text>
+            </div>
+          </div>
+
+          <form id="batch-pilot-form" phx-submit="run_pilot_batch" class="flex items-end gap-4">
+            <div>
+              <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Markets to Process</label>
+              <input
+                type="number"
+                name="limit"
+                value="10"
+                min="1"
+                max="50"
+                class="mt-1 block w-24 rounded border-zinc-300 shadow-sm focus:border-zinc-500 focus:ring-zinc-500 text-sm dark:bg-zinc-800 dark:border-zinc-600 dark:text-white"
+              />
+            </div>
+            <.catalyst_button type="submit" color={:dark}>
+              Run Batch
+            </.catalyst_button>
+          </form>
+
+          <%= if @pilot_batch_results do %>
+            <div class="mt-6 pt-6 border-t border-zinc-950/10 dark:border-white/10">
+              <.subheading level={:h3} class="mb-4">Batch Results</.subheading>
+              <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="text-center p-4 bg-zinc-50 dark:bg-zinc-800 rounded">
+                  <.text>Markets Processed</.text>
+                  <p class="text-2xl font-bold text-zinc-950 dark:text-white"><%= @pilot_batch_results.markets_processed %></p>
+                </div>
+                <div class="text-center p-4 bg-zinc-50 dark:bg-zinc-800 rounded">
+                  <.text>Trades Ingested</.text>
+                  <p class="text-2xl font-bold text-zinc-950 dark:text-white"><%= format_number(@pilot_batch_results.trades_ingested) %></p>
+                </div>
+                <div class="text-center p-4 bg-zinc-50 dark:bg-zinc-800 rounded">
+                  <.text>Candidates Found</.text>
+                  <p class="text-2xl font-bold text-zinc-950 dark:text-white"><%= @pilot_batch_results.candidates_generated %></p>
+                </div>
+                <div class="text-center p-4 bg-zinc-50 dark:bg-zinc-800 rounded">
+                  <.text>Errors</.text>
+                  <p class="text-2xl font-bold text-zinc-950 dark:text-white"><%= @pilot_batch_results.errors %></p>
+                </div>
+              </div>
+            </div>
+          <% end %>
+        </div>
+
+        <!-- Threshold Optimization -->
+        <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 p-6 dark:bg-zinc-900 dark:ring-white/10">
+          <div class="flex justify-between items-start mb-6">
+            <div>
+              <.subheading>Threshold Optimization</.subheading>
+              <.text class="mt-1">Find optimal detection thresholds</.text>
+            </div>
+            <.catalyst_button phx-click="run_pilot_optimize" color={:dark}>
+              Run Optimization
+            </.catalyst_button>
+          </div>
+
+          <%= if @pilot_optimization do %>
+            <.data_table>
+              <:header>
+                <th class="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Anomaly</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Probability</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Precision</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Recall</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">F1 Score</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">TP/FP/FN</th>
+              </:header>
+              <:body>
+                <%= for {result, idx} <- Enum.with_index(@pilot_optimization) do %>
+                  <tr class={if idx == 0, do: "bg-green-50 dark:bg-green-900/20", else: "hover:bg-zinc-950/2.5 dark:hover:bg-white/2.5"}>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-mono">
+                      <%= result.anomaly_threshold %>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-mono">
+                      <%= result.probability_threshold %>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                      <%= format_rate(result.precision) %>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                      <%= format_rate(result.recall) %>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <.badge color={cond do
+                        result.f1_score >= 0.85 -> :green
+                        result.f1_score >= 0.7 -> :amber
+                        true -> :zinc
+                      end}>
+                        <%= format_rate(result.f1_score) %>
+                      </.badge>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-zinc-500">
+                      <%= result.true_positives %>/<%= result.false_positives %>/<%= result.false_negatives %>
+                    </td>
+                  </tr>
+                <% end %>
+              </:body>
+            </.data_table>
+          <% else %>
+            <.empty_state>
+              Click "Run Optimization" to test different threshold combinations.
+            </.empty_state>
+          <% end %>
+        </div>
+
+        <!-- False Negative Analysis -->
+        <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 p-6 dark:bg-zinc-900 dark:ring-white/10">
+          <div class="flex justify-between items-start mb-6">
+            <div>
+              <.subheading>False Negative Analysis</.subheading>
+              <.text class="mt-1">Understand why insiders were missed</.text>
+            </div>
+            <.catalyst_button phx-click="analyze_false_negatives" color={:dark}>
+              Analyze Misses
+            </.catalyst_button>
+          </div>
+
+          <%= if @pilot_fn_analysis do %>
+            <div class="space-y-6">
+              <!-- Reason Breakdown -->
+              <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="text-center p-4 bg-zinc-50 dark:bg-zinc-800 rounded">
+                  <.text>No Trade Data</.text>
+                  <p class="text-2xl font-bold text-zinc-950 dark:text-white"><%= @pilot_fn_analysis.reasons.no_trade_data %></p>
+                </div>
+                <div class="text-center p-4 bg-zinc-50 dark:bg-zinc-800 rounded">
+                  <.text>Trade Not Scored</.text>
+                  <p class="text-2xl font-bold text-zinc-950 dark:text-white"><%= @pilot_fn_analysis.reasons.trade_not_scored %></p>
+                </div>
+                <div class="text-center p-4 bg-zinc-50 dark:bg-zinc-800 rounded">
+                  <.text>Low Anomaly Score</.text>
+                  <p class="text-2xl font-bold text-zinc-950 dark:text-white"><%= @pilot_fn_analysis.reasons.low_anomaly_score %></p>
+                </div>
+                <div class="text-center p-4 bg-zinc-50 dark:bg-zinc-800 rounded">
+                  <.text>Low Probability</.text>
+                  <p class="text-2xl font-bold text-zinc-950 dark:text-white"><%= @pilot_fn_analysis.reasons.low_probability %></p>
+                </div>
+              </div>
+
+              <!-- Metric Gaps -->
+              <%= if map_size(@pilot_fn_analysis.metric_gaps) > 0 do %>
+                <div>
+                  <.subheading level={:h3} class="mb-3">Weak Signal Analysis</.subheading>
+                  <div class="flex flex-wrap gap-2">
+                    <%= for {metric, count} <- @pilot_fn_analysis.metric_gaps do %>
+                      <.badge color={:amber}>
+                        <%= metric %>: <%= count %> cases
+                      </.badge>
+                    <% end %>
+                  </div>
+                </div>
+              <% end %>
+
+              <!-- Recommendations -->
+              <%= if length(@pilot_fn_analysis.recommendations) > 0 do %>
+                <.alert_banner type={:info}>
+                  <:title>Recommendations</:title>
+                  <ul class="space-y-2 mt-2">
+                    <%= for rec <- @pilot_fn_analysis.recommendations do %>
+                      <li class="flex items-center gap-2 text-sm">
+                        <span class="text-zinc-700 dark:text-zinc-300">→ <%= rec %></span>
+                      </li>
+                    <% end %>
+                  </ul>
+                </.alert_banner>
+              <% end %>
+            </div>
+          <% else %>
+            <.empty_state>
+              Click "Analyze Misses" to understand why some insiders weren't detected.
+            </.empty_state>
+          <% end %>
+        </div>
+
+        <!-- Category Coverage -->
+        <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+          <div class="px-6 py-4 border-b border-zinc-950/10 dark:border-white/10">
+            <.subheading>Category Coverage</.subheading>
+            <.text class="mt-1">Insider data by market category</.text>
+          </div>
+          <div class="p-6">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <%= for {category, stats} <- @pilot_progress.coverage.by_category do %>
+                <div class="p-3 bg-zinc-50 dark:bg-zinc-800 rounded text-center">
+                  <span class="text-sm font-medium text-zinc-950 dark:text-white capitalize"><%= category %></span>
+                  <div class="mt-2 text-xs text-zinc-500 dark:text-zinc-400 space-y-1">
+                    <div><%= stats.insiders %> insiders</div>
+                    <div><%= format_number(stats.trades) %> trades</div>
+                    <div><%= stats.candidates %> candidates</div>
+                  </div>
+                </div>
+              <% end %>
+            </div>
+          </div>
+        </div>
+
+        <!-- CLI Commands -->
+        <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+          <div class="px-6 py-4 border-b border-zinc-950/10 dark:border-white/10">
+            <.subheading>CLI Commands</.subheading>
+          </div>
+          <div class="p-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded">
+                <code class="text-sm text-zinc-950 dark:text-zinc-100 font-mono">mix polymarket.pilot --full</code>
+                <.text class="mt-1">Run complete pilot validation workflow</.text>
+              </div>
+              <div class="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded">
+                <code class="text-sm text-zinc-950 dark:text-zinc-100 font-mono">mix polymarket.pilot --validate</code>
+                <.text class="mt-1">Validate detection against confirmed insiders</.text>
+              </div>
+              <div class="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded">
+                <code class="text-sm text-zinc-950 dark:text-zinc-100 font-mono">mix polymarket.pilot --analyze-misses</code>
+                <.text class="mt-1">Analyze false negatives</.text>
+              </div>
+              <div class="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded">
+                <code class="text-sm text-zinc-950 dark:text-zinc-100 font-mono">mix polymarket.pilot --optimize</code>
+                <.text class="mt-1">Find optimal thresholds</.text>
+              </div>
+              <div class="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded">
+                <code class="text-sm text-zinc-950 dark:text-zinc-100 font-mono">mix polymarket.pilot --batch</code>
+                <.text class="mt-1">Batch process pilot markets</.text>
+              </div>
+              <div class="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded">
+                <code class="text-sm text-zinc-950 dark:text-zinc-100 font-mono">mix polymarket.pilot --progress</code>
+                <.text class="mt-1">Show pilot status report</.text>
               </div>
             </div>
           </div>
