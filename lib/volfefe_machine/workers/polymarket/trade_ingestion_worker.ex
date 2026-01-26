@@ -44,8 +44,9 @@ defmodule VolfefeMachine.Workers.Polymarket.TradeIngestionWorker do
 
     Logger.info("[TradeIngestion] Starting subgraph ingestion, limit=#{limit}, hours=#{hours}")
 
-    # Use subgraph-based ingestion (Data API is unreachable)
-    case Polymarket.ingest_trades_via_subgraph(limit: limit, hours: hours) do
+    # Use subgraph-based ingestion with token-based auto-discovery
+    # Skip slow subgraph mapping - we auto-create stub markets for unknown tokens
+    case Polymarket.ingest_trades_via_subgraph(limit: limit, hours: hours, build_subgraph_mapping: false) do
       {:ok, stats} ->
         Logger.info("[TradeIngestion] Complete: inserted=#{stats.inserted}, updated=#{stats.updated}, errors=#{stats.errors}, unmapped=#{stats.unmapped}")
 
