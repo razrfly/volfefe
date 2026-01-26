@@ -160,6 +160,7 @@ defmodule Mix.Tasks.Polymarket.Ingest do
         to: :string,
         days: :integer,
         condition: :string,
+        wallet: :string,
         resolved: :boolean,
         reference_cases: :boolean,
         scan: :boolean,
@@ -176,7 +177,7 @@ defmodule Mix.Tasks.Polymarket.Ingest do
 
     # Validate flag combinations
     api_only_flags = [:recent, :market, :category, :all_active, :continuous, :interval]
-    subgraph_only_flags = [:scan, :condition, :resolved, :reference_cases, :from, :to, :days]
+    subgraph_only_flags = [:scan, :condition, :wallet, :resolved, :reference_cases, :from, :to, :days]
 
     has_api_flags = Enum.any?(api_only_flags, &opts[&1])
     has_subgraph_flags = Enum.any?(subgraph_only_flags, &opts[&1])
@@ -244,6 +245,11 @@ defmodule Mix.Tasks.Polymarket.Ingest do
       opts[:condition] ->
         print_subgraph_header()
         ingest_condition_from_subgraph(opts[:condition], opts)
+        print_subgraph_footer()
+
+      opts[:wallet] ->
+        print_subgraph_header()
+        ingest_wallet_from_subgraph(opts[:wallet], opts)
         print_subgraph_footer()
 
       true ->
@@ -792,6 +798,74 @@ defmodule Mix.Tasks.Polymarket.Ingest do
     end
   end
 
+  # Ingest trades for a specific wallet address
+  defp ingest_wallet_from_subgraph(wallet_address, opts) do
+    {from_date, to_date} = parse_date_range(opts)
+    limit = opts[:limit] || 50_000
+    verbose = opts[:verbose] || false
+
+    # Normalize wallet address to lowercase
+    wallet = String.downcase(wallet_address)
+
+    Mix.shell().info("Mode: Wallet-Based Ingestion")
+    Mix.shell().info("Source: Blockchain subgraph (The Graph/Goldsky)")
+    Mix.shell().info("Wallet: #{wallet}")
+    Mix.shell().info("Date range: #{from_date} to #{to_date}")
+    Mix.shell().info("Max trades: #{format_number(limit)}")
+    Mix.shell().info("")
+
+    # Check subgraph health
+    case SubgraphClient.subgraph_healthy?(:orderbook) do
+      {:ok, true} -> :ok
+      {:ok, false} -> Mix.shell().info("⚠️  Subgraph may be behind")
+      {:error, _} -> :ok
+    end
+
+    # Build local token mapping only (skip expensive subgraph mapping fetch)
+    Mix.shell().info("Building token ID mapping from local DB...")
+    {:ok, local_mapping} = TokenMapping.build_mapping(include_inactive: true)
+    mapping_stats = TokenMapping.stats()
+    Mix.shell().info("  Local DB: #{mapping_stats.unique_markets} markets with #{mapping_stats.total_tokens} token IDs")
+    Mix.shell().info("  Note: Unknown tokens will be resolved on-demand from subgraph")
+    Mix.shell().info("")
+
+    # Fetch wallet trades from subgraph
+    Mix.shell().info("Fetching trades for wallet...")
+    from_ts = date_to_unix(from_date)
+    to_ts = date_to_unix(to_date) + 86399  # End of day
+
+    case SubgraphClient.get_wallet_trades(wallet,
+           from_timestamp: from_ts,
+           to_timestamp: to_ts,
+           max_events: limit
+         ) do
+      {:ok, events} ->
+        Mix.shell().info("  ✅ Fetched #{format_number(length(events))} trades")
+        Mix.shell().info("")
+
+        if length(events) == 0 do
+          Mix.shell().info("⚠️  No trades found for this wallet in the specified date range")
+          Mix.shell().info("   Try expanding the date range with --from and --to")
+        else
+          # Insert trades using existing machinery - empty subgraph mapping triggers on-demand lookup
+          {inserted, updated, errors} = insert_subgraph_trades(events, {local_mapping, %{}}, verbose)
+
+          Mix.shell().info("")
+          Mix.shell().info(String.duplicate("═", 65))
+          Mix.shell().info("WALLET INGESTION SUMMARY")
+          Mix.shell().info(String.duplicate("═", 65))
+          Mix.shell().info("   Wallet: #{wallet}")
+          Mix.shell().info("   Total trades fetched: #{format_number(length(events))}")
+          Mix.shell().info("   Trades inserted: #{format_number(inserted)}")
+          Mix.shell().info("   Trades updated: #{format_number(updated)}")
+          Mix.shell().info("   Errors: #{errors}")
+        end
+
+      {:error, reason} ->
+        Mix.shell().error("❌ Failed to fetch wallet trades: #{reason}")
+    end
+  end
+
   defp ingest_from_subgraph(opts) do
     {from_date, to_date} = parse_date_range(opts)
     limit = opts[:limit] || 100_000
@@ -1154,30 +1228,100 @@ defmodule Mix.Tasks.Polymarket.Ingest do
   defp insert_subgraph_trades(events, mapping, verbose) do
     alias VolfefeMachine.Polymarket.Trade
 
-    # Process in batches
-    batch_size = 500
+    # Process events with an accumulating cache for on-demand token lookups
+    # This avoids repeated subgraph queries for the same token ID
     total = length(events)
 
-    events
-    |> Enum.with_index()
-    |> Enum.chunk_every(batch_size)
-    |> Enum.reduce({0, 0, 0}, fn batch, {total_inserted, total_updated, total_errors} ->
-      batch_results = Enum.map(batch, fn {event, idx} ->
-        if verbose && rem(idx + 1, 1000) == 0 do
+    {inserted, updated, errors, _final_cache} =
+      events
+      |> Enum.with_index()
+      |> Enum.reduce({0, 0, 0, %{}}, fn {event, idx}, {ins, upd, err, cache} ->
+        if verbose && rem(idx + 1, 100) == 0 do
           Mix.shell().info("  Inserting: #{idx + 1}/#{total}...")
         end
 
-        insert_single_trade(event, mapping)
+        case insert_single_trade_with_cache(event, mapping, cache) do
+          {:inserted, new_cache} -> {ins + 1, upd, err, new_cache}
+          {:updated, new_cache} -> {ins, upd + 1, err, new_cache}
+          {:error, new_cache} -> {ins, upd, err + 1, new_cache}
+        end
       end)
 
-      inserted = Enum.count(batch_results, &(&1 == :inserted))
-      updated = Enum.count(batch_results, &(&1 == :updated))
-      errors = Enum.count(batch_results, &(&1 == :error))
-
-      {total_inserted + inserted, total_updated + updated, total_errors + errors}
-    end)
+    {inserted, updated, errors}
   end
 
+  # Version with cache for on-demand lookups (used by wallet ingestion)
+  defp insert_single_trade_with_cache(event, combined_mapping, cache) do
+    alias VolfefeMachine.Polymarket.{Trade, Wallet, Market}
+    {local_mapping, subgraph_mapping} = combined_mapping
+
+    # Determine which token ID to use for mapping
+    maker_asset = event["makerAssetId"]
+    taker_asset = event["takerAssetId"]
+
+    {token_id, side, wallet_address, token_is_maker_asset} = cond do
+      maker_asset != "0" ->
+        {maker_asset, "SELL", event["maker"], true}
+      taker_asset != "0" ->
+        {taker_asset, "SELL", event["taker"], false}
+      true ->
+        {maker_asset, "SELL", event["maker"], true}
+    end
+
+    # Try local mapping first, then pre-fetched subgraph, then cache, then on-demand lookup
+    {mapping_result, new_cache} = case TokenMapping.lookup(local_mapping, token_id) do
+      {:ok, info} ->
+        {{:ok, info}, cache}
+
+      :not_found ->
+        case Map.get(subgraph_mapping, token_id) do
+          %{condition_id: cond_id, outcome_index: out_idx} ->
+            market_id = find_or_create_market_id(cond_id)
+            {{:ok, %{market_id: market_id, condition_id: cond_id, outcome_index: out_idx || 0}}, cache}
+
+          nil ->
+            # Check our session cache first
+            case Map.get(cache, token_id) do
+              :not_found ->
+                {:not_found, cache}
+
+              %{condition_id: cond_id, outcome_index: out_idx} ->
+                market_id = find_or_create_market_id(cond_id)
+                {{:ok, %{market_id: market_id, condition_id: cond_id, outcome_index: out_idx || 0}}, cache}
+
+              nil ->
+                # On-demand lookup from subgraph
+                case SubgraphClient.lookup_token_id(token_id) do
+                  {:ok, %{condition_id: cond_id, outcome_index: out_idx}} ->
+                    market_id = find_or_create_market_id(cond_id)
+                    updated_cache = Map.put(cache, token_id, %{condition_id: cond_id, outcome_index: out_idx})
+                    {{:ok, %{market_id: market_id, condition_id: cond_id, outcome_index: out_idx || 0}}, updated_cache}
+
+                  {:error, :not_found} ->
+                    # Cache the not-found result too
+                    {:not_found, Map.put(cache, token_id, :not_found)}
+
+                  {:error, _reason} ->
+                    # Don't cache API errors, let it retry
+                    {:not_found, cache}
+                end
+            end
+        end
+    end
+
+    result = case mapping_result do
+      {:ok, %{market_id: market_id, condition_id: condition_id, outcome_index: outcome_index}} ->
+        insert_trade_record(event, market_id, condition_id, outcome_index, wallet_address, side, token_is_maker_asset)
+      :not_found ->
+        :error
+    end
+
+    {result, new_cache}
+  rescue
+    _ -> {:error, cache}
+  end
+
+  # Original version without cache (used by regular ingestion with pre-fetched mappings)
   defp insert_single_trade(event, combined_mapping) do
     alias VolfefeMachine.Polymarket.{Trade, Wallet, Market}
     {local_mapping, subgraph_mapping} = combined_mapping
@@ -1206,21 +1350,32 @@ defmodule Mix.Tasks.Polymarket.Ingest do
         {maker_asset, "SELL", event["maker"], true}
     end
 
-    # Try local mapping first, then subgraph
+    # Try local mapping first, then pre-fetched subgraph mapping, then on-demand lookup
     mapping_result = case TokenMapping.lookup(local_mapping, token_id) do
       {:ok, info} ->
         {:ok, info}
 
       :not_found ->
-        # Try subgraph mapping
+        # Try pre-fetched subgraph mapping
         case Map.get(subgraph_mapping, token_id) do
-          nil ->
-            :not_found
-
           %{condition_id: cond_id, outcome_index: out_idx} ->
             # Find or create market from condition_id
             market_id = find_or_create_market_id(cond_id)
             {:ok, %{market_id: market_id, condition_id: cond_id, outcome_index: out_idx || 0}}
+
+          nil ->
+            # On-demand lookup from subgraph
+            case SubgraphClient.lookup_token_id(token_id) do
+              {:ok, %{condition_id: cond_id, outcome_index: out_idx}} ->
+                market_id = find_or_create_market_id(cond_id)
+                {:ok, %{market_id: market_id, condition_id: cond_id, outcome_index: out_idx || 0}}
+
+              {:error, :not_found} ->
+                :not_found
+
+              {:error, _reason} ->
+                :not_found
+            end
         end
     end
 
@@ -1298,6 +1453,70 @@ defmodule Mix.Tasks.Polymarket.Ingest do
     end
   rescue
     _ -> :error
+  end
+
+  # Helper function to insert a trade record (shared by both cached and non-cached versions)
+  defp insert_trade_record(event, market_id, condition_id, outcome_index, wallet_address, side, token_is_maker_asset) do
+    alias VolfefeMachine.Polymarket.Trade
+
+    timestamp = event["timestamp"]
+    |> String.to_integer()
+    |> DateTime.from_unix!()
+
+    # Calculate amounts (in USDC, divide by 10^6)
+    maker_amount = parse_amount(event["makerAmountFilled"])
+    taker_amount = parse_amount(event["takerAmountFilled"])
+
+    # Map amounts based on which asset is the market token
+    {size, usdc_size, price} = if token_is_maker_asset do
+      size = maker_amount
+      usdc = taker_amount
+      price = if Decimal.compare(size, 0) == :gt, do: Decimal.div(usdc, size), else: Decimal.new(0)
+      {size, usdc, price}
+    else
+      size = taker_amount
+      usdc = maker_amount
+      price = if Decimal.compare(size, 0) == :gt, do: Decimal.div(usdc, size), else: Decimal.new(0)
+      {size, usdc, price}
+    end
+
+    tx_hash = event["id"]
+    outcome = if outcome_index == 0, do: "Yes", else: "No"
+
+    attrs = %{
+      transaction_hash: tx_hash,
+      wallet_address: wallet_address,
+      condition_id: condition_id,
+      market_id: market_id,
+      side: side,
+      outcome: outcome,
+      outcome_index: outcome_index,
+      size: size,
+      price: Decimal.round(price, 4),
+      usdc_size: usdc_size,
+      trade_timestamp: timestamp,
+      meta: %{
+        source: "subgraph",
+        maker: event["maker"],
+        taker: event["taker"],
+        makerAssetId: event["makerAssetId"],
+        takerAssetId: event["takerAssetId"]
+      }
+    }
+
+    case Repo.get_by(Trade, transaction_hash: tx_hash) do
+      nil ->
+        ensure_wallet(wallet_address)
+        case %Trade{}
+             |> Trade.changeset(attrs)
+             |> Repo.insert() do
+          {:ok, _} -> :inserted
+          {:error, _} -> :error
+        end
+
+      _existing ->
+        :updated
+    end
   end
 
   defp find_or_create_market_id(condition_id) do

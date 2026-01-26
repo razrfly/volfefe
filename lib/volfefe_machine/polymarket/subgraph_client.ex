@@ -443,6 +443,48 @@ defmodule VolfefeMachine.Polymarket.SubgraphClient do
   end
 
   @doc """
+  Look up a single token ID from the orderbook subgraph.
+
+  This is used for on-demand token resolution when the token isn't in the local
+  database or pre-fetched mapping.
+
+  ## Parameters
+
+  - `token_id` - The 256-bit token ID to look up (as string)
+
+  ## Returns
+
+  - `{:ok, %{condition_id, outcome_index}}` - Token mapping found
+  - `{:error, :not_found}` - Token not found
+  - `{:error, reason}` - API error
+  """
+  def lookup_token_id(token_id) do
+    query = """
+    {
+      marketData(id: "#{token_id}") {
+        id
+        condition
+        outcomeIndex
+      }
+    }
+    """
+
+    case execute_query(@orderbook_subgraph, query, "marketData") do
+      {:ok, nil} ->
+        {:error, :not_found}
+
+      {:ok, data} when is_map(data) ->
+        {:ok, %{
+          condition_id: data["condition"],
+          outcome_index: data["outcomeIndex"]
+        }}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  @doc """
   Get token ID to condition mapping from the positions subgraph.
 
   The `tokenIdConditions` entity maps the 256-bit token IDs to condition data.

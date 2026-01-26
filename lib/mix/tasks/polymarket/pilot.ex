@@ -201,9 +201,6 @@ defmodule Mix.Tasks.Polymarket.Pilot do
           _ ->
             :ok
         end
-
-      {:error, reason} ->
-        Mix.shell().error("Validation failed: #{inspect(reason)}")
     end
 
     print_footer()
@@ -220,9 +217,6 @@ defmodule Mix.Tasks.Polymarket.Pilot do
     case Validation.analyze_false_negatives(validation_opts) do
       {:ok, analysis} ->
         print_miss_analysis(analysis, opts[:verbose] || false)
-
-      {:error, reason} ->
-        Mix.shell().error("Analysis failed: #{inspect(reason)}")
     end
 
     print_footer()
@@ -250,9 +244,6 @@ defmodule Mix.Tasks.Polymarket.Pilot do
     case Validation.optimize_thresholds() do
       {:ok, results} ->
         print_optimization_results(results)
-
-      {:error, reason} ->
-        Mix.shell().error("Optimization failed: #{inspect(reason)}")
     end
 
     print_footer()
@@ -284,9 +275,6 @@ defmodule Mix.Tasks.Polymarket.Pilot do
     case Validation.run_batch_pilot(batch_opts) do
       {:ok, results} ->
         print_batch_results(results)
-
-      {:error, reason} ->
-        Mix.shell().error("Batch processing failed: #{inspect(reason)}")
     end
 
     print_footer()
@@ -327,9 +315,6 @@ defmodule Mix.Tasks.Polymarket.Pilot do
           _ ->
             :ok
         end
-
-      {:error, reason} ->
-        Mix.shell().error("Validation failed: #{inspect(reason)}")
     end
 
     Mix.shell().info("")
