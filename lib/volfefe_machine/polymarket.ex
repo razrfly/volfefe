@@ -344,11 +344,11 @@ defmodule VolfefeMachine.Polymarket do
       taker_asset = event["takerAssetId"]
 
       # Determine which token ID to use and trade semantics:
-      # - maker_asset != "0": maker is SELLING their position token
-      # - taker_asset != "0": taker is BUYING with their position token (giving token to maker)
+      # - maker_asset != "0": maker is SELLING their position token (giving tokens away)
+      # - taker_asset != "0": taker is SELLING their position token (giving tokens away)
       {token_id, side, wallet_address, token_is_maker} = cond do
         maker_asset != "0" -> {maker_asset, "SELL", event["maker"], true}
-        taker_asset != "0" -> {taker_asset, "BUY", event["taker"], false}
+        taker_asset != "0" -> {taker_asset, "SELL", event["taker"], false}
         true -> {maker_asset, "SELL", event["maker"], true}
       end
 

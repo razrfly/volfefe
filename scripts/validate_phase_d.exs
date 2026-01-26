@@ -115,7 +115,7 @@ trades_with_outcome = Repo.one(
     select: count(t.id)
   )
 )
-pct2 = if total_resolved_trades > 0, do: Float.round(trades_with_outcome / total_resolved_trades * 100, 1), else: 0.0
+pct2 = if total_resolved_trades > 0, do: Float.round(trades_with_outcome / total_resolved_trades * 100.0, 1), else: 0.0
 IO.puts("   Trades with was_correct: #{trades_with_outcome}/#{total_resolved_trades} (#{pct2}%)")
 
 IO.puts("")

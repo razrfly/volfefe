@@ -123,6 +123,10 @@ defmodule VolfefeMachine.Polymarket.VpnClient do
             via_proxy: true
           }}
 
+        {:ok, %{status: 200, body: body}} ->
+          # Fallback for non-map body (decode failure or unexpected format)
+          {:error, {:invalid_body, body}}
+
         {:ok, %{status: status}} ->
           {:error, {:http_error, status}}
 
@@ -151,7 +155,10 @@ defmodule VolfefeMachine.Polymarket.VpnClient do
   defp maybe_add_proxy(opts, true) do
     host = config()[:host] || "localhost"
     port = config()[:port] || 8888
-    Keyword.put(opts, :connect_options, [proxy: {:http, host, port, []}])
+    # Merge proxy into existing connect_options to preserve caller-provided settings
+    existing_connect_opts = Keyword.get(opts, :connect_options, [])
+    merged_connect_opts = Keyword.put(existing_connect_opts, :proxy, {:http, host, port, []})
+    Keyword.put(opts, :connect_options, merged_connect_opts)
   end
 
   defp maybe_add_proxy(opts, false), do: opts

@@ -56,8 +56,8 @@ defmodule VolfefeMachine.Polymarket.SubgraphClient do
   @default_limit 100
   @max_limit 1000  # The Graph's typical limit
   # Goldsky rate limit: 50 requests per 10 seconds (5/sec)
-  # 250ms delay = 4 req/sec, safely under the limit
-  @rate_limit_delay 250
+  # 500ms delay = 2 req/sec, conservative to avoid rate limit cascades
+  @rate_limit_delay 500
 
   # ============================================
   # Order Filled Events (Trades)
@@ -646,7 +646,7 @@ defmodule VolfefeMachine.Polymarket.SubgraphClient do
     end
   end
 
-  defp fetch_all_with_pagination(fetch_fn, max_events, progress_callback, skip \\ 0, acc \\ []) do
+  defp fetch_all_with_pagination(fetch_fn, max_events, progress_callback, skip \\ 0, acc \\ [], retry_count \\ 0) do
     # Rate limiting
     if skip > 0, do: Process.sleep(@rate_limit_delay)
 
@@ -664,11 +664,24 @@ defmodule VolfefeMachine.Polymarket.SubgraphClient do
             {:ok, new_acc}
 
           true ->
-            # More pages available
-            fetch_all_with_pagination(fetch_fn, max_events, progress_callback, skip + @max_limit, new_acc)
+            # More pages available - reset retry count on success
+            fetch_all_with_pagination(fetch_fn, max_events, progress_callback, skip + @max_limit, new_acc, 0)
         end
 
       {:ok, []} ->
+        {:ok, acc}
+
+      {:error, :rate_limited} when retry_count < 5 ->
+        # Exponential backoff on rate limit: 2s, 4s, 8s, 16s, 32s
+        backoff = :math.pow(2, retry_count + 1) |> round() |> Kernel.*(1000)
+        Logger.warning("Rate limited at skip=#{skip}, backing off #{backoff}ms (attempt #{retry_count + 1}/5)")
+        Process.sleep(backoff)
+        # Retry same page with incremented retry count
+        fetch_all_with_pagination(fetch_fn, max_events, progress_callback, skip, acc, retry_count + 1)
+
+      {:error, :rate_limited} ->
+        # Max retries exceeded, return what we have
+        Logger.warning("Rate limit retries exhausted at #{length(acc)} events, returning partial results")
         {:ok, acc}
 
       {:error, _} = error when acc == [] ->

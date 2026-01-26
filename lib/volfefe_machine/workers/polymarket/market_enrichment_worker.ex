@@ -9,7 +9,7 @@ defmodule VolfefeMachine.Workers.Polymarket.MarketEnrichmentWorker do
 
   ## Scheduling
 
-  This worker runs every 30 minutes via Oban.Plugins.Cron.
+  This worker runs hourly at minute 15 via Oban.Plugins.Cron.
   See config/config.exs for cron configuration.
 
   ## Manual Execution
