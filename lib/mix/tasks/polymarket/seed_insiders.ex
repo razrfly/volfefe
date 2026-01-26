@@ -407,8 +407,12 @@ defmodule Mix.Tasks.Polymarket.SeedInsiders do
     if length(cases_to_import) == 0 do
       Mix.shell().error("No cases found to import")
       return_error()
+    else
+      do_import_cases(cases_to_import, opts)
     end
+  end
 
+  defp do_import_cases(cases_to_import, opts) do
     Mix.shell().info("Cases to import: #{length(cases_to_import)}")
     Mix.shell().info("")
 

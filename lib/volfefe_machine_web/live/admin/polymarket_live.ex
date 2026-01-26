@@ -374,6 +374,12 @@ defmodule VolfefeMachineWeb.Admin.PolymarketLive do
   @impl true
   def handle_event("run_pilot_optimize", _params, socket) do
     case Validation.optimize_thresholds() do
+      {:ok, []} ->
+        {:noreply,
+         socket
+         |> assign(:pilot_optimization, [])
+         |> put_toast(:info, "No optimization results - insufficient data for threshold tuning")}
+
       {:ok, results} ->
         best = List.first(results)
         {:noreply,

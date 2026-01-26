@@ -42,11 +42,12 @@ defmodule VolfefeMachine.Polymarket.Client do
 
   alias VolfefeMachine.Polymarket.DataSourceHealth
   alias VolfefeMachine.Polymarket.SubgraphClient
+  alias VolfefeMachine.Polymarket.VpnClient
 
   @data_api_base "https://data-api.polymarket.com"
   @gamma_api_base "https://gamma-api.polymarket.com"
 
-  @default_timeout 30_000
+  @default_timeout 60_000
   @default_limit 100
 
   # ============================================
@@ -592,7 +593,8 @@ defmodule VolfefeMachine.Polymarket.Client do
   defp make_request(url) do
     Logger.debug("Polymarket API request: #{url}")
 
-    case Req.get(url, receive_timeout: @default_timeout) do
+    # Use VPN proxy for Gamma/CLOB APIs (geo-blocked for US users)
+    case VpnClient.get(url, receive_timeout: @default_timeout) do
       {:ok, %{status: 200, body: body}} ->
         {:ok, body}
 

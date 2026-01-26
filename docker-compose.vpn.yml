@@ -1,0 +1,56 @@
+# VPN Proxy for Polymarket API Access
+#
+# Usage:
+#   1. Copy .env.example to .env and add your ProtonVPN WireGuard private key
+#   2. docker compose -f docker-compose.vpn.yml up -d
+#   3. Test: curl -x http://localhost:8888 https://ifconfig.me
+#
+# Get WireGuard credentials:
+#   1. Go to https://account.proton.me → VPN → WireGuard
+#   2. Click "Generate Key" or use existing
+#   3. Copy the PrivateKey value
+
+services:
+  gluetun:
+    image: qmcgaw/gluetun:latest
+    container_name: vpn-proxy
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      # ProtonVPN WireGuard Configuration
+      - VPN_SERVICE_PROVIDER=protonvpn
+      - VPN_TYPE=wireguard
+      - WIREGUARD_PRIVATE_KEY=${PROTONVPN_WIREGUARD_PRIVATE_KEY}
+
+      # Server selection (Netherlands has good connectivity)
+      - SERVER_COUNTRIES=${VPN_SERVER_COUNTRY:-Netherlands}
+
+      # Enable HTTP proxy for application routing
+      - HTTPPROXY=on
+      - HTTPPROXY_LOG=on
+
+      # Health check settings
+      - HEALTH_VPN_DURATION_INITIAL=10s
+      - HEALTH_VPN_DURATION_ADDITION=5s
+
+    ports:
+      # HTTP Proxy - application connects here
+      - "8888:8888/tcp"
+
+    # Persist WireGuard state
+    volumes:
+      - gluetun-data:/gluetun
+
+    restart: unless-stopped
+
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8888"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  gluetun-data:
