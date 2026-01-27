@@ -1,0 +1,254 @@
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <!-- Admin Navigation -->
+  <.admin_nav current_page={:polymarket} />
+
+  <!-- Header with Back Button -->
+  <div class="mb-8">
+    <div class="flex items-center gap-4 mb-4">
+      <.link navigate={~p"/admin/polymarket"} class="flex items-center gap-2 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors">
+        <span class="text-lg">&larr;</span>
+        <span class="text-sm font-medium">Back to Dashboard</span>
+      </.link>
+    </div>
+
+    <%= if @market do %>
+      <div class="flex items-start justify-between">
+        <div class="flex items-start gap-4">
+          <span class="text-4xl"><%= category_icon(@market.category) %></span>
+          <div>
+            <.heading class="max-w-2xl"><%= @market.question %></.heading>
+            <div class="flex items-center gap-4 mt-2">
+              <.badge color={if @market.is_active, do: :green, else: :zinc}>
+                <%= if @market.is_active, do: "Active", else: "Resolved" %>
+              </.badge>
+              <.link
+                navigate={~p"/admin/polymarket/category/#{@market.category}"}
+                class="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
+              >
+                <%= String.capitalize(to_string(@market.category)) %> Category →
+              </.link>
+            </div>
+          </div>
+        </div>
+        <div class="text-right">
+          <%= if @market.resolution_date do %>
+            <div class="text-sm text-zinc-600 dark:text-zinc-400">
+              <%= if @market.is_active, do: "Resolves", else: "Resolved" %>
+            </div>
+            <div class="text-lg font-medium text-zinc-900 dark:text-white">
+              <%= format_datetime(@market.resolution_date) %>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    <% else %>
+      <.heading>Market Not Found</.heading>
+      <.text class="mt-2">The market with condition ID <%= @condition_id %> could not be found.</.text>
+    <% end %>
+  </div>
+
+  <%= if @market do %>
+    <div class="space-y-6">
+      <!-- Summary Stats Row -->
+      <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <.stat_card title="Total Trades" value={format_number(@summary.total_trades)}>
+          <:detail>All time</:detail>
+        </.stat_card>
+
+        <.stat_card title="Total Volume" value={format_volume(@summary.total_volume)}>
+          <:detail>USDC traded</:detail>
+        </.stat_card>
+
+        <.stat_card title="Unique Wallets" value={format_number(@summary.unique_wallets)}>
+          <:detail>Active traders</:detail>
+        </.stat_card>
+
+        <.stat_card title="Avg Score" value={format_score(@summary.avg_score)}>
+          <:detail>Anomaly score</:detail>
+        </.stat_card>
+
+        <.stat_card title="Max Score" value={format_score(@summary.max_score)}>
+          <:detail>Highest anomaly</:detail>
+        </.stat_card>
+      </div>
+
+      <!-- Score Distribution -->
+      <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+        <div class="px-6 py-4 border-b border-zinc-950/10 dark:border-white/10">
+          <.subheading>Score Distribution</.subheading>
+          <.text class="mt-1">Breakdown of trades by anomaly score tier</.text>
+        </div>
+        <div class="p-6">
+          <div class="grid grid-cols-5 gap-4">
+            <!-- Critical -->
+            <div class="text-center">
+              <div class="text-3xl font-bold text-red-600 dark:text-red-400">
+                <%= @score_distribution.critical %>
+              </div>
+              <div class="text-sm text-zinc-600 dark:text-zinc-400">Critical</div>
+              <div class="text-xs text-zinc-500">&ge;0.9</div>
+            </div>
+
+            <!-- High -->
+            <div class="text-center">
+              <div class="text-3xl font-bold text-orange-600 dark:text-orange-400">
+                <%= @score_distribution.high %>
+              </div>
+              <div class="text-sm text-zinc-600 dark:text-zinc-400">High</div>
+              <div class="text-xs text-zinc-500">0.7-0.9</div>
+            </div>
+
+            <!-- Medium -->
+            <div class="text-center">
+              <div class="text-3xl font-bold text-yellow-600 dark:text-yellow-400">
+                <%= @score_distribution.medium %>
+              </div>
+              <div class="text-sm text-zinc-600 dark:text-zinc-400">Medium</div>
+              <div class="text-xs text-zinc-500">0.5-0.7</div>
+            </div>
+
+            <!-- Low -->
+            <div class="text-center">
+              <div class="text-3xl font-bold text-blue-600 dark:text-blue-400">
+                <%= @score_distribution.low %>
+              </div>
+              <div class="text-sm text-zinc-600 dark:text-zinc-400">Low</div>
+              <div class="text-xs text-zinc-500">0.3-0.5</div>
+            </div>
+
+            <!-- Normal -->
+            <div class="text-center">
+              <div class="text-3xl font-bold text-green-600 dark:text-green-400">
+                <%= @score_distribution.normal %>
+              </div>
+              <div class="text-sm text-zinc-600 dark:text-zinc-400">Normal</div>
+              <div class="text-xs text-zinc-500">&lt;0.3</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Trades Table -->
+      <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+        <div class="px-6 py-4 border-b border-zinc-950/10 dark:border-white/10">
+          <div class="flex items-center justify-between">
+            <div>
+              <.subheading>All Trades</.subheading>
+              <.text class="mt-1">Trades in this market sorted by anomaly score</.text>
+            </div>
+            <.badge color={:zinc}><%= length(@trades) %> trades</.badge>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-zinc-950/5 dark:divide-white/5">
+            <thead>
+              <tr class="bg-zinc-50 dark:bg-zinc-800/50">
+                <th class="px-6 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                  Wallet
+                </th>
+                <th
+                  class="px-6 py-3 text-right text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-200"
+                  phx-click="sort_trades"
+                  phx-value-field="trade_timestamp"
+                >
+                  Time <%= sort_indicator(@trades_sort, :trade_timestamp, @trades_sort_order) %>
+                </th>
+                <th class="px-6 py-3 text-center text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                  Side
+                </th>
+                <th class="px-6 py-3 text-center text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                  Outcome
+                </th>
+                <th
+                  class="px-6 py-3 text-right text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-200"
+                  phx-click="sort_trades"
+                  phx-value-field="usdc_size"
+                >
+                  Size <%= sort_indicator(@trades_sort, :usdc_size, @trades_sort_order) %>
+                </th>
+                <th
+                  class="px-6 py-3 text-right text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-200"
+                  phx-click="sort_trades"
+                  phx-value-field="price"
+                >
+                  Price <%= sort_indicator(@trades_sort, :price, @trades_sort_order) %>
+                </th>
+                <th class="px-6 py-3 text-center text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                  Result
+                </th>
+                <th
+                  class="px-6 py-3 text-right text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-200"
+                  phx-click="sort_trades"
+                  phx-value-field="anomaly_score"
+                >
+                  Score <%= sort_indicator(@trades_sort, :anomaly_score, @trades_sort_order) %>
+                </th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-zinc-950/5 dark:divide-white/5">
+              <%= if length(@trades) == 0 do %>
+                <tr>
+                  <td colspan="9" class="px-6 py-8 text-center text-zinc-500 dark:text-zinc-400">
+                    No trades found for this market.
+                  </td>
+                </tr>
+              <% else %>
+                <%= for trade <- @trades do %>
+                  <tr class="hover:bg-zinc-950/2.5 dark:hover:bg-white/2.5">
+                    <td class="px-6 py-4">
+                      <code class="text-sm font-mono text-zinc-900 dark:text-white">
+                        <%= format_wallet(trade.wallet_address) %>
+                      </code>
+                    </td>
+                    <td class="px-6 py-4 text-right text-sm text-zinc-600 dark:text-zinc-300">
+                      <%= relative_time(trade.trade_timestamp) %>
+                    </td>
+                    <td class="px-6 py-4 text-center">
+                      <.badge color={if trade.side == "buy", do: :green, else: :red}>
+                        <%= trade.side %>
+                      </.badge>
+                    </td>
+                    <td class="px-6 py-4 text-center">
+                      <.badge color={if trade.outcome == "Yes", do: :green, else: :red}>
+                        <%= trade.outcome %>
+                      </.badge>
+                    </td>
+                    <td class="px-6 py-4 text-right text-sm text-zinc-600 dark:text-zinc-300">
+                      <%= format_volume(trade.usdc_size) %>
+                    </td>
+                    <td class="px-6 py-4 text-right text-sm text-zinc-600 dark:text-zinc-300">
+                      <%= format_price(trade.price) %>
+                    </td>
+                    <td class="px-6 py-4 text-center text-lg">
+                      <%= trade_result_icon(trade.was_correct) %>
+                    </td>
+                    <td class="px-6 py-4 text-right">
+                      <%= if trade.anomaly_score do %>
+                        <.badge color={score_tier_color(trade.anomaly_score)}>
+                          <%= format_score(trade.anomaly_score) %>
+                        </.badge>
+                      <% else %>
+                        <span class="text-sm text-zinc-400">-</span>
+                      <% end %>
+                    </td>
+                    <td class="px-6 py-4 text-right">
+                      <.link
+                        navigate={~p"/admin/polymarket/wallet/#{trade.wallet_address}"}
+                        class="text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
+                      >
+                        Investigate →
+                      </.link>
+                    </td>
+                  </tr>
+                <% end %>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  <% end %>
+</div>

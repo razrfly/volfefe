@@ -280,14 +280,13 @@ defmodule Mix.Tasks.Polymarket.InvestigateWallet do
     end
   end
 
-  defp print_top_trades(address, limit, _verbose) do
-    # Get top trades by score
-    trades = Repo.all(from t in Trade,
+  defp print_top_trades(address, limit, verbose) do
+    # Build base query without limit
+    base_query = from t in Trade,
       join: ts in TradeScore, on: ts.trade_id == t.id,
       left_join: m in Market, on: m.id == t.market_id,
       where: t.wallet_address == ^address,
       order_by: [desc: ts.anomaly_score],
-      limit: ^limit,
       select: %{
         trade_id: t.id,
         question: m.question,
@@ -299,7 +298,10 @@ defmodule Mix.Tasks.Polymarket.InvestigateWallet do
         trinity_pattern: ts.trinity_pattern,
         trade_timestamp: t.trade_timestamp
       }
-    )
+
+    # Apply limit only when not in verbose mode
+    query = if verbose, do: base_query, else: from(q in base_query, limit: ^limit)
+    trades = Repo.all(query)
 
     if length(trades) > 0 do
       Mix.shell().info("TOP SUSPICIOUS TRADES (by score)")

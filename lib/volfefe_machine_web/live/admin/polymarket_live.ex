@@ -403,6 +403,22 @@ defmodule VolfefeMachineWeb.Admin.PolymarketLive do
     end
   end
 
+  @impl true
+  def handle_event("unwatch_market", %{"market-id" => market_id}, socket) do
+    market_id = String.to_integer(market_id)
+
+    case Polymarket.unwatch_market(market_id) do
+      {:ok, _} ->
+        {:noreply,
+         socket
+         |> put_toast(:success, "Market unwatched")
+         |> load_data()}
+
+      {:error, :not_found} ->
+        {:noreply, put_toast(socket, :error, "Market not found in watch list")}
+    end
+  end
+
   defp parse_batch_limit(nil), do: 10
   defp parse_batch_limit(""), do: 10
   defp parse_batch_limit(str) when is_binary(str) do
@@ -483,6 +499,9 @@ defmodule VolfefeMachineWeb.Admin.PolymarketLive do
     # Load date-filtered dashboard stats for Phase 3 MVP
     dashboard_stats = Polymarket.dashboard_stats(range: date_range)
 
+    # Load watched markets
+    watched_markets = Polymarket.list_watched_markets(range: date_range, limit: 20)
+
     socket
     |> assign(:dashboard, dashboard)
     |> assign(:investigation, investigation)
@@ -498,6 +517,7 @@ defmodule VolfefeMachineWeb.Admin.PolymarketLive do
     |> assign(:discovery_batches, Polymarket.list_discovery_batches(limit: 20))
     |> assign(:pilot_progress, pilot_progress)
     |> assign(:dashboard_stats, dashboard_stats)
+    |> assign(:watched_markets, watched_markets)
     |> assign_new(:activity_feed, fn -> dashboard_stats.recent_activity end)
     |> assign_new(:pilot_validation, fn -> nil end)
     |> assign_new(:pilot_metrics, fn -> nil end)
