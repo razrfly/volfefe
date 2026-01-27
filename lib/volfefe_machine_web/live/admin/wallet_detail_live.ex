@@ -170,16 +170,22 @@ defmodule VolfefeMachineWeb.Admin.WalletDetailLive do
 
   @impl true
   def handle_event("delete_note", %{"id" => note_id}, socket) do
-    case Polymarket.delete_investigation_note(String.to_integer(note_id)) do
-      {:ok, _} ->
-        notes = Polymarket.get_investigation_notes(socket.assigns.address)
-        {:noreply,
-         socket
-         |> assign(:investigation_notes, notes)
-         |> put_toast(:success, "Note deleted")}
+    case Integer.parse(note_id) do
+      {parsed_id, ""} ->
+        case Polymarket.delete_investigation_note(parsed_id) do
+          {:ok, _} ->
+            notes = Polymarket.get_investigation_notes(socket.assigns.address)
+            {:noreply,
+             socket
+             |> assign(:investigation_notes, notes)
+             |> put_toast(:success, "Note deleted")}
 
-      {:error, _reason} ->
-        {:noreply, put_toast(socket, :error, "Failed to delete note")}
+          {:error, _reason} ->
+            {:noreply, put_toast(socket, :error, "Failed to delete note")}
+        end
+
+      _ ->
+        {:noreply, put_toast(socket, :error, "Invalid note ID")}
     end
   end
 
@@ -211,7 +217,8 @@ defmodule VolfefeMachineWeb.Admin.WalletDetailLive do
 
     trades_data = Enum.map(trades, fn trade ->
       timestamp = if trade.trade_timestamp, do: DateTime.to_iso8601(trade.trade_timestamp), else: ""
-      market = String.replace(trade.market_question || "Unknown", ",", ";")
+      # Properly escape double quotes by doubling them (CSV standard)
+      market = (trade.market_question || "Unknown") |> String.replace("\"", "\"\"")
       result = case trade.was_correct do
         true -> "Won"
         false -> "Lost"

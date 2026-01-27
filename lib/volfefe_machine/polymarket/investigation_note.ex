@@ -28,6 +28,9 @@ defmodule VolfefeMachine.Polymarket.InvestigationNote do
     |> cast(attrs, [:wallet_address, :note_text, :author, :note_type])
     |> validate_required([:wallet_address, :note_text])
     |> validate_inclusion(:note_type, @note_types)
-    |> update_change(:wallet_address, &String.downcase/1)
+    |> update_change(:wallet_address, fn
+      v when is_binary(v) -> String.downcase(v)
+      v -> v
+    end)
   end
 end
