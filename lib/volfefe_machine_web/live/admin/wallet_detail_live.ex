@@ -19,6 +19,9 @@ defmodule VolfefeMachineWeb.Admin.WalletDetailLive do
   def mount(%{"address" => address}, _session, socket) do
     wallet_data = Polymarket.wallet_detail(address)
     ring_info = Polymarket.ring_connection_info(address)
+    ring_members = Polymarket.get_ring_members(address, limit: 10)
+
+    investigation_notes = Polymarket.get_investigation_notes(address)
 
     if wallet_data do
       {:ok,
@@ -33,7 +36,11 @@ defmodule VolfefeMachineWeb.Admin.WalletDetailLive do
        |> assign(:confirmed_insider, wallet_data.confirmed_insider)
        |> assign(:zscore_breakdown, wallet_data.zscore_breakdown)
        |> assign(:category_breakdown, wallet_data.category_breakdown)
-       |> assign(:ring_info, ring_info)}
+       |> assign(:ring_info, ring_info)
+       |> assign(:ring_members, ring_members)
+       |> assign(:show_note_modal, false)
+       |> assign(:note_form, %{"note_text" => "", "note_type" => "general"})
+       |> assign(:investigation_notes, investigation_notes)}
     else
       {:ok,
        socket
@@ -47,7 +54,11 @@ defmodule VolfefeMachineWeb.Admin.WalletDetailLive do
        |> assign(:confirmed_insider, nil)
        |> assign(:zscore_breakdown, nil)
        |> assign(:category_breakdown, %{})
-       |> assign(:ring_info, %{connected: false})}
+       |> assign(:ring_info, %{connected: false})
+       |> assign(:ring_members, %{members: [], total_count: 0})
+       |> assign(:show_note_modal, false)
+       |> assign(:note_form, %{"note_text" => "", "note_type" => "general"})
+       |> assign(:investigation_notes, investigation_notes)}
     end
   end
 
@@ -125,6 +136,95 @@ defmodule VolfefeMachineWeb.Admin.WalletDetailLive do
     end
   end
 
+  @impl true
+  def handle_event("show_note_modal", _params, socket) do
+    {:noreply, assign(socket, :show_note_modal, true)}
+  end
+
+  @impl true
+  def handle_event("close_note_modal", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:show_note_modal, false)
+     |> assign(:note_form, %{"note_text" => "", "note_type" => "general"})}
+  end
+
+  @impl true
+  def handle_event("add_note", %{"note_text" => note_text, "note_type" => note_type}, socket) do
+    address = socket.assigns.address
+
+    case Polymarket.add_wallet_investigation_note(address, note_text, note_type: note_type) do
+      {:ok, _note} ->
+        notes = Polymarket.get_investigation_notes(address)
+        {:noreply,
+         socket
+         |> assign(:investigation_notes, notes)
+         |> assign(:show_note_modal, false)
+         |> assign(:note_form, %{"note_text" => "", "note_type" => "general"})
+         |> put_toast(:success, "Note added successfully")}
+
+      {:error, _changeset} ->
+        {:noreply, put_toast(socket, :error, "Failed to add note")}
+    end
+  end
+
+  @impl true
+  def handle_event("delete_note", %{"id" => note_id}, socket) do
+    case Polymarket.delete_investigation_note(String.to_integer(note_id)) do
+      {:ok, _} ->
+        notes = Polymarket.get_investigation_notes(socket.assigns.address)
+        {:noreply,
+         socket
+         |> assign(:investigation_notes, notes)
+         |> put_toast(:success, "Note deleted")}
+
+      {:error, _reason} ->
+        {:noreply, put_toast(socket, :error, "Failed to delete note")}
+    end
+  end
+
+  @impl true
+  def handle_event("export_csv", _params, socket) do
+    address = socket.assigns.address
+    trades = socket.assigns.trades
+    summary = socket.assigns.summary
+
+    csv_content = generate_csv(address, summary, trades)
+    filename = "wallet_#{String.slice(address, 0, 8)}_#{Date.utc_today()}.csv"
+
+    {:noreply,
+     socket
+     |> push_event("download", %{content: csv_content, filename: filename, content_type: "text/csv"})}
+  end
+
+  # CSV Generation
+  defp generate_csv(address, summary, trades) do
+    header = "Wallet Export Report\n"
+    header = header <> "Address,#{address}\n"
+    header = header <> "Total Trades,#{summary.total_trades}\n"
+    header = header <> "Total Volume,#{summary.total_volume}\n"
+    header = header <> "Win Rate,#{if summary.win_rate, do: Float.round(summary.win_rate * 100, 1), else: "N/A"}%\n"
+    header = header <> "Avg Score,#{format_score(summary.avg_score)}\n\n"
+
+    trades_header = "Trade History\n"
+    trades_header = trades_header <> "Timestamp,Market,Side,Outcome,Size (USDC),Price,Result,Score\n"
+
+    trades_data = Enum.map(trades, fn trade ->
+      timestamp = if trade.trade_timestamp, do: DateTime.to_iso8601(trade.trade_timestamp), else: ""
+      market = String.replace(trade.market_question || "Unknown", ",", ";")
+      result = case trade.was_correct do
+        true -> "Won"
+        false -> "Lost"
+        nil -> "Pending"
+      end
+      score = format_score(trade.anomaly_score)
+
+      "#{timestamp},\"#{market}\",#{trade.side},#{trade.outcome},#{trade.usdc_size || 0},#{trade.price || 0},#{result},#{score}"
+    end)
+
+    header <> trades_header <> Enum.join(trades_data, "\n")
+  end
+
   # Template helpers
 
   def format_volume(nil), do: "$0"
@@ -162,6 +262,20 @@ defmodule VolfefeMachineWeb.Admin.WalletDetailLive do
     "#{String.slice(address, 0, 6)}...#{String.slice(address, -4, 4)}"
   end
   def format_wallet(address), do: address
+
+  def format_percent(nil), do: "N/A"
+  def format_percent(rate) when is_float(rate), do: "#{Float.round(rate * 100, 0)}%"
+  def format_percent(rate), do: "#{rate}%"
+
+  def note_type_color("evidence"), do: :amber
+  def note_type_color("action"), do: :green
+  def note_type_color("dismissal"), do: :red
+  def note_type_color(_), do: :zinc
+
+  def note_type_icon("evidence"), do: "📋"
+  def note_type_icon("action"), do: "✅"
+  def note_type_icon("dismissal"), do: "❌"
+  def note_type_icon(_), do: "📝"
 
   def score_tier_color(nil), do: :zinc
   def score_tier_color(%Decimal{} = d), do: score_tier_color(Decimal.to_float(d))
