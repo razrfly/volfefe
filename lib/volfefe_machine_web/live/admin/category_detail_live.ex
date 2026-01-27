@@ -44,31 +44,39 @@ defmodule VolfefeMachineWeb.Admin.CategoryDetailLive do
   end
 
   # Whitelist of allowed sort fields to prevent atom injection
-  @allowed_sort_fields ~w(total_trades total_volume critical_trades high_trades anomaly_rate)a
+  # Map strings to atoms for safe conversion after validation
+  @allowed_sort_fields %{
+    "total_trades" => :total_trades,
+    "total_volume" => :total_volume,
+    "critical_trades" => :critical_trades,
+    "high_trades" => :high_trades,
+    "anomaly_rate" => :anomaly_rate
+  }
 
   @impl true
   def handle_event("sort_markets", %{"field" => field}, socket) do
-    field_atom = String.to_existing_atom(field)
+    # Validate string against whitelist before converting to atom
+    case Map.fetch(@allowed_sort_fields, field) do
+      {:ok, field_atom} ->
+        current_sort = socket.assigns.markets_sort
+        current_order = socket.assigns.markets_sort_order
 
-    if field_atom in @allowed_sort_fields do
-      current_sort = socket.assigns.markets_sort
-      current_order = socket.assigns.markets_sort_order
+        new_order = if field_atom == current_sort do
+          if current_order == :desc, do: :asc, else: :desc
+        else
+          :desc
+        end
 
-      new_order = if field_atom == current_sort do
-        if current_order == :desc, do: :asc, else: :desc
-      else
-        :desc
-      end
+        markets = sort_markets(socket.assigns.markets, field_atom, new_order)
 
-      markets = sort_markets(socket.assigns.markets, field_atom, new_order)
+        {:noreply,
+         socket
+         |> assign(:markets_sort, field_atom)
+         |> assign(:markets_sort_order, new_order)
+         |> assign(:markets, markets)}
 
-      {:noreply,
-       socket
-       |> assign(:markets_sort, field_atom)
-       |> assign(:markets_sort_order, new_order)
-       |> assign(:markets, markets)}
-    else
-      {:noreply, socket}
+      :error ->
+        {:noreply, socket}
     end
   end
 
