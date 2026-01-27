@@ -115,8 +115,11 @@ defmodule VolfefeMachine.Polymarket.ReferenceCaseMatcher do
     Logger.info("[ReferenceCaseMatcher] Processing #{length(unlinked)} unlinked cases")
 
     results = Enum.map(unlinked, fn ref_case ->
-      case find_matching_markets(ref_case, limit: 5) do
-        {:ok, [top | _rest] = matches} when length(matches) > 0 ->
+      # find_matching_markets always returns {:ok, _}, never {:error, _}
+      {:ok, matches} = find_matching_markets(ref_case, limit: 5)
+
+      case matches do
+        [top | _rest] ->
           result = %{
             case_name: ref_case.case_name,
             matches: Enum.map(matches, fn m ->
@@ -137,11 +140,8 @@ defmodule VolfefeMachine.Polymarket.ReferenceCaseMatcher do
             result
           end
 
-        {:ok, []} ->
+        [] ->
           %{case_name: ref_case.case_name, matches: [], no_match: true}
-
-        {:error, reason} ->
-          %{case_name: ref_case.case_name, error: reason}
       end
     end)
 
