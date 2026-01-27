@@ -133,39 +133,47 @@ defmodule VolfefeMachine.Intelligence.EnsembleScorer do
   More efficient than scoring one at a time when you have many trades.
   """
   def calculate_batch(trade_scores, opts \\ []) when is_list(trade_scores) do
-    # Extract features for ML scoring
-    features = Enum.map(trade_scores, &AnomalyDetector.extract_core_features/1)
+    # Guard against empty input
+    if trade_scores == [] do
+      []
+    else
+      # Extract features for ML scoring
+      features = Enum.map(trade_scores, &AnomalyDetector.extract_core_features/1)
 
-    # Run batch ML prediction
-    ml_results = case AnomalyDetector.fit_predict(features, opts) do
-      {:ok, result} -> result
-      {:error, _} -> nil
+      # Pass explicit feature names to ensure correct feature count/order for Python
+      ml_opts = Keyword.put_new(opts, :feature_names, AnomalyDetector.core_feature_names())
+
+      # Run batch ML prediction
+      ml_results = case AnomalyDetector.fit_predict(features, ml_opts) do
+        {:ok, result} -> result
+        {:error, _} -> nil
+      end
+
+      # Combine ML results with existing scores
+      trade_scores
+      |> Enum.with_index()
+      |> Enum.map(fn {score, idx} ->
+        ml_score = if ml_results, do: Enum.at(ml_results.anomaly_scores, idx, 0.0), else: 0.0
+        ml_conf = if ml_results, do: Enum.at(ml_results.confidence, idx, 0.0), else: 0.0
+
+        scores = %{
+          anomaly_score: score.anomaly_score,
+          ml_anomaly_score: ml_score,
+          ml_confidence: ml_conf,
+          highest_pattern_score: score.highest_pattern_score,
+          was_correct: get_was_correct(score)
+        }
+
+        {:ok, ensemble_score} = calculate(scores)
+
+        %{
+          trade_id: score.trade_id,
+          ensemble_score: ensemble_score,
+          ml_anomaly_score: ml_score,
+          ml_confidence: ml_conf
+        }
+      end)
     end
-
-    # Combine ML results with existing scores
-    trade_scores
-    |> Enum.with_index()
-    |> Enum.map(fn {score, idx} ->
-      ml_score = if ml_results, do: Enum.at(ml_results.anomaly_scores, idx, 0.0), else: 0.0
-      ml_conf = if ml_results, do: Enum.at(ml_results.confidence, idx, 0.0), else: 0.0
-
-      scores = %{
-        anomaly_score: score.anomaly_score,
-        ml_anomaly_score: ml_score,
-        ml_confidence: ml_conf,
-        highest_pattern_score: score.highest_pattern_score,
-        was_correct: get_was_correct(score)
-      }
-
-      {:ok, ensemble_score} = calculate(scores)
-
-      %{
-        trade_id: score.trade_id,
-        ensemble_score: ensemble_score,
-        ml_anomaly_score: ml_score,
-        ml_confidence: ml_conf
-      }
-    end)
   end
 
   @doc """

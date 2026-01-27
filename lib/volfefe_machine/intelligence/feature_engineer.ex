@@ -92,7 +92,13 @@ defmodule VolfefeMachine.Intelligence.FeatureEngineer do
   Compute price confidence - how extreme the price is.
   0.5 price = 0.0 confidence (even odds)
   0.0 or 1.0 price = 1.0 confidence (certain)
+  nil price = 0.0 confidence (unknown, treated as even odds)
   """
+  def compute_price_confidence(nil) do
+    # Missing price treated as even odds (0.5) -> confidence 0.0
+    0.0
+  end
+
   def compute_price_confidence(price) do
     p = ensure_float(price)
     # abs(price - 0.5) * 2 gives 0 at 0.5 and 1 at 0/1

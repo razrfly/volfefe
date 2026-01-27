@@ -1655,16 +1655,19 @@ defmodule VolfefeMachine.Polymarket do
     Repo.all(query)
   end
 
-  # Get the latest trade timestamp for a category
+  # Get the latest trade timestamp for a category (only resolved trades for baseline consistency)
   defp get_latest_trade_timestamp(category) do
     query =
       if category == "all" do
-        from(t in Trade, select: max(t.trade_timestamp))
+        from(t in Trade,
+          where: not is_nil(t.was_correct),
+          select: max(t.trade_timestamp)
+        )
       else
         category_atom = String.to_existing_atom(category)
         from(t in Trade,
           join: m in Market, on: t.market_id == m.id,
-          where: m.category == ^category_atom,
+          where: m.category == ^category_atom and not is_nil(t.was_correct),
           select: max(t.trade_timestamp)
         )
       end

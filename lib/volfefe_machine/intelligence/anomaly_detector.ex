@@ -318,7 +318,8 @@ defmodule VolfefeMachine.Intelligence.AnomalyDetector do
   defp parse_result(json_string) do
     case Jason.decode(json_string) do
       {:ok, %{"error" => error, "message" => message}} ->
-        {:error, {String.to_atom(error), message}}
+        # Keep error as string to avoid atom exhaustion from external input
+        {:error, {error, message}}
 
       {:ok, %{"status" => "success"} = result} ->
         {:ok, %{

@@ -217,26 +217,35 @@ defmodule VolfefeMachine.Polymarket.ReferenceCaseMatcher do
         limit: 100
       )
 
-      # Add category filter if specified
+      # Add category filter if specified (use existing atoms only to prevent atom exhaustion)
       base_query = if category_filter do
-        category_atom = if is_atom(category_filter), do: category_filter, else: String.to_atom(category_filter)
-        from(m in base_query, where: m.category == ^category_atom)
+        category_atom = safe_to_category_atom(category_filter)
+        if category_atom do
+          from(m in base_query, where: m.category == ^category_atom)
+        else
+          base_query
+        end
       else
         # Or match reference case category
         if ref_case.category do
-          category_atom = String.to_atom(ref_case.category)
-          from(m in base_query, where: m.category == ^category_atom)
+          category_atom = safe_to_category_atom(ref_case.category)
+          if category_atom do
+            from(m in base_query, where: m.category == ^category_atom)
+          else
+            base_query
+          end
         else
           base_query
         end
       end
 
       # Search for markets containing any of the search terms
+      # Escape regex special chars and build proper POSIX regex pattern for ~*
       search_pattern = search_terms
-      |> Enum.map(&"%#{&1}%")
+      |> Enum.map(&Regex.escape/1)
       |> Enum.join("|")
 
-      # Use dynamic query with multiple OR conditions
+      # Use dynamic query with POSIX regex (case-insensitive)
       query = from(m in base_query,
         where: fragment("? ~* ?", m.question, ^search_pattern)
       )
@@ -381,4 +390,23 @@ defmodule VolfefeMachine.Polymarket.ReferenceCaseMatcher do
       0.5
     end
   end
+
+  # Safely convert category to atom without exhausting atom table
+  # Only accepts atoms that exist in Market.category Ecto.Enum
+  @valid_categories ~w(politics corporate legal crypto sports entertainment science other)a
+
+  defp safe_to_category_atom(value) when is_atom(value) do
+    if value in @valid_categories, do: value, else: nil
+  end
+
+  defp safe_to_category_atom(value) when is_binary(value) do
+    try do
+      atom = String.to_existing_atom(value)
+      if atom in @valid_categories, do: atom, else: nil
+    rescue
+      ArgumentError -> nil
+    end
+  end
+
+  defp safe_to_category_atom(_), do: nil
 end

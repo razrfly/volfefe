@@ -94,9 +94,11 @@ defmodule Mix.Tasks.Polymarket.MlScore do
 
   defp build_query(opts) do
     # Base query without select - for counting
+    # Order by ts.id for deterministic offset pagination
     base = from(ts in TradeScore,
       join: t in Trade, on: t.id == ts.trade_id,
-      left_join: w in Wallet, on: w.id == t.wallet_id
+      left_join: w in Wallet, on: w.id == t.wallet_id,
+      order_by: [asc: ts.id]
     )
 
     base
@@ -208,7 +210,7 @@ defmodule Mix.Tasks.Polymarket.MlScore do
       # Get extended features
       extended = FeatureEngineer.compute_features(trade, wallet)
 
-      # Build full 22-feature vector
+      # Build full 22-feature vector (all values must be floats for numpy/sklearn)
       [
         ensure_float(score.size_zscore),
         ensure_float(score.timing_zscore),
@@ -217,22 +219,22 @@ defmodule Mix.Tasks.Polymarket.MlScore do
         ensure_float(score.price_extremity_zscore),
         ensure_float(score.position_concentration_zscore),
         ensure_float(score.funding_proximity_zscore),
-        extended.raw_size_normalized,
-        extended.raw_price,
-        extended.raw_hours_before_resolution,
-        extended.raw_wallet_age_days,
-        extended.raw_wallet_trade_count,
+        ensure_float(extended.raw_size_normalized),
+        ensure_float(extended.raw_price),
+        ensure_float(extended.raw_hours_before_resolution),
+        ensure_float(extended.raw_wallet_age_days),
+        ensure_float(extended.raw_wallet_trade_count),
         if(extended.is_buy, do: 1.0, else: 0.0),
-        extended.outcome_index,
-        extended.price_confidence,
-        extended.wallet_win_rate,
-        extended.wallet_volume_zscore,
-        extended.wallet_unique_markets_normalized,
-        extended.funding_amount_normalized,
-        extended.trade_hour_sin,
-        extended.trade_hour_cos,
-        extended.trade_day_sin,
-        extended.trade_day_cos
+        ensure_float(extended.outcome_index),
+        ensure_float(extended.price_confidence),
+        ensure_float(extended.wallet_win_rate),
+        ensure_float(extended.wallet_volume_zscore),
+        ensure_float(extended.wallet_unique_markets_normalized),
+        ensure_float(extended.funding_amount_normalized),
+        ensure_float(extended.trade_hour_sin),
+        ensure_float(extended.trade_hour_cos),
+        ensure_float(extended.trade_day_sin),
+        ensure_float(extended.trade_day_cos)
       ]
     end)
 

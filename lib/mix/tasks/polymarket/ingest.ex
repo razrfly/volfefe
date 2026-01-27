@@ -1608,6 +1608,13 @@ defmodule Mix.Tasks.Polymarket.Ingest do
       _existing ->
         :updated
     end
+  rescue
+    e in [RuntimeError, ArgumentError] ->
+      require Logger
+      Logger.warning("Failed to insert trade record: #{inspect(e)}, event_id=#{event["id"]}, market_id=#{market_id}, condition_id=#{condition_id}")
+      :error
+    _ ->
+      :error
   end
 
   defp find_or_create_market_id(condition_id) do
