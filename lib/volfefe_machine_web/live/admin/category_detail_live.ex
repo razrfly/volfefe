@@ -43,41 +43,53 @@ defmodule VolfefeMachineWeb.Admin.CategoryDetailLive do
      |> load_data()}
   end
 
+  # Whitelist of allowed sort fields to prevent atom injection
+  @allowed_sort_fields ~w(total_trades total_volume critical_trades high_trades anomaly_rate)a
+
   @impl true
   def handle_event("sort_markets", %{"field" => field}, socket) do
     field_atom = String.to_existing_atom(field)
-    current_sort = socket.assigns.markets_sort
-    current_order = socket.assigns.markets_sort_order
 
-    new_order = if field_atom == current_sort do
-      if current_order == :desc, do: :asc, else: :desc
+    if field_atom in @allowed_sort_fields do
+      current_sort = socket.assigns.markets_sort
+      current_order = socket.assigns.markets_sort_order
+
+      new_order = if field_atom == current_sort do
+        if current_order == :desc, do: :asc, else: :desc
+      else
+        :desc
+      end
+
+      markets = sort_markets(socket.assigns.markets, field_atom, new_order)
+
+      {:noreply,
+       socket
+       |> assign(:markets_sort, field_atom)
+       |> assign(:markets_sort_order, new_order)
+       |> assign(:markets, markets)}
     else
-      :desc
+      {:noreply, socket}
     end
-
-    markets = sort_markets(socket.assigns.markets, field_atom, new_order)
-
-    {:noreply,
-     socket
-     |> assign(:markets_sort, field_atom)
-     |> assign(:markets_sort_order, new_order)
-     |> assign(:markets, markets)}
   end
 
   @impl true
-  def handle_event("toggle_watch", %{"market-id" => market_id}, socket) do
-    market_id = String.to_integer(market_id)
+  def handle_event("toggle_watch", %{"market-id" => market_id_str}, socket) do
+    case Integer.parse(market_id_str) do
+      {market_id, ""} ->
+        case Polymarket.toggle_watch_market(market_id) do
+          {:ok, :watched} ->
+            watched_ids = MapSet.put(socket.assigns.watched_market_ids, market_id)
+            {:noreply, assign(socket, :watched_market_ids, watched_ids)}
 
-    case Polymarket.toggle_watch_market(market_id) do
-      {:ok, :watched} ->
-        watched_ids = MapSet.put(socket.assigns.watched_market_ids, market_id)
-        {:noreply, assign(socket, :watched_market_ids, watched_ids)}
+          {:ok, :unwatched} ->
+            watched_ids = MapSet.delete(socket.assigns.watched_market_ids, market_id)
+            {:noreply, assign(socket, :watched_market_ids, watched_ids)}
 
-      {:ok, :unwatched} ->
-        watched_ids = MapSet.delete(socket.assigns.watched_market_ids, market_id)
-        {:noreply, assign(socket, :watched_market_ids, watched_ids)}
+          {:error, _} ->
+            {:noreply, socket}
+        end
 
-      {:error, _} ->
+      _ ->
         {:noreply, socket}
     end
   end

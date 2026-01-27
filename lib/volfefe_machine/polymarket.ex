@@ -38,7 +38,7 @@ defmodule VolfefeMachine.Polymarket do
   alias VolfefeMachine.Polymarket.{
     Client, Market, Trade, Wallet, PatternBaseline, TradeScore,
     ConfirmedInsider, InsiderPattern, InvestigationCandidate, DiscoveryBatch,
-    Alert, TradeMonitor, WatchedMarket
+    Alert, TradeMonitor, WatchedMarket, InvestigationNote
   }
 
   # ============================================
@@ -2185,11 +2185,12 @@ defmodule VolfefeMachine.Polymarket do
   """
   def confirm_insider_from_wallet(wallet_address, opts \\ %{}) do
     # Find the highest-scoring trade for this wallet
+    # Use COALESCE to handle NULL anomaly scores in ordering
     trade = from(t in Trade,
       left_join: ts in TradeScore, on: ts.trade_id == t.id,
       left_join: m in Market, on: t.market_id == m.id,
       where: t.wallet_address == ^wallet_address,
-      order_by: [desc: ts.anomaly_score, desc: t.usdc_size],
+      order_by: [desc: fragment("COALESCE(?, 0)", ts.anomaly_score), desc: t.usdc_size],
       limit: 1,
       select: %{
         trade: t,
@@ -2204,8 +2205,7 @@ defmodule VolfefeMachine.Polymarket do
         condition_id: trade.market && trade.market.condition_id,
         trade_id: trade.trade.id,
         confirmation_source: Map.get(opts, :source, "manual_review"),
-        confidence: Map.get(opts, :confidence, "medium"),
-        notes: Map.get(opts, :notes),
+        confidence_level: Map.get(opts, :confidence, "medium"),
         trade_size: trade.trade.usdc_size,
         estimated_profit: trade.trade.profit_loss,
         confirmed_at: DateTime.utc_now()
@@ -5331,8 +5331,12 @@ defmodule VolfefeMachine.Polymarket do
         score && score >= 0.7 && score < 0.9
       end)
 
-      # Check investigation status
-      candidate = Repo.get_by(InvestigationCandidate, wallet_address: wallet_address)
+      # Check investigation status (get most recent candidate if multiple exist)
+      candidate = from(c in InvestigationCandidate,
+        where: c.wallet_address == ^wallet_address,
+        order_by: [desc: c.inserted_at],
+        limit: 1
+      ) |> Repo.one()
       confirmed = Repo.get_by(ConfirmedInsider, wallet_address: wallet_address)
 
       status = cond do
@@ -5565,6 +5569,73 @@ defmodule VolfefeMachine.Polymarket do
   end
 
   # ============================================================================
+  # Investigation Notes Functions
+  # ============================================================================
+
+  @doc """
+  Add an investigation note to a wallet.
+
+  ## Parameters
+  - `wallet_address` - The wallet address to add a note to
+  - `note_text` - The note content
+  - `opts` - Options:
+    - `:author` - Note author (default: "admin")
+    - `:note_type` - Type of note: general, evidence, action, dismissal (default: "general")
+
+  ## Returns
+  - `{:ok, note}` on success
+  - `{:error, changeset}` on failure
+  """
+  def add_wallet_investigation_note(wallet_address, note_text, opts \\ []) do
+    attrs = %{
+      wallet_address: wallet_address,
+      note_text: note_text,
+      author: Keyword.get(opts, :author, "admin"),
+      note_type: Keyword.get(opts, :note_type, "general")
+    }
+
+    %InvestigationNote{}
+    |> InvestigationNote.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  @doc """
+  Get all investigation notes for a wallet.
+
+  ## Parameters
+  - `wallet_address` - The wallet address to get notes for
+
+  ## Returns
+  - List of investigation notes, ordered by most recent first
+  """
+  def get_investigation_notes(wallet_address) do
+    wallet_address = String.downcase(wallet_address)
+
+    from(n in InvestigationNote,
+      where: n.wallet_address == ^wallet_address,
+      order_by: [desc: n.inserted_at]
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Delete an investigation note.
+
+  ## Parameters
+  - `note_id` - The ID of the note to delete
+
+  ## Returns
+  - `{:ok, note}` on success
+  - `{:error, :not_found}` if note doesn't exist
+  """
+  def delete_investigation_note(note_id) do
+    case Repo.get(InvestigationNote, note_id) do
+      nil -> {:error, :not_found}
+      note -> Repo.delete(note)
+    end
+  end
+
+  # ============================================================================
   # Ring Detection Functions
   # ============================================================================
 
@@ -5662,6 +5733,127 @@ defmodule VolfefeMachine.Polymarket do
     case ring_connection_info(wallet_address) do
       %{connected: true} -> true
       _ -> false
+    end
+  end
+
+  @doc """
+  Get detailed information about ring members for a wallet.
+
+  Returns a list of linked wallets with their stats (win rate, volume, avg score).
+  Linked wallets are those that share 2+ markets with confirmed insiders.
+
+  Options:
+    - limit: max number of wallets to return (default 10)
+  """
+  def get_ring_members(wallet_address, opts \\ []) do
+    wallet_address = String.downcase(wallet_address)
+    limit = Keyword.get(opts, :limit, 10)
+
+    # Get markets this wallet traded
+    wallet_markets = Repo.all(
+      from t in Trade,
+        where: t.wallet_address == ^wallet_address,
+        select: t.market_id,
+        distinct: true
+    )
+
+    if length(wallet_markets) == 0 do
+      %{members: [], total_count: 0}
+    else
+      wallet_market_set = MapSet.new(wallet_markets)
+
+      # Get all confirmed insider addresses except this wallet
+      insider_addresses = Repo.all(
+        from ci in ConfirmedInsider,
+          where: ci.wallet_address != ^wallet_address,
+          select: ci.wallet_address,
+          distinct: true
+      )
+
+      # Find wallets that share markets (both confirmed insiders and candidates)
+      # First, get all wallets that traded the same markets
+      related_wallets = Repo.all(
+        from t in Trade,
+          where: t.market_id in ^wallet_markets and t.wallet_address != ^wallet_address,
+          select: t.wallet_address,
+          distinct: true
+      )
+
+      # Filter to those sharing 2+ markets and get their stats
+      members_with_stats = related_wallets
+        |> Enum.map(fn addr ->
+          # Get markets this related wallet traded
+          their_markets = Repo.all(
+            from t in Trade,
+              where: t.wallet_address == ^addr,
+              select: t.market_id,
+              distinct: true
+          )
+
+          shared_count = MapSet.intersection(wallet_market_set, MapSet.new(their_markets)) |> MapSet.size()
+
+          if shared_count >= 2 do
+            # Get wallet stats
+            stats = get_wallet_stats(addr)
+            is_confirmed = addr in insider_addresses
+
+            %{
+              address: addr,
+              win_rate: stats.win_rate,
+              total_volume: stats.total_volume,
+              avg_score: stats.avg_score,
+              trade_count: stats.trade_count,
+              shared_markets: shared_count,
+              is_confirmed_insider: is_confirmed
+            }
+          else
+            nil
+          end
+        end)
+        |> Enum.reject(&is_nil/1)
+        |> Enum.sort_by(fn m -> {if(m.is_confirmed_insider, do: 0, else: 1), -(m.avg_score || 0)} end)
+
+      total_count = length(members_with_stats)
+      members = Enum.take(members_with_stats, limit)
+
+      %{members: members, total_count: total_count}
+    end
+  end
+
+  @doc """
+  Get basic stats for a wallet (used by ring member display).
+  """
+  def get_wallet_stats(wallet_address) do
+    wallet_address = String.downcase(wallet_address)
+
+    trades = Repo.all(
+      from t in Trade,
+        left_join: ts in TradeScore, on: ts.trade_id == t.id,
+        where: t.wallet_address == ^wallet_address,
+        select: %{
+          usdc_size: t.usdc_size,
+          was_correct: t.was_correct,
+          anomaly_score: ts.anomaly_score
+        }
+    )
+
+    if length(trades) > 0 do
+      total_volume = trades |> Enum.map(& ensure_float(&1.usdc_size)) |> Enum.sum()
+      scored_values = trades |> Enum.map(& &1.anomaly_score) |> Enum.reject(&is_nil/1) |> Enum.map(&ensure_float/1)
+      avg_score = average(scored_values)
+
+      correct_trades = Enum.count(trades, & &1.was_correct == true)
+      resolved_trades = Enum.count(trades, & not is_nil(&1.was_correct))
+      win_rate = if resolved_trades > 0, do: correct_trades / resolved_trades, else: nil
+
+      %{
+        trade_count: length(trades),
+        total_volume: total_volume,
+        avg_score: avg_score,
+        win_rate: win_rate
+      }
+    else
+      %{trade_count: 0, total_volume: 0.0, avg_score: nil, win_rate: nil}
     end
   end
 

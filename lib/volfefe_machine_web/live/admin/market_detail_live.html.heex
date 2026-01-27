@@ -1,8 +1,8 @@
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-  <!-- Admin Navigation -->
+  <%!-- Admin Navigation --%>
   <.admin_nav current_page={:polymarket} />
 
-  <!-- Header with Back Button -->
+  <%!-- Header with Back Button --%>
   <div class="mb-8">
     <div class="flex items-center gap-4 mb-4">
       <.link navigate={~p"/admin/polymarket"} class="flex items-center gap-2 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors">
@@ -49,7 +49,7 @@
 
   <%= if @market do %>
     <div class="space-y-6">
-      <!-- Summary Stats Row -->
+      <%!-- Summary Stats Row --%>
       <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
         <.stat_card title="Total Trades" value={format_number(@summary.total_trades)}>
           <:detail>All time</:detail>
@@ -72,7 +72,7 @@
         </.stat_card>
       </div>
 
-      <!-- Score Distribution -->
+      <%!-- Score Distribution --%>
       <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
         <div class="px-6 py-4 border-b border-zinc-950/10 dark:border-white/10">
           <.subheading>Score Distribution</.subheading>
@@ -80,7 +80,7 @@
         </div>
         <div class="p-6">
           <div class="grid grid-cols-5 gap-4">
-            <!-- Critical -->
+            <%!-- Critical --%>
             <div class="text-center">
               <div class="text-3xl font-bold text-red-600 dark:text-red-400">
                 <%= @score_distribution.critical %>
@@ -89,7 +89,7 @@
               <div class="text-xs text-zinc-500">&ge;0.9</div>
             </div>
 
-            <!-- High -->
+            <%!-- High --%>
             <div class="text-center">
               <div class="text-3xl font-bold text-orange-600 dark:text-orange-400">
                 <%= @score_distribution.high %>
@@ -98,7 +98,7 @@
               <div class="text-xs text-zinc-500">0.7-0.9</div>
             </div>
 
-            <!-- Medium -->
+            <%!-- Medium --%>
             <div class="text-center">
               <div class="text-3xl font-bold text-yellow-600 dark:text-yellow-400">
                 <%= @score_distribution.medium %>
@@ -107,7 +107,7 @@
               <div class="text-xs text-zinc-500">0.5-0.7</div>
             </div>
 
-            <!-- Low -->
+            <%!-- Low --%>
             <div class="text-center">
               <div class="text-3xl font-bold text-blue-600 dark:text-blue-400">
                 <%= @score_distribution.low %>
@@ -116,7 +116,7 @@
               <div class="text-xs text-zinc-500">0.3-0.5</div>
             </div>
 
-            <!-- Normal -->
+            <%!-- Normal --%>
             <div class="text-center">
               <div class="text-3xl font-bold text-green-600 dark:text-green-400">
                 <%= @score_distribution.normal %>
@@ -128,7 +128,7 @@
         </div>
       </div>
 
-      <!-- Trades Table -->
+      <%!-- Trades Table --%>
       <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
         <div class="px-6 py-4 border-b border-zinc-950/10 dark:border-white/10">
           <div class="flex items-center justify-between">

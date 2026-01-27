@@ -1,8 +1,8 @@
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-  <!-- Admin Navigation -->
+  <%!-- Admin Navigation --%>
   <.admin_nav current_page={:polymarket} />
 
-  <!-- Header with Back Button -->
+  <%!-- Header with Back Button --%>
   <div class="mb-8">
     <div class="flex items-center gap-4 mb-4">
       <.link navigate={~p"/admin/polymarket"} class="flex items-center gap-2 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors">
@@ -20,7 +20,7 @@
           </.text>
         </div>
       </div>
-      <!-- Date Range Selector -->
+      <%!-- Date Range Selector --%>
       <div class="flex items-center gap-2">
         <span class="text-sm font-medium text-zinc-700 dark:text-zinc-300">Time Range:</span>
         <div class="flex rounded-lg bg-zinc-100 dark:bg-zinc-800 p-1">
@@ -58,7 +58,7 @@
   </div>
 
   <div class="space-y-6">
-    <!-- Summary Stats Row -->
+    <%!-- Summary Stats Row --%>
     <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
       <.stat_card title="Total Trades" value={format_number(@stats.total_trades)}>
         <:detail>In selected period</:detail>
@@ -85,9 +85,9 @@
       </.stat_card>
     </div>
 
-    <!-- Score Distribution and Trend Chart Row -->
+    <%!-- Score Distribution and Trend Chart Row --%>
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <!-- Score Distribution -->
+      <%!-- Score Distribution --%>
       <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
         <div class="px-6 py-4 border-b border-zinc-950/10 dark:border-white/10">
           <.subheading>Score Distribution</.subheading>
@@ -95,7 +95,7 @@
         </div>
         <div class="p-6">
           <div class="space-y-4">
-            <!-- Critical -->
+            <%!-- Critical --%>
             <div class="flex items-center gap-4">
               <div class="w-20 text-sm font-medium text-red-600 dark:text-red-400">Critical</div>
               <div class="flex-1">
@@ -113,7 +113,7 @@
               </div>
             </div>
 
-            <!-- High -->
+            <%!-- High --%>
             <div class="flex items-center gap-4">
               <div class="w-20 text-sm font-medium text-orange-600 dark:text-orange-400">High</div>
               <div class="flex-1">
@@ -131,7 +131,7 @@
               </div>
             </div>
 
-            <!-- Medium -->
+            <%!-- Medium --%>
             <div class="flex items-center gap-4">
               <div class="w-20 text-sm font-medium text-yellow-600 dark:text-yellow-400">Medium</div>
               <div class="flex-1">
@@ -149,7 +149,7 @@
               </div>
             </div>
 
-            <!-- Low -->
+            <%!-- Low --%>
             <div class="flex items-center gap-4">
               <div class="w-20 text-sm font-medium text-blue-600 dark:text-blue-400">Low</div>
               <div class="flex-1">
@@ -167,7 +167,7 @@
               </div>
             </div>
 
-            <!-- Normal -->
+            <%!-- Normal --%>
             <div class="flex items-center gap-4">
               <div class="w-20 text-sm font-medium text-green-600 dark:text-green-400">Normal</div>
               <div class="flex-1">
@@ -188,7 +188,7 @@
         </div>
       </div>
 
-      <!-- 7-Day Trend Chart -->
+      <%!-- 7-Day Trend Chart --%>
       <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
         <div class="px-6 py-4 border-b border-zinc-950/10 dark:border-white/10">
           <.subheading>7-Day Anomaly Trend</.subheading>
@@ -204,7 +204,7 @@
                   </div>
                   <div class="flex-1">
                     <div class="h-4 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden relative">
-                      <!-- Anomaly rate bar -->
+                      <%!-- Anomaly rate bar --%>
                       <div
                         class={"h-full rounded-full transition-all duration-300 #{cond do
                           day.anomaly_rate >= 20 -> "bg-red-500"
@@ -235,7 +235,7 @@
       </div>
     </div>
 
-    <!-- Markets Table -->
+    <%!-- Markets Table --%>
     <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
       <div class="px-6 py-4 border-b border-zinc-950/10 dark:border-white/10">
         <div class="flex items-center justify-between">
@@ -384,7 +384,7 @@
       </div>
     </div>
 
-    <!-- Suspicious Wallets Leaderboard -->
+    <%!-- Suspicious Wallets Leaderboard --%>
     <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
       <div class="px-6 py-4 border-b border-zinc-950/10 dark:border-white/10">
         <div class="flex items-center justify-between">
