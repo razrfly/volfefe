@@ -1800,6 +1800,13 @@ defmodule VolfefeMachine.Polymarket do
       position_concentration: concentration_z || 0
     })
 
+    # Calculate trinity pattern (all 3 core signals >= 2.0σ)
+    trinity = TradeScore.trinity_pattern?(%{
+      size_zscore: size_z,
+      timing_zscore: timing_z,
+      wallet_age_zscore: wallet_age_z
+    })
+
     attrs = %{
       trade_id: trade.id,
       transaction_hash: trade.transaction_hash,
@@ -1812,6 +1819,7 @@ defmodule VolfefeMachine.Polymarket do
       anomaly_score: anomaly_score,
       insider_probability: insider_prob,
       matched_patterns: breakdown,
+      trinity_pattern: trinity,
       scored_at: DateTime.utc_now()
     }
 

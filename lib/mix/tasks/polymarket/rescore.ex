@@ -78,19 +78,19 @@ defmodule Mix.Tasks.Polymarket.Rescore do
     batch_size = opts[:batch] || 500
 
     cond do
-      opts[:force] and limit ->
+      opts[:force] == true and limit != nil ->
         # Prevent dangerous combination: --force clears ALL scores but --limit would only rescore a subset
         Mix.shell().error("Error: --force and --limit cannot be used together.")
         Mix.shell().error("       --force clears ALL existing scores, so --limit would leave most trades unscored.")
         Mix.shell().error("       Use --force alone to rescore everything, or --limit alone for testing.")
         exit({:shutdown, 1})
-      opts[:force] ->
+      opts[:force] == true ->
         # Clear existing scores and rescore all trades (no limit allowed)
         clear_existing_scores()
         score_unscored_trades(batch_size, nil)
-      opts[:unscored] ->
+      opts[:unscored] == true ->
         score_unscored_trades(batch_size, limit)
-      opts[:all] ->
+      opts[:all] == true ->
         # Score unscored first, then rescore existing
         score_unscored_trades(batch_size, limit)
         rescore_existing_trades(batch_size, limit)
