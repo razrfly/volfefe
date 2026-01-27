@@ -80,6 +80,103 @@
     <!-- Overview Tab -->
     <%= if @active_tab == :overview do %>
       <div class="space-y-6">
+        <!-- Date Range Selector -->
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-medium text-zinc-700 dark:text-zinc-300">Time Range:</span>
+            <div class="flex rounded-lg bg-zinc-100 dark:bg-zinc-800 p-1">
+              <button
+                phx-click="change_date_range"
+                phx-value-range="today"
+                class={"px-3 py-1.5 text-sm font-medium rounded-md transition-colors #{if @date_range == "today", do: "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm", else: "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"}"}
+              >
+                Today
+              </button>
+              <button
+                phx-click="change_date_range"
+                phx-value-range="7d"
+                class={"px-3 py-1.5 text-sm font-medium rounded-md transition-colors #{if @date_range == "7d", do: "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm", else: "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"}"}
+              >
+                7 Days
+              </button>
+              <button
+                phx-click="change_date_range"
+                phx-value-range="30d"
+                class={"px-3 py-1.5 text-sm font-medium rounded-md transition-colors #{if @date_range == "30d", do: "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm", else: "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"}"}
+              >
+                30 Days
+              </button>
+              <button
+                phx-click="change_date_range"
+                phx-value-range="all"
+                class={"px-3 py-1.5 text-sm font-medium rounded-md transition-colors #{if @date_range == "all", do: "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm", else: "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"}"}
+              >
+                All Time
+              </button>
+            </div>
+          </div>
+          <div class="text-sm text-zinc-500 dark:text-zinc-400">
+            Last updated: <%= relative_time(DateTime.utc_now()) %>
+          </div>
+        </div>
+
+        <!-- Score Tier Summary Cards -->
+        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+          <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+            <div class="flex items-center justify-between">
+              <span class="text-2xl">🚨</span>
+              <span class="text-2xl font-bold text-red-600 dark:text-red-400"><%= @dashboard_stats.score_tiers.critical %></span>
+            </div>
+            <div class="mt-2 text-sm font-medium text-red-700 dark:text-red-300">Critical</div>
+            <div class="text-xs text-red-600/70 dark:text-red-400/70">Score ≥ 0.9</div>
+          </div>
+
+          <div class="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-4">
+            <div class="flex items-center justify-between">
+              <span class="text-2xl">⚠️</span>
+              <span class="text-2xl font-bold text-orange-600 dark:text-orange-400"><%= @dashboard_stats.score_tiers.high %></span>
+            </div>
+            <div class="mt-2 text-sm font-medium text-orange-700 dark:text-orange-300">High</div>
+            <div class="text-xs text-orange-600/70 dark:text-orange-400/70">Score 0.7-0.9</div>
+          </div>
+
+          <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+            <div class="flex items-center justify-between">
+              <span class="text-2xl">📊</span>
+              <span class="text-2xl font-bold text-yellow-600 dark:text-yellow-400"><%= @dashboard_stats.score_tiers.medium %></span>
+            </div>
+            <div class="mt-2 text-sm font-medium text-yellow-700 dark:text-yellow-300">Medium</div>
+            <div class="text-xs text-yellow-600/70 dark:text-yellow-400/70">Score 0.5-0.7</div>
+          </div>
+
+          <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+            <div class="flex items-center justify-between">
+              <span class="text-2xl">ℹ️</span>
+              <span class="text-2xl font-bold text-blue-600 dark:text-blue-400"><%= @dashboard_stats.score_tiers.low %></span>
+            </div>
+            <div class="mt-2 text-sm font-medium text-blue-700 dark:text-blue-300">Low</div>
+            <div class="text-xs text-blue-600/70 dark:text-blue-400/70">Score 0.3-0.5</div>
+          </div>
+
+          <div class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+            <div class="flex items-center justify-between">
+              <span class="text-2xl">✅</span>
+              <span class="text-2xl font-bold text-green-600 dark:text-green-400"><%= @dashboard_stats.score_tiers.normal %></span>
+            </div>
+            <div class="mt-2 text-sm font-medium text-green-700 dark:text-green-300">Normal</div>
+            <div class="text-xs text-green-600/70 dark:text-green-400/70">Score &lt; 0.3</div>
+          </div>
+
+          <div class="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4">
+            <div class="flex items-center justify-between">
+              <span class="text-2xl">⚡</span>
+              <span class="text-2xl font-bold text-purple-600 dark:text-purple-400"><%= @dashboard_stats.score_tiers.trinity %></span>
+            </div>
+            <div class="mt-2 text-sm font-medium text-purple-700 dark:text-purple-300">Trinity</div>
+            <div class="text-xs text-purple-600/70 dark:text-purple-400/70">All 3 signals ≥2σ</div>
+          </div>
+        </div>
+
         <!-- Action Required Banner -->
         <%= if @dashboard.action_required.critical_alerts > 0 or @dashboard.action_required.high_alerts > 0 do %>
           <.alert_banner type={:error}>
@@ -132,6 +229,107 @@
               <%= @pattern_stats.validated_patterns %> validated
             </:detail>
           </.stat_card>
+        </div>
+
+        <!-- Category Anomaly Rates -->
+        <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+          <div class="px-6 py-4 border-b border-zinc-950/10 dark:border-white/10">
+            <.subheading>Category Anomaly Rates</.subheading>
+            <.text class="mt-1">Percentage of trades scoring ≥0.5 by market category</.text>
+          </div>
+          <div class="p-6 space-y-4">
+            <%= for cat <- @dashboard_stats.category_stats do %>
+              <div class="space-y-2">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <span class="font-medium text-zinc-900 dark:text-white capitalize"><%= cat.category %></span>
+                    <%= if cat.critical_trades > 0 do %>
+                      <.badge color={:red}><%= cat.critical_trades %> critical</.badge>
+                    <% end %>
+                  </div>
+                  <div class="text-sm text-zinc-600 dark:text-zinc-400">
+                    <%= cat.anomaly_rate %>% (<%= cat.anomalous_trades %>/<%= cat.total_trades %>)
+                  </div>
+                </div>
+                <div class="h-2 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
+                  <div
+                    class={"h-full rounded-full transition-all duration-500 #{cond do
+                      cat.anomaly_rate >= 20 -> "bg-red-500"
+                      cat.anomaly_rate >= 10 -> "bg-orange-500"
+                      cat.anomaly_rate >= 5 -> "bg-yellow-500"
+                      true -> "bg-green-500"
+                    end}"}
+                    style={"width: #{min(cat.anomaly_rate, 100)}%"}
+                  >
+                  </div>
+                </div>
+              </div>
+            <% end %>
+            <%= if length(@dashboard_stats.category_stats) == 0 do %>
+              <.empty_state>
+                No category data available for the selected time range.
+              </.empty_state>
+            <% end %>
+          </div>
+        </div>
+
+        <!-- Activity Feed -->
+        <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+          <div class="px-6 py-4 border-b border-zinc-950/10 dark:border-white/10">
+            <.subheading>Activity Feed</.subheading>
+            <.text class="mt-1">Real-time stream of trades, alerts, and discoveries</.text>
+          </div>
+          <div class="divide-y divide-zinc-950/5 dark:divide-white/5 max-h-96 overflow-y-auto">
+            <%= if length(@activity_feed) == 0 do %>
+              <.empty_state>
+                No activity yet. Activity will appear as trades are scored and alerts are generated.
+              </.empty_state>
+            <% else %>
+              <%= for activity <- Enum.take(@activity_feed, 20) do %>
+                <div class="px-6 py-3 hover:bg-zinc-950/2.5 dark:hover:bg-white/2.5">
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                      <span class="text-lg">
+                        <%= case activity.type do
+                          "trade" -> "📈"
+                          "alert" -> "🔔"
+                          "discovery" -> "🔍"
+                          _ -> "📝"
+                        end %>
+                      </span>
+                      <div>
+                        <div class="flex items-center gap-2">
+                          <%= case activity.type do %>
+                            <% "trade" -> %>
+                              <.badge color={score_tier_color(activity.score)}>
+                                <%= format_score(activity.score) %>
+                              </.badge>
+                              <span class="text-sm font-medium text-zinc-900 dark:text-white"><%= format_wallet(activity.wallet) %></span>
+                            <% "alert" -> %>
+                              <.badge color={severity_to_color(activity.severity)}>
+                                <%= activity.severity %>
+                              </.badge>
+                              <span class="text-sm font-medium text-zinc-900 dark:text-white"><%= format_wallet(activity.wallet) %></span>
+                            <% "discovery" -> %>
+                              <.badge color={priority_to_color(activity.priority)}>
+                                <%= activity.priority %>
+                              </.badge>
+                              <span class="text-sm font-medium text-zinc-900 dark:text-white"><%= format_wallet(activity.wallet) %></span>
+                            <% _ -> %>
+                              <span class="text-sm text-zinc-600 dark:text-zinc-400"><%= activity.type %></span>
+                          <% end %>
+                        </div>
+                        <.text class="text-xs truncate max-w-md"><%= truncate(activity.market || "Unknown market", 50) %></.text>
+                      </div>
+                    </div>
+                    <div class="text-xs text-zinc-500 dark:text-zinc-400">
+                      <%= relative_time(activity.timestamp) %>
+                    </div>
+                  </div>
+                </div>
+              <% end %>
+            <% end %>
+          </div>
         </div>
 
         <!-- Recent Activity -->

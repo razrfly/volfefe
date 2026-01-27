@@ -2020,7 +2020,7 @@ defmodule VolfefeMachine.Polymarket do
   defp ensure_float(%Decimal{} = d), do: Decimal.to_float(d)
   defp ensure_float(n) when is_float(n), do: n
   defp ensure_float(n) when is_integer(n), do: n * 1.0
-  defp ensure_float(nil), do: nil
+  defp ensure_float(nil), do: 0.0
 
   @doc """
   Calculate position concentration for a wallet on a specific market.
@@ -3015,6 +3015,54 @@ defmodule VolfefeMachine.Polymarket do
       case Keyword.get(opts, :batch_id) do
         nil -> query
         batch_id -> from(ic in query, where: ic.batch_id == ^batch_id)
+      end
+
+    # New filters for Phase 2 Investigation Tooling
+    query =
+      case Keyword.get(opts, :wallet_address) do
+        nil -> query
+        wallet -> from(ic in query, where: ic.wallet_address == ^String.downcase(wallet))
+      end
+
+    query =
+      case Keyword.get(opts, :condition_id) do
+        nil -> query
+        cid -> from(ic in query, where: ic.condition_id == ^cid)
+      end
+
+    query =
+      case Keyword.get(opts, :min_score) do
+        nil -> query
+        min ->
+          min_decimal = Decimal.new(to_string(min))
+          from(ic in query, where: ic.anomaly_score >= ^min_decimal)
+      end
+
+    query =
+      case Keyword.get(opts, :min_probability) do
+        nil -> query
+        min ->
+          min_decimal = Decimal.new(to_string(min))
+          from(ic in query, where: ic.insider_probability >= ^min_decimal)
+      end
+
+    query =
+      case Keyword.get(opts, :sort_by) do
+        nil -> query
+        "score" ->
+          query
+          |> exclude(:order_by)
+          |> order_by([ic], desc: ic.anomaly_score)
+        "probability" ->
+          query
+          |> exclude(:order_by)
+          |> order_by([ic], desc: ic.insider_probability)
+        "profit" ->
+          query
+          |> exclude(:order_by)
+          |> order_by([ic], desc: ic.estimated_profit)
+        "rank" -> query  # default ordering
+        _ -> query
       end
 
     query =
@@ -4543,5 +4591,308 @@ defmodule VolfefeMachine.Polymarket do
         :exit, _ -> %{enabled: false, error: "Monitor not running"}
       end
     }
+  end
+
+  @doc """
+  Get dashboard statistics with optional date range filtering.
+
+  ## Options
+
+    * `:date_from` - Start date (DateTime or Date)
+    * `:date_to` - End date (DateTime or Date)
+    * `:range` - Preset range: "today", "7d", "30d", "all" (default: "all")
+
+  ## Returns
+
+  Map with:
+    * `:score_tiers` - Trade counts by tier (critical, high, medium, low, normal)
+    * `:category_stats` - Anomaly rates by market category
+    * `:recent_activity` - Recent trades, alerts, and discoveries
+    * `:summary` - High-level metrics
+  """
+  def dashboard_stats(opts \\ []) do
+    {date_from, date_to} = resolve_date_range(opts)
+
+    score_tiers = get_score_tier_counts(date_from, date_to)
+    category_stats = get_category_anomaly_rates(date_from, date_to)
+    recent_activity = get_recent_activity(date_from, date_to)
+    summary = get_summary_metrics(date_from, date_to)
+
+    %{
+      score_tiers: score_tiers,
+      category_stats: category_stats,
+      recent_activity: recent_activity,
+      summary: summary,
+      date_range: %{from: date_from, to: date_to}
+    }
+  end
+
+  defp resolve_date_range(opts) do
+    case Keyword.get(opts, :range, "all") do
+      "today" ->
+        today = Date.utc_today()
+        {DateTime.new!(today, ~T[00:00:00], "Etc/UTC"), DateTime.utc_now()}
+
+      "7d" ->
+        to = DateTime.utc_now()
+        from = DateTime.add(to, -7, :day)
+        {from, to}
+
+      "30d" ->
+        to = DateTime.utc_now()
+        from = DateTime.add(to, -30, :day)
+        {from, to}
+
+      "all" ->
+        {nil, nil}
+
+      _ ->
+        date_from = Keyword.get(opts, :date_from)
+        date_to = Keyword.get(opts, :date_to)
+        {normalize_datetime(date_from), normalize_datetime(date_to)}
+    end
+  end
+
+  defp normalize_datetime(nil), do: nil
+  defp normalize_datetime(%DateTime{} = dt), do: dt
+  defp normalize_datetime(%Date{} = d), do: DateTime.new!(d, ~T[00:00:00], "Etc/UTC")
+
+  defp get_score_tier_counts(date_from, date_to) do
+    base_query = from(ts in TradeScore,
+      join: t in Trade, on: ts.trade_id == t.id,
+      select: %{
+        total: count(ts.id),
+        critical: count(fragment("CASE WHEN ? >= 0.9 THEN 1 END", ts.anomaly_score)),
+        high: count(fragment("CASE WHEN ? >= 0.7 AND ? < 0.9 THEN 1 END", ts.anomaly_score, ts.anomaly_score)),
+        medium: count(fragment("CASE WHEN ? >= 0.5 AND ? < 0.7 THEN 1 END", ts.anomaly_score, ts.anomaly_score)),
+        low: count(fragment("CASE WHEN ? >= 0.3 AND ? < 0.5 THEN 1 END", ts.anomaly_score, ts.anomaly_score)),
+        normal: count(fragment("CASE WHEN ? < 0.3 THEN 1 END", ts.anomaly_score)),
+        trinity: count(fragment(
+          "CASE WHEN ? >= 2.0 AND ? >= 2.0 AND ? >= 2.0 THEN 1 END",
+          ts.size_zscore, ts.timing_zscore, ts.wallet_age_zscore
+        ))
+      }
+    )
+
+    # Apply date filters inline (2 bindings: ts, t)
+    query = if date_from do
+      from([ts, t] in base_query, where: t.trade_timestamp >= ^date_from)
+    else
+      base_query
+    end
+
+    query = if date_to do
+      from([ts, t] in query, where: t.trade_timestamp <= ^date_to)
+    else
+      query
+    end
+
+    Repo.one(query) || %{total: 0, critical: 0, high: 0, medium: 0, low: 0, normal: 0, trinity: 0}
+  end
+
+  defp get_category_anomaly_rates(date_from, date_to) do
+    base_query = from(ts in TradeScore,
+      join: t in Trade, on: ts.trade_id == t.id,
+      join: m in Market, on: t.market_id == m.id,
+      group_by: m.category,
+      select: %{
+        category: m.category,
+        total_trades: count(ts.id),
+        anomalous_trades: count(fragment("CASE WHEN ? >= 0.5 THEN 1 END", ts.anomaly_score)),
+        critical_trades: count(fragment("CASE WHEN ? >= 0.9 THEN 1 END", ts.anomaly_score)),
+        avg_score: avg(ts.anomaly_score)
+      }
+    )
+
+    # Apply date filters inline (3 bindings: ts, t, m)
+    query = if date_from do
+      from([ts, t, m] in base_query, where: t.trade_timestamp >= ^date_from)
+    else
+      base_query
+    end
+
+    query = if date_to do
+      from([ts, t, m] in query, where: t.trade_timestamp <= ^date_to)
+    else
+      query
+    end
+
+    Repo.all(query)
+    |> Enum.map(fn row ->
+      anomaly_rate = if row.total_trades > 0 do
+        Float.round(row.anomalous_trades / row.total_trades * 100, 1)
+      else
+        0.0
+      end
+
+      %{
+        category: row.category || "uncategorized",
+        total_trades: row.total_trades,
+        anomalous_trades: row.anomalous_trades,
+        critical_trades: row.critical_trades,
+        anomaly_rate: anomaly_rate,
+        avg_score: ensure_float(row.avg_score) |> Float.round(3)
+      }
+    end)
+    |> Enum.sort_by(& &1.anomaly_rate, :desc)
+  end
+
+  defp get_recent_activity(date_from, date_to) do
+    # Recent high-scoring trades
+    trades_query = from(ts in TradeScore,
+      join: t in Trade, on: ts.trade_id == t.id,
+      left_join: m in Market, on: t.market_id == m.id,
+      where: ts.anomaly_score >= 0.7,
+      order_by: [desc: t.trade_timestamp],
+      limit: 20,
+      select: %{
+        type: "trade",
+        id: t.id,
+        timestamp: t.trade_timestamp,
+        wallet: t.wallet_address,
+        score: ts.anomaly_score,
+        market: m.question,
+        amount: t.usdc_size
+      }
+    )
+
+    # Apply date filter inline since the query has 3 bindings
+    trades_query = if date_from do
+      from([ts, t, m] in trades_query, where: t.trade_timestamp >= ^date_from)
+    else
+      trades_query
+    end
+
+    trades_query = if date_to do
+      from([ts, t, m] in trades_query, where: t.trade_timestamp <= ^date_to)
+    else
+      trades_query
+    end
+
+    recent_trades = Repo.all(trades_query)
+
+    # Recent alerts
+    alerts_query = from(a in Alert,
+      order_by: [desc: a.triggered_at],
+      limit: 10,
+      select: %{
+        type: "alert",
+        id: a.id,
+        timestamp: a.triggered_at,
+        wallet: a.wallet_address,
+        severity: a.severity,
+        market: a.market_question,
+        status: a.status
+      }
+    )
+
+    alerts_query = if date_from do
+      from(a in alerts_query, where: a.triggered_at >= ^date_from)
+    else
+      alerts_query
+    end
+
+    alerts_query = if date_to do
+      from(a in alerts_query, where: a.triggered_at <= ^date_to)
+    else
+      alerts_query
+    end
+
+    recent_alerts = Repo.all(alerts_query)
+
+    # Recent discoveries
+    discoveries_query = from(ic in InvestigationCandidate,
+      order_by: [desc: ic.discovered_at],
+      limit: 10,
+      select: %{
+        type: "discovery",
+        id: ic.id,
+        timestamp: ic.discovered_at,
+        wallet: ic.wallet_address,
+        priority: ic.priority,
+        market: ic.market_question,
+        score: ic.anomaly_score
+      }
+    )
+
+    discoveries_query = if date_from do
+      from(ic in discoveries_query, where: ic.discovered_at >= ^date_from)
+    else
+      discoveries_query
+    end
+
+    discoveries_query = if date_to do
+      from(ic in discoveries_query, where: ic.discovered_at <= ^date_to)
+    else
+      discoveries_query
+    end
+
+    recent_discoveries = Repo.all(discoveries_query)
+
+    # Combine and sort by timestamp
+    (recent_trades ++ recent_alerts ++ recent_discoveries)
+    |> Enum.sort_by(& &1.timestamp, {:desc, DateTime})
+    |> Enum.take(30)
+  end
+
+  defp get_summary_metrics(date_from, date_to) do
+    # Total trades in range
+    trades_query = from(t in Trade, select: count(t.id))
+    trades_query = apply_trade_date_filter(trades_query, date_from, date_to)
+    total_trades = Repo.one(trades_query) || 0
+
+    # Unique wallets
+    wallets_query = from(t in Trade, select: count(t.wallet_address, :distinct))
+    wallets_query = apply_trade_date_filter(wallets_query, date_from, date_to)
+    unique_wallets = Repo.one(wallets_query) || 0
+
+    # Total volume
+    volume_query = from(t in Trade, select: sum(t.usdc_size))
+    volume_query = apply_trade_date_filter(volume_query, date_from, date_to)
+    total_volume = ensure_float(Repo.one(volume_query))
+
+    # New candidates in range
+    candidates_query = from(ic in InvestigationCandidate, select: count(ic.id))
+    candidates_query = if date_from do
+      from(ic in candidates_query, where: ic.discovered_at >= ^date_from)
+    else
+      candidates_query
+    end
+    candidates_query = if date_to do
+      from(ic in candidates_query, where: ic.discovered_at <= ^date_to)
+    else
+      candidates_query
+    end
+    new_candidates = Repo.one(candidates_query) || 0
+
+    %{
+      total_trades: total_trades,
+      unique_wallets: unique_wallets,
+      total_volume: total_volume,
+      new_candidates: new_candidates
+    }
+  end
+
+  # Date filter for queries starting with Trade (single binding)
+  defp apply_trade_date_filter(query, nil, nil), do: query
+  defp apply_trade_date_filter(query, date_from, nil) do
+    from(t in query, where: t.trade_timestamp >= ^date_from)
+  end
+  defp apply_trade_date_filter(query, nil, date_to) do
+    from(t in query, where: t.trade_timestamp <= ^date_to)
+  end
+  defp apply_trade_date_filter(query, date_from, date_to) do
+    from(t in query, where: t.trade_timestamp >= ^date_from and t.trade_timestamp <= ^date_to)
+  end
+
+  @doc """
+  Broadcast activity event to dashboard subscribers.
+  """
+  def broadcast_activity(event_type, data) do
+    Phoenix.PubSub.broadcast(
+      VolfefeMachine.PubSub,
+      "dashboard:activity",
+      {:activity, event_type, data}
+    )
   end
 end
