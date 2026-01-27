@@ -1,8 +1,8 @@
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-  <!-- Admin Navigation - CRITICAL: DO NOT REMOVE -->
+  <%!-- Admin Navigation - CRITICAL: DO NOT REMOVE --%>
   <.admin_nav current_page={:polymarket} />
 
-  <!-- Header -->
+  <%!-- Header --%>
   <div class="mb-8">
     <div class="flex items-center justify-between">
       <div>
@@ -29,7 +29,7 @@
     </div>
   </div>
 
-  <!-- Tab Navigation -->
+  <%!-- Tab Navigation --%>
   <.tabs>
     <:tab id="tab-overview" active={@active_tab == :overview} phx-click="switch_tab" phx-value-tab="overview">
       Overview
@@ -75,41 +75,61 @@
     </:tab>
   </.tabs>
 
-  <!-- Tab Content -->
+  <%!-- Tab Content --%>
   <div class="mt-6">
-    <!-- Overview Tab -->
+    <%!-- Overview Tab --%>
     <%= if @active_tab == :overview do %>
       <div class="space-y-6">
-        <!-- Date Range Selector -->
+        <%!-- Date Range Selector --%>
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
             <span class="text-sm font-medium text-zinc-700 dark:text-zinc-300">Time Range:</span>
             <div class="flex rounded-lg bg-zinc-100 dark:bg-zinc-800 p-1">
               <button
+                id="date-range-today"
                 phx-click="change_date_range"
                 phx-value-range="today"
-                class={"px-3 py-1.5 text-sm font-medium rounded-md transition-colors #{if @date_range == "today", do: "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm", else: "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"}"}
+                class={[
+                  "px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
+                  @date_range == "today" && "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm",
+                  @date_range != "today" && "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
+                ]}
               >
                 Today
               </button>
               <button
+                id="date-range-7d"
                 phx-click="change_date_range"
                 phx-value-range="7d"
-                class={"px-3 py-1.5 text-sm font-medium rounded-md transition-colors #{if @date_range == "7d", do: "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm", else: "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"}"}
+                class={[
+                  "px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
+                  @date_range == "7d" && "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm",
+                  @date_range != "7d" && "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
+                ]}
               >
                 7 Days
               </button>
               <button
+                id="date-range-30d"
                 phx-click="change_date_range"
                 phx-value-range="30d"
-                class={"px-3 py-1.5 text-sm font-medium rounded-md transition-colors #{if @date_range == "30d", do: "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm", else: "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"}"}
+                class={[
+                  "px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
+                  @date_range == "30d" && "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm",
+                  @date_range != "30d" && "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
+                ]}
               >
                 30 Days
               </button>
               <button
+                id="date-range-all"
                 phx-click="change_date_range"
                 phx-value-range="all"
-                class={"px-3 py-1.5 text-sm font-medium rounded-md transition-colors #{if @date_range == "all", do: "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm", else: "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"}"}
+                class={[
+                  "px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
+                  @date_range == "all" && "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm",
+                  @date_range != "all" && "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
+                ]}
               >
                 All Time
               </button>
@@ -120,7 +140,7 @@
           </div>
         </div>
 
-        <!-- Score Tier Summary Cards -->
+        <%!-- Score Tier Summary Cards --%>
         <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
           <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
             <div class="flex items-center justify-between">
@@ -177,7 +197,7 @@
           </div>
         </div>
 
-        <!-- Action Required Banner -->
+        <%!-- Action Required Banner --%>
         <%= if @dashboard.action_required.critical_alerts > 0 or @dashboard.action_required.high_alerts > 0 do %>
           <.alert_banner type={:error}>
             <:title>Action Required</:title>
@@ -198,7 +218,7 @@
           </.alert_banner>
         <% end %>
 
-        <!-- Stats Grid -->
+        <%!-- Stats Grid --%>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <.stat_card title="Total Alerts" value={@dashboard.alerts.total}>
             <:detail>
@@ -231,7 +251,114 @@
           </.stat_card>
         </div>
 
-        <!-- Category Anomaly Rates -->
+        <%!-- Watched Markets Section --%>
+        <%= if length(@watched_markets) > 0 do %>
+          <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+            <div class="px-6 py-4 border-b border-zinc-950/10 dark:border-white/10">
+              <div class="flex items-center justify-between">
+                <div>
+                  <.subheading>⭐ Watched Markets</.subheading>
+                  <.text class="mt-1">Markets you're tracking for suspicious activity</.text>
+                </div>
+                <.badge color={:amber}><%= length(@watched_markets) %> watched</.badge>
+              </div>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="min-w-full divide-y divide-zinc-950/5 dark:divide-white/5">
+                <thead>
+                  <tr class="bg-zinc-50 dark:bg-zinc-800/50">
+                    <th class="px-6 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                      Market
+                    </th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                      Trades
+                    </th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                      Avg Score
+                    </th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                      Critical
+                    </th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                      High
+                    </th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-zinc-950/5 dark:divide-white/5">
+                  <%= for market <- @watched_markets do %>
+                    <tr class="hover:bg-zinc-950/2.5 dark:hover:bg-white/2.5">
+                      <td class="px-6 py-4">
+                        <div class="flex items-center gap-2">
+                          <span class="text-yellow-500">★</span>
+                          <%= if market.critical_trades > 0 do %>
+                            <span class="text-red-500">🚨</span>
+                          <% end %>
+                          <div>
+                            <div class="text-sm font-medium text-zinc-900 dark:text-white max-w-md">
+                              <%= truncate(market.question || "Unknown Market", 50) %>
+                            </div>
+                            <div class="text-xs text-zinc-500 dark:text-zinc-400 capitalize">
+                              <%= market.category %> · <%= if market.is_active, do: "Active", else: "Resolved" %>
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td class="px-6 py-4 text-right text-sm text-zinc-600 dark:text-zinc-300">
+                        <%= format_number(market.trade_count) %>
+                      </td>
+                      <td class="px-6 py-4 text-right">
+                        <%= if market.avg_score do %>
+                          <.badge color={score_tier_color(market.avg_score)}>
+                            <%= format_score(market.avg_score) %>
+                          </.badge>
+                        <% else %>
+                          <span class="text-sm text-zinc-400">N/A</span>
+                        <% end %>
+                      </td>
+                      <td class="px-6 py-4 text-right">
+                        <%= if market.critical_trades > 0 do %>
+                          <.badge color={:red}><%= market.critical_trades %></.badge>
+                        <% else %>
+                          <span class="text-sm text-zinc-400">0</span>
+                        <% end %>
+                      </td>
+                      <td class="px-6 py-4 text-right">
+                        <%= if market.high_trades > 0 do %>
+                          <.badge color={:amber}><%= market.high_trades %></.badge>
+                        <% else %>
+                          <span class="text-sm text-zinc-400">0</span>
+                        <% end %>
+                      </td>
+                      <td class="px-6 py-4 text-right">
+                        <div class="flex items-center justify-end gap-2">
+                          <.link
+                            navigate={~p"/admin/polymarket/market/#{market.condition_id}"}
+                            class="text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
+                          >
+                            View →
+                          </.link>
+                          <button
+                            phx-click="unwatch_market"
+                            phx-value-market-id={market.id}
+                            class="text-sm text-zinc-400 hover:text-red-500 transition-colors"
+                            title="Unwatch market"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  <% end %>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        <% end %>
+
+        <%!-- Category Anomaly Rates --%>
         <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
           <div class="px-6 py-4 border-b border-zinc-950/10 dark:border-white/10">
             <.subheading>Category Anomaly Rates</.subheading>
@@ -242,7 +369,12 @@
               <div class="space-y-2">
                 <div class="flex items-center justify-between">
                   <div class="flex items-center gap-2">
-                    <span class="font-medium text-zinc-900 dark:text-white capitalize"><%= cat.category %></span>
+                    <.link
+                      navigate={~p"/admin/polymarket/category/#{cat.category}"}
+                      class="font-medium text-zinc-900 dark:text-white capitalize hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
+                    >
+                      <%= cat.category %> →
+                    </.link>
                     <%= if cat.critical_trades > 0 do %>
                       <.badge color={:red}><%= cat.critical_trades %> critical</.badge>
                     <% end %>
@@ -273,7 +405,7 @@
           </div>
         </div>
 
-        <!-- Activity Feed -->
+        <%!-- Activity Feed --%>
         <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
           <div class="px-6 py-4 border-b border-zinc-950/10 dark:border-white/10">
             <.subheading>Activity Feed</.subheading>
@@ -332,7 +464,7 @@
           </div>
         </div>
 
-        <!-- Recent Activity -->
+        <%!-- Recent Activity --%>
         <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
           <div class="px-6 py-4 border-b border-zinc-950/10 dark:border-white/10">
             <.subheading>Recent Alerts</.subheading>
@@ -371,7 +503,7 @@
       </div>
     <% end %>
 
-    <!-- Alerts Tab -->
+    <%!-- Alerts Tab --%>
     <%= if @active_tab == :alerts do %>
       <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
         <div class="px-6 py-4 border-b border-zinc-950/10 dark:border-white/10">
@@ -448,7 +580,7 @@
       </div>
     <% end %>
 
-    <!-- Candidates Tab -->
+    <%!-- Candidates Tab --%>
     <%= if @active_tab == :candidates do %>
       <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
         <div class="px-6 py-4 border-b border-zinc-950/10 dark:border-white/10">
@@ -527,10 +659,10 @@
       </div>
     <% end %>
 
-    <!-- Patterns Tab -->
+    <%!-- Patterns Tab --%>
     <%= if @active_tab == :patterns do %>
       <div class="space-y-6">
-        <!-- Pattern Stats -->
+        <%!-- Pattern Stats --%>
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
           <.stat_card title="Total Patterns" value={@pattern_stats.total_patterns} />
           <.stat_card title="Active Patterns" value={@pattern_stats.active_patterns} />
@@ -538,7 +670,7 @@
           <.stat_card title="Best F1 Score" value={format_probability(@pattern_stats.best_f1)} />
         </div>
 
-        <!-- Patterns List -->
+        <%!-- Patterns List --%>
         <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
           <div class="px-6 py-4 border-b border-zinc-950/10 dark:border-white/10">
             <.subheading>Insider Trading Patterns</.subheading>
@@ -580,10 +712,10 @@
       </div>
     <% end %>
 
-    <!-- Discovery Tab -->
+    <%!-- Discovery Tab --%>
     <%= if @active_tab == :discovery do %>
       <div class="space-y-6">
-        <!-- Monitor Control Panel -->
+        <%!-- Monitor Control Panel --%>
         <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 p-6 dark:bg-zinc-900 dark:ring-white/10">
           <div class="flex justify-between items-start">
             <div>
@@ -635,7 +767,7 @@
           <% end %>
         </div>
 
-        <!-- Discovery Controls -->
+        <%!-- Discovery Controls --%>
         <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 p-6 dark:bg-zinc-900 dark:ring-white/10">
           <div class="flex justify-between items-start mb-6">
             <div>
@@ -652,7 +784,7 @@
             </div>
           </div>
 
-          <!-- Custom Discovery Form -->
+          <%!-- Custom Discovery Form --%>
           <form id="custom-discovery-form" phx-submit="run_discovery_custom" class="border-t border-zinc-950/10 dark:border-white/10 pt-6">
             <.subheading level={:h3} class="mb-4">Custom Discovery Run</.subheading>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
@@ -700,7 +832,7 @@
           </form>
         </div>
 
-        <!-- Batch History -->
+        <%!-- Batch History --%>
         <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 p-6 dark:bg-zinc-900 dark:ring-white/10">
           <.subheading class="mb-4">Discovery Batch History</.subheading>
 
@@ -749,7 +881,7 @@
           <% end %>
         </div>
 
-        <!-- Discovery Stats -->
+        <%!-- Discovery Stats --%>
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
           <.stat_card title="Total Batches" value={length(@discovery_batches)} />
           <.stat_card title="Total Candidates Found" value={Enum.reduce(@discovery_batches, 0, fn b, acc -> acc + (b.candidates_generated || 0) end)} />
@@ -759,10 +891,10 @@
       </div>
     <% end %>
 
-    <!-- Coverage Tab -->
+    <%!-- Coverage Tab --%>
     <%= if @active_tab == :coverage do %>
       <div class="space-y-6">
-        <!-- Health Score Banner -->
+        <%!-- Health Score Banner --%>
         <div class={[
           "rounded p-6 ring-1",
           coverage_health_ring(@coverage_health.health_score)
@@ -788,7 +920,7 @@
           </div>
         </div>
 
-        <!-- Coverage Stats Grid -->
+        <%!-- Coverage Stats Grid --%>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <.stat_card title="Categories Active" value={"#{@coverage_health.categories_active}/#{@coverage_health.categories_total}"}>
             <:detail>
@@ -818,7 +950,7 @@
           </.stat_card>
         </div>
 
-        <!-- Alerts Section -->
+        <%!-- Alerts Section --%>
         <%= if @coverage_health.alert_count > 0 do %>
           <.alert_banner type={:warning}>
             <:title>Coverage Alerts (<%= @coverage_health.alert_count %>)</:title>
@@ -853,7 +985,7 @@
           </.alert_banner>
         <% end %>
 
-        <!-- Pipeline Status -->
+        <%!-- Pipeline Status --%>
         <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
           <div class="px-6 py-4 border-b border-zinc-950/10 dark:border-white/10">
             <.subheading>Pipeline Status</.subheading>
@@ -879,7 +1011,7 @@
           </div>
         </div>
 
-        <!-- Data Source Health -->
+        <%!-- Data Source Health --%>
         <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
           <div class="px-6 py-4 border-b border-zinc-950/10 dark:border-white/10">
             <div class="flex items-center justify-between">
@@ -894,7 +1026,7 @@
           </div>
           <div class="p-6">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <!-- Centralized API -->
+              <%!-- Centralized API --%>
               <div class="p-4 rounded ring-1 ring-zinc-950/5 dark:ring-white/10">
                 <div class="flex items-center justify-between mb-3">
                   <div class="flex items-center gap-2">
@@ -925,7 +1057,7 @@
                 </div>
               </div>
 
-              <!-- Blockchain Subgraph -->
+              <%!-- Blockchain Subgraph --%>
               <div class="p-4 rounded ring-1 ring-zinc-950/5 dark:ring-white/10">
                 <div class="flex items-center justify-between mb-3">
                   <div class="flex items-center gap-2">
@@ -957,7 +1089,7 @@
               </div>
             </div>
 
-            <!-- Recommended Source -->
+            <%!-- Recommended Source --%>
             <div class="mt-4 pt-4 border-t border-zinc-950/10 dark:border-white/10">
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2">
@@ -975,7 +1107,7 @@
           </div>
         </div>
 
-        <!-- Quick Actions -->
+        <%!-- Quick Actions --%>
         <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
           <div class="px-6 py-4 border-b border-zinc-950/10 dark:border-white/10">
             <.subheading>CLI Commands</.subheading>
@@ -1004,10 +1136,10 @@
       </div>
     <% end %>
 
-    <!-- Analytics Tab -->
+    <%!-- Analytics Tab --%>
     <%= if @active_tab == :analytics do %>
       <div class="space-y-6">
-        <!-- Feedback Loop Stats -->
+        <%!-- Feedback Loop Stats --%>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <.stat_card title="Confirmed Insiders" value={@feedback_stats.confirmed_insiders.total}>
             <:detail>
@@ -1041,7 +1173,7 @@
           </.stat_card>
         </div>
 
-        <!-- Actions Panel -->
+        <%!-- Actions Panel --%>
         <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 p-6 dark:bg-zinc-900 dark:ring-white/10">
           <div class="flex justify-between items-start mb-6">
             <div>
@@ -1096,7 +1228,7 @@
           </div>
         </div>
 
-        <!-- Discovery Stats -->
+        <%!-- Discovery Stats --%>
         <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
           <div class="px-6 py-4 border-b border-zinc-950/10 dark:border-white/10">
             <.subheading>Discovery Pipeline</.subheading>
@@ -1120,7 +1252,7 @@
           </div>
         </div>
 
-        <!-- Pattern Health -->
+        <%!-- Pattern Health --%>
         <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
           <div class="px-6 py-4 border-b border-zinc-950/10 dark:border-white/10">
             <.subheading>Pattern Health</.subheading>
@@ -1136,7 +1268,7 @@
           </div>
         </div>
 
-        <!-- CLI Commands -->
+        <%!-- CLI Commands --%>
         <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
           <div class="px-6 py-4 border-b border-zinc-950/10 dark:border-white/10">
             <.subheading>CLI Commands</.subheading>
@@ -1165,10 +1297,10 @@
       </div>
     <% end %>
 
-    <!-- Insiders Tab -->
+    <%!-- Insiders Tab --%>
     <%= if @active_tab == :insiders do %>
       <div class="space-y-6">
-        <!-- Insider Stats -->
+        <%!-- Insider Stats --%>
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
           <.stat_card title="Total Confirmed" value={@insider_stats.total}>
             <:detail>
@@ -1195,7 +1327,7 @@
           </.stat_card>
         </div>
 
-        <!-- Confirmed Insiders Table -->
+        <%!-- Confirmed Insiders Table --%>
         <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
           <div class="px-6 py-4 border-b border-zinc-950/10 dark:border-white/10">
             <div class="flex items-center justify-between">
@@ -1260,7 +1392,7 @@
           </.data_table>
         </div>
 
-        <!-- CLI Commands -->
+        <%!-- CLI Commands --%>
         <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
           <div class="px-6 py-4 border-b border-zinc-950/10 dark:border-white/10">
             <.subheading>CLI Commands</.subheading>
@@ -1281,10 +1413,10 @@
       </div>
     <% end %>
 
-    <!-- Pilot Tab -->
+    <%!-- Pilot Tab --%>
     <%= if @active_tab == :pilot do %>
       <div class="space-y-6">
-        <!-- Pilot Status Banner -->
+        <%!-- Pilot Status Banner --%>
         <div class={[
           "rounded p-6 ring-1",
           case @pilot_progress.status do
@@ -1319,7 +1451,7 @@
           </div>
         </div>
 
-        <!-- Key Metrics Grid -->
+        <%!-- Key Metrics Grid --%>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <.stat_card title="Detection Rate" value={format_rate(@pilot_progress.validation.detection_rate)}>
             <:detail>
@@ -1346,7 +1478,7 @@
           </.stat_card>
         </div>
 
-        <!-- Pilot Markets Status -->
+        <%!-- Pilot Markets Status --%>
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
           <.stat_card title="Pilot Markets" value={@pilot_progress.pilot_markets.total}>
             <:detail>High-volume resolved markets</:detail>
@@ -1367,7 +1499,7 @@
           </.stat_card>
         </div>
 
-        <!-- Next Actions -->
+        <%!-- Next Actions --%>
         <%= if length(@pilot_progress.next_actions) > 0 do %>
           <.alert_banner type={:info}>
             <:title>Recommended Next Actions</:title>
@@ -1381,7 +1513,7 @@
           </.alert_banner>
         <% end %>
 
-        <!-- Batch Processing -->
+        <%!-- Batch Processing --%>
         <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 p-6 dark:bg-zinc-900 dark:ring-white/10">
           <div class="flex justify-between items-start mb-6">
             <div>
@@ -1432,7 +1564,7 @@
           <% end %>
         </div>
 
-        <!-- Threshold Optimization -->
+        <%!-- Threshold Optimization --%>
         <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 p-6 dark:bg-zinc-900 dark:ring-white/10">
           <div class="flex justify-between items-start mb-6">
             <div>
@@ -1492,7 +1624,7 @@
           <% end %>
         </div>
 
-        <!-- False Negative Analysis -->
+        <%!-- False Negative Analysis --%>
         <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 p-6 dark:bg-zinc-900 dark:ring-white/10">
           <div class="flex justify-between items-start mb-6">
             <div>
@@ -1506,7 +1638,7 @@
 
           <%= if @pilot_fn_analysis do %>
             <div class="space-y-6">
-              <!-- Reason Breakdown -->
+              <%!-- Reason Breakdown --%>
               <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div class="text-center p-4 bg-zinc-50 dark:bg-zinc-800 rounded">
                   <.text>No Trade Data</.text>
@@ -1526,7 +1658,7 @@
                 </div>
               </div>
 
-              <!-- Metric Gaps -->
+              <%!-- Metric Gaps --%>
               <%= if map_size(@pilot_fn_analysis.metric_gaps) > 0 do %>
                 <div>
                   <.subheading level={:h3} class="mb-3">Weak Signal Analysis</.subheading>
@@ -1540,7 +1672,7 @@
                 </div>
               <% end %>
 
-              <!-- Recommendations -->
+              <%!-- Recommendations --%>
               <%= if length(@pilot_fn_analysis.recommendations) > 0 do %>
                 <.alert_banner type={:info}>
                   <:title>Recommendations</:title>
@@ -1561,7 +1693,7 @@
           <% end %>
         </div>
 
-        <!-- Category Coverage -->
+        <%!-- Category Coverage --%>
         <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
           <div class="px-6 py-4 border-b border-zinc-950/10 dark:border-white/10">
             <.subheading>Category Coverage</.subheading>
@@ -1583,7 +1715,7 @@
           </div>
         </div>
 
-        <!-- CLI Commands -->
+        <%!-- CLI Commands --%>
         <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
           <div class="px-6 py-4 border-b border-zinc-950/10 dark:border-white/10">
             <.subheading>CLI Commands</.subheading>

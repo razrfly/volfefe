@@ -1,0 +1,378 @@
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <!-- Admin Navigation -->
+  <.admin_nav current_page={:polymarket} />
+
+  <!-- Header with Back Button -->
+  <div class="mb-8">
+    <div class="flex items-center gap-4 mb-4">
+      <.link navigate={~p"/admin/polymarket"} class="flex items-center gap-2 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors">
+        <span class="text-lg">&larr;</span>
+        <span class="text-sm font-medium">Back to Dashboard</span>
+      </.link>
+    </div>
+
+    <%= if @wallet do %>
+      <div class="flex items-start justify-between">
+        <div>
+          <div class="flex items-center gap-3">
+            <span class="text-3xl">🔍</span>
+            <div>
+              <.heading>Wallet Investigation</.heading>
+              <code class="text-lg font-mono text-zinc-600 dark:text-zinc-400"><%= @address %></code>
+            </div>
+          </div>
+          <div class="flex items-center gap-3 mt-3">
+            <.badge color={status_color(@status)}>
+              <%= status_label(@status) %>
+            </.badge>
+            <%= if @summary.wallet_age_days do %>
+              <span class="text-sm text-zinc-600 dark:text-zinc-400">
+                First seen <%= @summary.wallet_age_days %> days ago
+              </span>
+            <% end %>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex items-center gap-3">
+          <%= if @status == :candidate do %>
+            <.catalyst_button phx-click="start_investigation" color={:dark}>
+              Start Investigation
+            </.catalyst_button>
+          <% end %>
+
+          <%= if @status != :confirmed_insider do %>
+            <.catalyst_button phx-click="confirm_insider" color={:dark}>
+              Confirm Insider
+            </.catalyst_button>
+          <% end %>
+
+          <%= if @candidate && @status != :confirmed_insider do %>
+            <.catalyst_button phx-click="dismiss_wallet" color={:zinc}>
+              Dismiss
+            </.catalyst_button>
+          <% end %>
+        </div>
+      </div>
+    <% else %>
+      <.heading>Wallet Not Found</.heading>
+      <.text class="mt-2">No trading data found for wallet <%= @address %></.text>
+    <% end %>
+  </div>
+
+  <%= if @wallet do %>
+    <div class="space-y-6">
+      <!-- Summary Stats and Risk Indicators -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Wallet Profile -->
+        <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+          <div class="px-6 py-4 border-b border-zinc-950/10 dark:border-white/10">
+            <.subheading>Wallet Profile</.subheading>
+          </div>
+          <div class="p-6 space-y-4">
+            <div class="flex justify-between">
+              <span class="text-sm text-zinc-600 dark:text-zinc-400">Total Trades</span>
+              <span class="text-sm font-medium text-zinc-900 dark:text-white"><%= format_number(@summary.total_trades) %></span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-sm text-zinc-600 dark:text-zinc-400">Total Volume</span>
+              <span class="text-sm font-medium text-zinc-900 dark:text-white"><%= format_volume(@summary.total_volume) %></span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-sm text-zinc-600 dark:text-zinc-400">Win Rate</span>
+              <span class={"text-sm font-medium #{if @summary.win_rate && @summary.win_rate >= 0.7, do: "text-red-600 dark:text-red-400", else: "text-zinc-900 dark:text-white"}"}>
+                <%= if @summary.win_rate, do: "#{Float.round(@summary.win_rate * 100, 1)}%", else: "N/A" %>
+              </span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-sm text-zinc-600 dark:text-zinc-400">Markets Traded</span>
+              <span class="text-sm font-medium text-zinc-900 dark:text-white"><%= @summary.markets_traded %></span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-sm text-zinc-600 dark:text-zinc-400">Avg Score</span>
+              <.badge color={score_tier_color(@summary.avg_score)}>
+                <%= format_score(@summary.avg_score) %>
+              </.badge>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-sm text-zinc-600 dark:text-zinc-400">Max Score</span>
+              <.badge color={score_tier_color(@summary.max_score)}>
+                <%= format_score(@summary.max_score) %>
+              </.badge>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-sm text-zinc-600 dark:text-zinc-400">Critical Trades</span>
+              <%= if @summary.critical_trades > 0 do %>
+                <.badge color={:red}><%= @summary.critical_trades %></.badge>
+              <% else %>
+                <span class="text-sm text-zinc-400">0</span>
+              <% end %>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-sm text-zinc-600 dark:text-zinc-400">High Trades</span>
+              <%= if @summary.high_trades > 0 do %>
+                <.badge color={:amber}><%= @summary.high_trades %></.badge>
+              <% else %>
+                <span class="text-sm text-zinc-400">0</span>
+              <% end %>
+            </div>
+          </div>
+        </div>
+
+        <!-- Risk Indicators -->
+        <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+          <div class="px-6 py-4 border-b border-zinc-950/10 dark:border-white/10">
+            <.subheading>Risk Indicators</.subheading>
+          </div>
+          <div class="p-6 space-y-3">
+            <%= for {level, message} <- risk_indicators(@summary) do %>
+              <div class={"flex items-center gap-3 px-3 py-2 rounded-lg #{if level == :critical, do: "bg-red-50 dark:bg-red-900/20", else: "bg-amber-50 dark:bg-amber-900/20"}"}>
+                <span class="text-lg"><%= if level == :critical, do: "🔴", else: "🟡" %></span>
+                <span class={"text-sm font-medium #{if level == :critical, do: "text-red-700 dark:text-red-300", else: "text-amber-700 dark:text-amber-300"}"}>
+                  <%= message %>
+                </span>
+              </div>
+            <% end %>
+
+            <%!-- Ring Connection Indicator --%>
+            <%= if @ring_info.connected do %>
+              <div class="flex items-center gap-3 px-3 py-2 rounded-lg bg-purple-50 dark:bg-purple-900/20">
+                <span class="text-lg">🔗</span>
+                <span class="text-sm font-medium text-purple-700 dark:text-purple-300">
+                  Ring Connection: <%= @ring_info.insider_count %> insider(s), <%= @ring_info.shared_markets %> shared markets
+                </span>
+              </div>
+            <% end %>
+
+            <%= if length(risk_indicators(@summary)) == 0 && !@ring_info.connected do %>
+              <div class="flex items-center gap-3 px-3 py-2 rounded-lg bg-green-50 dark:bg-green-900/20">
+                <span class="text-lg">🟢</span>
+                <span class="text-sm font-medium text-green-700 dark:text-green-300">
+                  No major risk indicators detected
+                </span>
+              </div>
+            <% end %>
+          </div>
+        </div>
+
+        <!-- Z-Score Breakdown -->
+        <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+          <div class="px-6 py-4 border-b border-zinc-950/10 dark:border-white/10">
+            <.subheading>Z-Score Breakdown</.subheading>
+            <.text class="mt-1 text-xs">From most recent scored trade</.text>
+          </div>
+          <div class="p-6 space-y-4">
+            <%= if @zscore_breakdown do %>
+              <!-- Size Z-Score -->
+              <div class="space-y-2">
+                <div class="flex justify-between text-sm">
+                  <span class="text-zinc-600 dark:text-zinc-400">Trade Size</span>
+                  <span class="font-medium text-zinc-900 dark:text-white"><%= format_zscore(@zscore_breakdown.size_zscore) %></span>
+                </div>
+                <div class="h-2 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
+                  <div class={"h-full rounded-full #{zscore_color(@zscore_breakdown.size_zscore)}"} style={"width: #{zscore_width(@zscore_breakdown.size_zscore)}"}></div>
+                </div>
+              </div>
+
+              <!-- Timing Z-Score -->
+              <div class="space-y-2">
+                <div class="flex justify-between text-sm">
+                  <span class="text-zinc-600 dark:text-zinc-400">Timing</span>
+                  <span class="font-medium text-zinc-900 dark:text-white"><%= format_zscore(@zscore_breakdown.timing_zscore) %></span>
+                </div>
+                <div class="h-2 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
+                  <div class={"h-full rounded-full #{zscore_color(@zscore_breakdown.timing_zscore)}"} style={"width: #{zscore_width(@zscore_breakdown.timing_zscore)}"}></div>
+                </div>
+              </div>
+
+              <!-- Wallet Age Z-Score -->
+              <div class="space-y-2">
+                <div class="flex justify-between text-sm">
+                  <span class="text-zinc-600 dark:text-zinc-400">Wallet Age</span>
+                  <span class="font-medium text-zinc-900 dark:text-white"><%= format_zscore(@zscore_breakdown.wallet_age_zscore) %></span>
+                </div>
+                <div class="h-2 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
+                  <div class={"h-full rounded-full #{zscore_color(@zscore_breakdown.wallet_age_zscore)}"} style={"width: #{zscore_width(@zscore_breakdown.wallet_age_zscore)}"}></div>
+                </div>
+              </div>
+            <% else %>
+              <.empty_state>
+                No z-score data available for this wallet.
+              </.empty_state>
+            <% end %>
+          </div>
+        </div>
+      </div>
+
+      <!-- Category Breakdown -->
+      <%= if map_size(@category_breakdown) > 0 do %>
+        <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+          <div class="px-6 py-4 border-b border-zinc-950/10 dark:border-white/10">
+            <.subheading>Category Breakdown</.subheading>
+            <.text class="mt-1">Markets traded by category</.text>
+          </div>
+          <div class="p-6">
+            <div class="flex flex-wrap gap-4">
+              <%= for {category, count} <- Enum.sort_by(@category_breakdown, fn {_, c} -> -c end) do %>
+                <.link
+                  navigate={~p"/admin/polymarket/category/#{category}"}
+                  class="flex items-center gap-2 px-4 py-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                >
+                  <span class="text-lg"><%= category_icon(category) %></span>
+                  <span class="text-sm font-medium text-zinc-900 dark:text-white capitalize"><%= category %></span>
+                  <.badge color={:zinc}><%= count %></.badge>
+                </.link>
+              <% end %>
+            </div>
+          </div>
+        </div>
+      <% end %>
+
+      <!-- Trade History -->
+      <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+        <div class="px-6 py-4 border-b border-zinc-950/10 dark:border-white/10">
+          <div class="flex items-center justify-between">
+            <div>
+              <.subheading>Trade History</.subheading>
+              <.text class="mt-1">All trades by this wallet</.text>
+            </div>
+            <.badge color={:zinc}><%= length(@trades) %> trades</.badge>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-zinc-950/5 dark:divide-white/5">
+            <thead>
+              <tr class="bg-zinc-50 dark:bg-zinc-800/50">
+                <th class="px-6 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                  Time
+                </th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                  Market
+                </th>
+                <th class="px-6 py-3 text-center text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                  Side
+                </th>
+                <th class="px-6 py-3 text-center text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                  Outcome
+                </th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                  Size
+                </th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                  Price
+                </th>
+                <th class="px-6 py-3 text-center text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                  Result
+                </th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                  Score
+                </th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-zinc-950/5 dark:divide-white/5">
+              <%= if length(@trades) == 0 do %>
+                <tr>
+                  <td colspan="9" class="px-6 py-8 text-center text-zinc-500 dark:text-zinc-400">
+                    No trades found for this wallet.
+                  </td>
+                </tr>
+              <% else %>
+                <%= for trade <- @trades do %>
+                  <tr class={"hover:bg-zinc-950/2.5 dark:hover:bg-white/2.5 #{if trade.anomaly_score && Decimal.compare(trade.anomaly_score, Decimal.new("0.9")) != :lt, do: "bg-red-50/50 dark:bg-red-900/10"}"}>
+                    <td class="px-6 py-4 text-sm text-zinc-600 dark:text-zinc-300">
+                      <%= relative_time(trade.trade_timestamp) %>
+                    </td>
+                    <td class="px-6 py-4">
+                      <div class="flex items-center gap-2">
+                        <span class="text-sm"><%= category_icon(trade.market_category) %></span>
+                        <.link
+                          navigate={~p"/admin/polymarket/market/#{trade.condition_id}"}
+                          class="text-sm text-zinc-900 dark:text-white hover:text-zinc-600 dark:hover:text-zinc-300 max-w-xs truncate"
+                        >
+                          <%= truncate(trade.market_question || "Unknown", 40) %>
+                        </.link>
+                      </div>
+                    </td>
+                    <td class="px-6 py-4 text-center">
+                      <.badge color={if trade.side == "buy", do: :green, else: :red}>
+                        <%= trade.side %>
+                      </.badge>
+                    </td>
+                    <td class="px-6 py-4 text-center">
+                      <.badge color={if trade.outcome == "Yes", do: :green, else: :red}>
+                        <%= trade.outcome %>
+                      </.badge>
+                    </td>
+                    <td class="px-6 py-4 text-right text-sm text-zinc-600 dark:text-zinc-300">
+                      <%= format_volume(trade.usdc_size) %>
+                    </td>
+                    <td class="px-6 py-4 text-right text-sm text-zinc-600 dark:text-zinc-300">
+                      <%= format_price(trade.price) %>
+                    </td>
+                    <td class="px-6 py-4 text-center text-lg">
+                      <%= trade_result_icon(trade.was_correct) %>
+                    </td>
+                    <td class="px-6 py-4 text-right">
+                      <%= if trade.anomaly_score do %>
+                        <.badge color={score_tier_color(trade.anomaly_score)}>
+                          <%= format_score(trade.anomaly_score) %>
+                        </.badge>
+                      <% else %>
+                        <span class="text-sm text-zinc-400">-</span>
+                      <% end %>
+                    </td>
+                    <td class="px-6 py-4 text-right">
+                      <.link
+                        navigate={~p"/admin/polymarket/market/#{trade.condition_id}"}
+                        class="text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
+                      >
+                        View Market →
+                      </.link>
+                    </td>
+                  </tr>
+                <% end %>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Confirmed Insider Details (if applicable) -->
+      <%= if @confirmed_insider do %>
+        <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6">
+          <div class="flex items-center gap-3 mb-4">
+            <span class="text-2xl">🚨</span>
+            <.subheading class="text-red-800 dark:text-red-200">Confirmed Insider Record</.subheading>
+          </div>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div>
+              <div class="text-sm text-red-600 dark:text-red-400">Confirmed At</div>
+              <div class="text-sm font-medium text-red-800 dark:text-red-200"><%= format_datetime(@confirmed_insider.confirmed_at) %></div>
+            </div>
+            <div>
+              <div class="text-sm text-red-600 dark:text-red-400">Source</div>
+              <div class="text-sm font-medium text-red-800 dark:text-red-200"><%= @confirmed_insider.confirmation_source %></div>
+            </div>
+            <div>
+              <div class="text-sm text-red-600 dark:text-red-400">Confidence</div>
+              <div class="text-sm font-medium text-red-800 dark:text-red-200 capitalize"><%= @confirmed_insider.confidence %></div>
+            </div>
+            <div>
+              <div class="text-sm text-red-600 dark:text-red-400">Used for Training</div>
+              <div class="text-sm font-medium text-red-800 dark:text-red-200"><%= if @confirmed_insider.used_for_training, do: "Yes", else: "No" %></div>
+            </div>
+          </div>
+          <%= if @confirmed_insider.notes do %>
+            <div class="mt-4">
+              <div class="text-sm text-red-600 dark:text-red-400">Notes</div>
+              <div class="text-sm text-red-800 dark:text-red-200 mt-1"><%= @confirmed_insider.notes %></div>
+            </div>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+  <% end %>
+</div>

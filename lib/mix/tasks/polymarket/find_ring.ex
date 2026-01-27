@@ -361,7 +361,10 @@ defmodule Mix.Tasks.Polymarket.FindRing do
     if length(ring) > 0 do
       total_members = length(ring) + 1  # Include seed
       total_trades = Enum.sum(Enum.map(ring, & &1.trade_count)) + seed_profile.total_trades
-      total_volume = Enum.sum(Enum.map(ring, &decimal_to_int(&1.total_size)))
+      ring_volume = Enum.sum(Enum.map(ring, &decimal_to_int(&1.total_size)))
+      # Include seed's volume (avg_trade_size * total_trades)
+      seed_volume = round(seed_profile.avg_trade_size * seed_profile.total_trades)
+      total_volume = ring_volume + seed_volume
       total_wins = Enum.sum(Enum.map(ring, & &1.wins)) + seed_profile.wins
       total_resolved = Enum.sum(Enum.map(ring, & &1.resolved)) + seed_profile.resolved_trades
 

@@ -33,6 +33,9 @@ defmodule VolfefeMachineWeb.Router do
     live "/market-analysis", MarketAnalysisLive, :index
     live "/imports", ImportLive, :index
     live "/polymarket", PolymarketLive, :index
+    live "/polymarket/category/:category", CategoryDetailLive, :show
+    live "/polymarket/market/:condition_id", MarketDetailLive, :show
+    live "/polymarket/wallet/:address", WalletDetailLive, :show
     live "/polymarket/candidates/:id", CandidateDetailLive, :show
   end
 

@@ -131,8 +131,9 @@ defmodule Mix.Tasks.Polymarket.Candidates do
     list_opts = if opts[:batch], do: Keyword.put(list_opts, :batch_id, opts[:batch]), else: list_opts
     list_opts = if opts[:wallet], do: Keyword.put(list_opts, :wallet_address, opts[:wallet]), else: list_opts
     list_opts = if opts[:market], do: Keyword.put(list_opts, :condition_id, opts[:market]), else: list_opts
-    list_opts = if opts[:min_score], do: Keyword.put(list_opts, :min_score, opts[:min_score]), else: list_opts
-    list_opts = if opts[:min_probability], do: Keyword.put(list_opts, :min_probability, opts[:min_probability]), else: list_opts
+    # Use explicit nil checks for numeric values so 0.0 is preserved
+    list_opts = if not is_nil(opts[:min_score]), do: Keyword.put(list_opts, :min_score, opts[:min_score]), else: list_opts
+    list_opts = if not is_nil(opts[:min_probability]), do: Keyword.put(list_opts, :min_probability, opts[:min_probability]), else: list_opts
     list_opts = if opts[:sort], do: Keyword.put(list_opts, :sort_by, opts[:sort]), else: list_opts
     list_opts
   end

@@ -295,12 +295,12 @@ defmodule Mix.Tasks.Polymarket.InvestigateMarket do
     end
   end
 
-  defp print_recent_trades(market, limit, _verbose) do
-    trades = Repo.all(from t in Trade,
+  defp print_recent_trades(market, limit, verbose) do
+    # Build base query without limit
+    base_query = from t in Trade,
       join: ts in TradeScore, on: ts.trade_id == t.id,
       where: t.market_id == ^market.id,
       order_by: [desc: ts.anomaly_score],
-      limit: ^limit,
       select: %{
         trade_id: t.id,
         wallet_address: t.wallet_address,
@@ -314,7 +314,10 @@ defmodule Mix.Tasks.Polymarket.InvestigateMarket do
         trinity_pattern: ts.trinity_pattern,
         trade_timestamp: t.trade_timestamp
       }
-    )
+
+    # Apply limit only when not in verbose mode
+    query = if verbose, do: base_query, else: from(q in base_query, limit: ^limit)
+    trades = Repo.all(query)
 
     if length(trades) > 0 do
       Mix.shell().info("TOP SUSPICIOUS TRADES (by score)")

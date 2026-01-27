@@ -38,7 +38,7 @@ defmodule VolfefeMachine.Polymarket do
   alias VolfefeMachine.Polymarket.{
     Client, Market, Trade, Wallet, PatternBaseline, TradeScore,
     ConfirmedInsider, InsiderPattern, InvestigationCandidate, DiscoveryBatch,
-    Alert, TradeMonitor
+    Alert, TradeMonitor, WatchedMarket
   }
 
   # ============================================
@@ -1963,7 +1963,8 @@ defmodule VolfefeMachine.Polymarket do
     query
     |> Repo.all()
     |> Enum.map(&ensure_float/1)
-    |> Enum.reject(&is_nil/1)
+    # Note: ensure_float(nil) returns 0.0, so no nils to reject
+    # Query already filters out nil sizes with where: not is_nil(t.size)
   end
 
   defp calculate_distribution_stats(values) when length(values) > 0 do
@@ -2168,6 +2169,53 @@ defmodule VolfefeMachine.Polymarket do
     if trade, do: {:ok, trade}, else: {:error, :not_found}
   end
   defp find_insider_trade(_), do: {:error, :missing_params}
+
+  @doc """
+  Confirm a wallet as an insider from the investigation view.
+
+  Creates a ConfirmedInsider record using the wallet's trading data.
+
+  ## Parameters
+  - `wallet_address` - The wallet address to confirm
+  - `opts` - Options including :source, :confidence, :notes
+
+  ## Returns
+  - `{:ok, insider}` - Created insider record
+  - `{:error, reason}` - Error reason
+  """
+  def confirm_insider_from_wallet(wallet_address, opts \\ %{}) do
+    # Find the highest-scoring trade for this wallet
+    trade = from(t in Trade,
+      left_join: ts in TradeScore, on: ts.trade_id == t.id,
+      left_join: m in Market, on: t.market_id == m.id,
+      where: t.wallet_address == ^wallet_address,
+      order_by: [desc: ts.anomaly_score, desc: t.usdc_size],
+      limit: 1,
+      select: %{
+        trade: t,
+        score: ts,
+        market: m
+      }
+    ) |> Repo.one()
+
+    if trade do
+      attrs = %{
+        wallet_address: wallet_address,
+        condition_id: trade.market && trade.market.condition_id,
+        trade_id: trade.trade.id,
+        confirmation_source: Map.get(opts, :source, "manual_review"),
+        confidence: Map.get(opts, :confidence, "medium"),
+        notes: Map.get(opts, :notes),
+        trade_size: trade.trade.usdc_size,
+        estimated_profit: trade.trade.profit_loss,
+        confirmed_at: DateTime.utc_now()
+      }
+
+      add_confirmed_insider(attrs)
+    else
+      {:error, :no_trades_found}
+    end
+  end
 
   @doc """
   List confirmed insiders with optional filters.
@@ -2377,7 +2425,7 @@ defmodule VolfefeMachine.Polymarket do
     end)
     |> Enum.reject(&is_nil/1)
     |> Enum.map(&ensure_float/1)
-    |> Enum.reject(&is_nil/1)
+    # Note: ensure_float(nil) returns 0.0, nils were already rejected above
   end
 
   defp calculate_separation_score(baseline, insider_stats) do
@@ -3034,16 +3082,26 @@ defmodule VolfefeMachine.Polymarket do
       case Keyword.get(opts, :min_score) do
         nil -> query
         min ->
-          min_decimal = Decimal.new(to_string(min))
-          from(ic in query, where: ic.anomaly_score >= ^min_decimal)
+          case Decimal.parse(to_string(min)) do
+            {min_decimal, ""} ->
+              from(ic in query, where: ic.anomaly_score >= ^min_decimal)
+            _ ->
+              # Invalid decimal value, skip filter
+              query
+          end
       end
 
     query =
       case Keyword.get(opts, :min_probability) do
         nil -> query
         min ->
-          min_decimal = Decimal.new(to_string(min))
-          from(ic in query, where: ic.insider_probability >= ^min_decimal)
+          case Decimal.parse(to_string(min)) do
+            {min_decimal, ""} ->
+              from(ic in query, where: ic.insider_probability >= ^min_decimal)
+            _ ->
+              # Invalid decimal value, skip filter
+              query
+          end
       end
 
     query =
@@ -4895,4 +4953,748 @@ defmodule VolfefeMachine.Polymarket do
       {:activity, event_type, data}
     )
   end
+
+  # ============================================================================
+  # Phase 4: Category & Market Drill-Down Functions
+  # ============================================================================
+
+  @doc """
+  Get detailed statistics for a specific category.
+
+  Returns comprehensive category data including:
+  - Score distribution (critical, high, medium, low, normal counts)
+  - Total trades and volume
+  - Unique wallets and markets
+  - Anomaly rates
+  """
+  def category_detail_stats(category, opts \\ []) do
+    {date_from, date_to} = resolve_date_range(opts)
+    category_atom = normalize_category(category)
+
+    # Base query for trades in this category
+    base_query = from(ts in TradeScore,
+      join: t in Trade, on: ts.trade_id == t.id,
+      join: m in Market, on: t.market_id == m.id,
+      where: m.category == ^category_atom
+    )
+
+    base_query = apply_date_filter_3_bindings(base_query, date_from, date_to)
+
+    # Score distribution
+    score_dist = Repo.one(
+      from([ts, t, m] in base_query,
+        select: %{
+          critical: count(fragment("CASE WHEN ? >= 0.9 THEN 1 END", ts.anomaly_score)),
+          high: count(fragment("CASE WHEN ? >= 0.7 AND ? < 0.9 THEN 1 END", ts.anomaly_score, ts.anomaly_score)),
+          medium: count(fragment("CASE WHEN ? >= 0.5 AND ? < 0.7 THEN 1 END", ts.anomaly_score, ts.anomaly_score)),
+          low: count(fragment("CASE WHEN ? >= 0.3 AND ? < 0.5 THEN 1 END", ts.anomaly_score, ts.anomaly_score)),
+          normal: count(fragment("CASE WHEN ? < 0.3 THEN 1 END", ts.anomaly_score)),
+          total: count(ts.id)
+        }
+      )
+    ) || %{critical: 0, high: 0, medium: 0, low: 0, normal: 0, total: 0}
+
+    # Summary stats
+    summary = Repo.one(
+      from([ts, t, m] in base_query,
+        select: %{
+          total_trades: count(ts.id),
+          total_volume: sum(t.usdc_size),
+          unique_wallets: count(t.wallet_address, :distinct),
+          unique_markets: count(m.id, :distinct),
+          avg_score: avg(ts.anomaly_score),
+          max_score: max(ts.anomaly_score)
+        }
+      )
+    ) || %{total_trades: 0, total_volume: nil, unique_wallets: 0, unique_markets: 0, avg_score: nil, max_score: nil}
+
+    anomaly_rate = if summary.total_trades > 0 do
+      anomalous = score_dist.critical + score_dist.high + score_dist.medium
+      Float.round(anomalous / summary.total_trades * 100, 1)
+    else
+      0.0
+    end
+
+    %{
+      category: category_atom,
+      score_distribution: score_dist,
+      total_trades: summary.total_trades,
+      total_volume: ensure_float(summary.total_volume),
+      unique_wallets: summary.unique_wallets,
+      unique_markets: summary.unique_markets,
+      avg_score: ensure_float(summary.avg_score) |> Float.round(3),
+      max_score: ensure_float(summary.max_score) |> Float.round(3),
+      anomaly_rate: anomaly_rate
+    }
+  end
+
+  @doc """
+  Get 7-day trend data for a category.
+
+  Returns daily counts of trades and anomalies for charting.
+  """
+  def category_trend_data(category, opts \\ []) do
+    days = Keyword.get(opts, :days, 7)
+    category_atom = normalize_category(category)
+
+    end_date = DateTime.utc_now()
+    start_date = DateTime.add(end_date, -days, :day)
+
+    query = from(ts in TradeScore,
+      join: t in Trade, on: ts.trade_id == t.id,
+      join: m in Market, on: t.market_id == m.id,
+      where: m.category == ^category_atom,
+      where: t.trade_timestamp >= ^start_date and t.trade_timestamp <= ^end_date,
+      group_by: fragment("DATE(?)", t.trade_timestamp),
+      order_by: fragment("DATE(?)", t.trade_timestamp),
+      select: %{
+        date: fragment("DATE(?)", t.trade_timestamp),
+        total_trades: count(ts.id),
+        anomalous_trades: count(fragment("CASE WHEN ? >= 0.5 THEN 1 END", ts.anomaly_score)),
+        critical_trades: count(fragment("CASE WHEN ? >= 0.9 THEN 1 END", ts.anomaly_score)),
+        avg_score: avg(ts.anomaly_score)
+      }
+    )
+
+    Repo.all(query)
+    |> Enum.map(fn row ->
+      %{
+        date: row.date,
+        total_trades: row.total_trades,
+        anomalous_trades: row.anomalous_trades,
+        critical_trades: row.critical_trades,
+        avg_score: ensure_float(row.avg_score) |> Float.round(3),
+        anomaly_rate: if(row.total_trades > 0, do: Float.round(row.anomalous_trades / row.total_trades * 100, 1), else: 0.0)
+      }
+    end)
+  end
+
+  @doc """
+  Get markets within a category with anomaly statistics.
+
+  Options:
+  - `:sort_by` - Sort field: :anomaly_rate, :critical_count, :volume, :trades (default: :anomaly_rate)
+  - `:sort_order` - :desc or :asc (default: :desc)
+  - `:limit` - Max results (default: 50)
+  """
+  def category_markets(category, opts \\ []) do
+    {date_from, date_to} = resolve_date_range(opts)
+    category_atom = normalize_category(category)
+    limit = Keyword.get(opts, :limit, 50)
+
+    query = from(m in Market,
+      left_join: t in Trade, on: t.market_id == m.id,
+      left_join: ts in TradeScore, on: ts.trade_id == t.id,
+      where: m.category == ^category_atom,
+      group_by: [m.id, m.question, m.condition_id, m.resolution_date, m.is_active],
+      select: %{
+        id: m.id,
+        question: m.question,
+        condition_id: m.condition_id,
+        resolution_date: m.resolution_date,
+        is_active: m.is_active,
+        total_trades: count(t.id),
+        total_volume: sum(t.usdc_size),
+        critical_trades: count(fragment("CASE WHEN ? >= 0.9 THEN 1 END", ts.anomaly_score)),
+        high_trades: count(fragment("CASE WHEN ? >= 0.7 AND ? < 0.9 THEN 1 END", ts.anomaly_score, ts.anomaly_score)),
+        anomalous_trades: count(fragment("CASE WHEN ? >= 0.5 THEN 1 END", ts.anomaly_score)),
+        avg_score: avg(ts.anomaly_score)
+      }
+    )
+
+    # Apply date filter if present
+    query = if date_from do
+      from([m, t, ts] in query, where: is_nil(t.trade_timestamp) or t.trade_timestamp >= ^date_from)
+    else
+      query
+    end
+
+    query = if date_to do
+      from([m, t, ts] in query, where: is_nil(t.trade_timestamp) or t.trade_timestamp <= ^date_to)
+    else
+      query
+    end
+
+    Repo.all(query)
+    |> Enum.map(fn row ->
+      anomaly_rate = if row.total_trades > 0 do
+        Float.round(row.anomalous_trades / row.total_trades * 100, 1)
+      else
+        0.0
+      end
+
+      %{
+        id: row.id,
+        question: row.question,
+        condition_id: row.condition_id,
+        resolution_date: row.resolution_date,
+        is_active: row.is_active,
+        total_trades: row.total_trades,
+        total_volume: ensure_float(row.total_volume),
+        critical_trades: row.critical_trades,
+        high_trades: row.high_trades,
+        anomalous_trades: row.anomalous_trades,
+        anomaly_rate: anomaly_rate,
+        avg_score: ensure_float(row.avg_score) |> Float.round(3)
+      }
+    end)
+    |> Enum.sort_by(& &1.anomaly_rate, :desc)
+    |> Enum.take(limit)
+  end
+
+  @doc """
+  Get suspicious wallets for a category, ranked by average anomaly score.
+
+  Options:
+  - `:min_trades` - Minimum trades to include (default: 2)
+  - `:limit` - Max results (default: 50)
+  """
+  def category_wallets(category, opts \\ []) do
+    {date_from, date_to} = resolve_date_range(opts)
+    category_atom = normalize_category(category)
+    min_trades = Keyword.get(opts, :min_trades, 2)
+    limit = Keyword.get(opts, :limit, 50)
+
+    query = from(ts in TradeScore,
+      join: t in Trade, on: ts.trade_id == t.id,
+      join: m in Market, on: t.market_id == m.id,
+      where: m.category == ^category_atom,
+      group_by: t.wallet_address,
+      having: count(t.id) >= ^min_trades,
+      select: %{
+        wallet_address: t.wallet_address,
+        total_trades: count(t.id),
+        total_volume: sum(t.usdc_size),
+        avg_score: avg(ts.anomaly_score),
+        max_score: max(ts.anomaly_score),
+        critical_trades: count(fragment("CASE WHEN ? >= 0.9 THEN 1 END", ts.anomaly_score)),
+        high_trades: count(fragment("CASE WHEN ? >= 0.7 THEN 1 END", ts.anomaly_score)),
+        markets_traded: count(m.id, :distinct),
+        win_rate: avg(fragment("CASE WHEN ? = true THEN 1.0 ELSE 0.0 END", t.was_correct))
+      }
+    )
+
+    query = apply_date_filter_3_bindings(query, date_from, date_to)
+
+    # Check if wallet is a confirmed insider
+    confirmed_wallets = from(ci in ConfirmedInsider,
+      select: ci.wallet_address
+    ) |> Repo.all() |> MapSet.new()
+
+    # Check if wallet is in investigation
+    investigating_wallets = from(ic in InvestigationCandidate,
+      where: ic.status in ["investigating", "undiscovered"],
+      select: ic.wallet_address
+    ) |> Repo.all() |> MapSet.new()
+
+    Repo.all(query)
+    |> Enum.map(fn row ->
+      status = cond do
+        MapSet.member?(confirmed_wallets, row.wallet_address) -> :confirmed_insider
+        MapSet.member?(investigating_wallets, row.wallet_address) -> :under_investigation
+        true -> :unknown
+      end
+
+      %{
+        wallet_address: row.wallet_address,
+        total_trades: row.total_trades,
+        total_volume: ensure_float(row.total_volume),
+        avg_score: ensure_float(row.avg_score) |> Float.round(3),
+        max_score: ensure_float(row.max_score) |> Float.round(3),
+        critical_trades: row.critical_trades,
+        high_trades: row.high_trades,
+        markets_traded: row.markets_traded,
+        win_rate: ensure_float(row.win_rate) |> Float.round(3),
+        status: status
+      }
+    end)
+    |> Enum.sort_by(& &1.avg_score, :desc)
+    |> Enum.take(limit)
+  end
+
+  @doc """
+  Get detailed market information including trades and anomaly breakdown.
+  """
+  def market_detail(condition_id) do
+    market = Repo.get_by(Market, condition_id: condition_id)
+
+    if market do
+      # Get trades with scores
+      trades = from(t in Trade,
+        left_join: ts in TradeScore, on: ts.trade_id == t.id,
+        where: t.market_id == ^market.id,
+        order_by: [desc: t.trade_timestamp],
+        limit: 100,
+        select: %{
+          id: t.id,
+          wallet_address: t.wallet_address,
+          trade_timestamp: t.trade_timestamp,
+          usdc_size: t.usdc_size,
+          price: t.price,
+          side: t.side,
+          outcome: t.outcome,
+          was_correct: t.was_correct,
+          anomaly_score: ts.anomaly_score,
+          insider_probability: ts.insider_probability
+        }
+      ) |> Repo.all()
+
+      # Score distribution
+      score_dist = from(t in Trade,
+        join: ts in TradeScore, on: ts.trade_id == t.id,
+        where: t.market_id == ^market.id,
+        select: %{
+          critical: count(fragment("CASE WHEN ? >= 0.9 THEN 1 END", ts.anomaly_score)),
+          high: count(fragment("CASE WHEN ? >= 0.7 AND ? < 0.9 THEN 1 END", ts.anomaly_score, ts.anomaly_score)),
+          medium: count(fragment("CASE WHEN ? >= 0.5 AND ? < 0.7 THEN 1 END", ts.anomaly_score, ts.anomaly_score)),
+          low: count(fragment("CASE WHEN ? >= 0.3 AND ? < 0.5 THEN 1 END", ts.anomaly_score, ts.anomaly_score)),
+          normal: count(fragment("CASE WHEN ? < 0.3 THEN 1 END", ts.anomaly_score)),
+          total: count(ts.id)
+        }
+      ) |> Repo.one() || %{critical: 0, high: 0, medium: 0, low: 0, normal: 0, total: 0}
+
+      # Summary stats
+      summary = from(t in Trade,
+        left_join: ts in TradeScore, on: ts.trade_id == t.id,
+        where: t.market_id == ^market.id,
+        select: %{
+          total_trades: count(t.id),
+          total_volume: sum(t.usdc_size),
+          unique_wallets: count(t.wallet_address, :distinct),
+          avg_score: avg(ts.anomaly_score),
+          max_score: max(ts.anomaly_score)
+        }
+      ) |> Repo.one()
+
+      %{
+        market: market,
+        trades: trades,
+        score_distribution: score_dist,
+        summary: %{
+          total_trades: summary.total_trades,
+          total_volume: ensure_float(summary.total_volume),
+          unique_wallets: summary.unique_wallets,
+          avg_score: ensure_float(summary.avg_score) |> Float.round(3),
+          max_score: ensure_float(summary.max_score) |> Float.round(3)
+        }
+      }
+    else
+      nil
+    end
+  end
+
+  @doc """
+  Get detailed wallet profile for investigation view.
+  """
+  def wallet_detail(wallet_address) do
+    # Get all trades for this wallet
+    trades = from(t in Trade,
+      left_join: ts in TradeScore, on: ts.trade_id == t.id,
+      left_join: m in Market, on: t.market_id == m.id,
+      where: t.wallet_address == ^wallet_address,
+      order_by: [desc: t.trade_timestamp],
+      select: %{
+        id: t.id,
+        trade_timestamp: t.trade_timestamp,
+        usdc_size: t.usdc_size,
+        price: t.price,
+        side: t.side,
+        outcome: t.outcome,
+        was_correct: t.was_correct,
+        anomaly_score: ts.anomaly_score,
+        insider_probability: ts.insider_probability,
+        market_question: m.question,
+        market_category: m.category,
+        condition_id: m.condition_id
+      }
+    ) |> Repo.all()
+
+    if length(trades) > 0 do
+      # Calculate summary stats
+      total_volume = trades |> Enum.map(& ensure_float(&1.usdc_size)) |> Enum.sum()
+      # Filter nil scores before ensure_float to exclude unscored trades from avg/max
+      scored_values = trades |> Enum.map(& &1.anomaly_score) |> Enum.reject(&is_nil/1) |> Enum.map(&ensure_float/1)
+      avg_score = average(scored_values)
+      max_score = Enum.max(scored_values, fn -> 0.0 end)
+
+      correct_trades = Enum.count(trades, & &1.was_correct == true)
+      resolved_trades = Enum.count(trades, & not is_nil(&1.was_correct))
+      win_rate = if resolved_trades > 0, do: correct_trades / resolved_trades, else: nil
+
+      critical_trades = Enum.count(trades, fn t ->
+        score = ensure_float(t.anomaly_score)
+        score && score >= 0.9
+      end)
+
+      high_trades = Enum.count(trades, fn t ->
+        score = ensure_float(t.anomaly_score)
+        score && score >= 0.7 && score < 0.9
+      end)
+
+      # Check investigation status
+      candidate = Repo.get_by(InvestigationCandidate, wallet_address: wallet_address)
+      confirmed = Repo.get_by(ConfirmedInsider, wallet_address: wallet_address)
+
+      status = cond do
+        confirmed -> :confirmed_insider
+        candidate && candidate.status == "investigating" -> :under_investigation
+        candidate -> :candidate
+        true -> :unknown
+      end
+
+      # Z-score breakdown from most recent scored trade
+      recent_scored = Enum.find(trades, fn t -> not is_nil(t.anomaly_score) end)
+      zscore_breakdown = if recent_scored do
+        trade_score = Repo.get_by(TradeScore, trade_id: recent_scored.id)
+        if trade_score do
+          %{
+            size_zscore: ensure_float(trade_score.size_zscore),
+            timing_zscore: ensure_float(trade_score.timing_zscore),
+            wallet_age_zscore: ensure_float(trade_score.wallet_age_zscore)
+          }
+        else
+          nil
+        end
+      else
+        nil
+      end
+
+      # Markets traded
+      markets = trades
+        |> Enum.map(& &1.market_category)
+        |> Enum.reject(&is_nil/1)
+        |> Enum.frequencies()
+
+      first_trade = trades |> Enum.min_by(& &1.trade_timestamp, DateTime)
+      wallet_age_days = DateTime.diff(DateTime.utc_now(), first_trade.trade_timestamp, :day)
+
+      %{
+        wallet_address: wallet_address,
+        status: status,
+        candidate: candidate,
+        confirmed_insider: confirmed,
+        trades: trades,
+        summary: %{
+          total_trades: length(trades),
+          total_volume: total_volume,
+          avg_score: if(avg_score, do: Float.round(avg_score, 3), else: nil),
+          max_score: if(max_score, do: Float.round(max_score, 3), else: nil),
+          win_rate: if(win_rate, do: Float.round(win_rate, 3), else: nil),
+          critical_trades: critical_trades,
+          high_trades: high_trades,
+          markets_traded: map_size(markets),
+          wallet_age_days: wallet_age_days,
+          first_seen: first_trade.trade_timestamp
+        },
+        zscore_breakdown: zscore_breakdown,
+        category_breakdown: markets
+      }
+    else
+      nil
+    end
+  end
+
+  # ============================================================================
+  # Watched Markets Functions
+  # ============================================================================
+
+  @doc """
+  Watch/star a market for tracking on the dashboard.
+
+  ## Parameters
+  - `market_id` - Database ID of the market to watch
+  - `opts` - Optional keyword list with :notes
+
+  ## Returns
+  - `{:ok, watched_market}` on success
+  - `{:error, changeset}` if already watching or invalid market
+  """
+  def watch_market(market_id, opts \\ []) do
+    attrs = %{
+      market_id: market_id,
+      notes: Keyword.get(opts, :notes)
+    }
+
+    %WatchedMarket{}
+    |> WatchedMarket.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  @doc """
+  Unwatch/unstar a market.
+
+  ## Parameters
+  - `market_id` - Database ID of the market to unwatch
+
+  ## Returns
+  - `{:ok, watched_market}` on successful deletion
+  - `{:error, :not_found}` if market wasn't being watched
+  """
+  def unwatch_market(market_id) do
+    case Repo.get_by(WatchedMarket, market_id: market_id) do
+      nil -> {:error, :not_found}
+      watched -> Repo.delete(watched)
+    end
+  end
+
+  @doc """
+  Toggle watch status for a market.
+
+  ## Parameters
+  - `market_id` - Database ID of the market
+
+  ## Returns
+  - `{:ok, :watched}` if market is now being watched
+  - `{:ok, :unwatched}` if market is no longer being watched
+  """
+  def toggle_watch_market(market_id) do
+    case Repo.get_by(WatchedMarket, market_id: market_id) do
+      nil ->
+        case watch_market(market_id) do
+          {:ok, _} -> {:ok, :watched}
+          error -> error
+        end
+
+      watched ->
+        case Repo.delete(watched) do
+          {:ok, _} -> {:ok, :unwatched}
+          error -> error
+        end
+    end
+  end
+
+  @doc """
+  Check if a market is being watched.
+
+  ## Parameters
+  - `market_id` - Database ID of the market
+
+  ## Returns
+  - `true` if market is being watched
+  - `false` otherwise
+  """
+  def market_watched?(market_id) do
+    Repo.exists?(from(wm in WatchedMarket, where: wm.market_id == ^market_id))
+  end
+
+  @doc """
+  Get all watched market IDs as a MapSet for efficient lookups.
+
+  ## Returns
+  - MapSet of market IDs
+  """
+  def watched_market_ids do
+    from(wm in WatchedMarket, select: wm.market_id)
+    |> Repo.all()
+    |> MapSet.new()
+  end
+
+  @doc """
+  List all watched markets with their details and stats.
+
+  ## Parameters
+  - `opts` - Optional keyword list:
+    - `:date_from` - Filter trades from this date
+    - `:date_to` - Filter trades to this date
+    - `:limit` - Maximum number of markets to return
+
+  ## Returns
+  - List of maps with market details and anomaly stats
+  """
+  def list_watched_markets(opts \\ []) do
+    limit = Keyword.get(opts, :limit, 50)
+    {date_from, date_to} = resolve_date_range(opts)
+
+    # Get watched markets with their market details
+    watched_markets = Repo.all(
+      from wm in WatchedMarket,
+        join: m in Market, on: wm.market_id == m.id,
+        order_by: [desc: wm.inserted_at],
+        limit: ^limit,
+        select: %{
+          id: m.id,
+          condition_id: m.condition_id,
+          question: m.question,
+          category: m.category,
+          volume: m.volume,
+          is_active: m.is_active,
+          watched_at: wm.inserted_at,
+          notes: wm.notes
+        }
+    )
+
+    # Enrich with trade stats for each market
+    Enum.map(watched_markets, fn market ->
+      stats = get_market_trade_stats(market.id, date_from, date_to)
+      Map.merge(market, stats)
+    end)
+  end
+
+  # Get trade stats for a single market
+  defp get_market_trade_stats(market_id, date_from, date_to) do
+    base_query = from ts in TradeScore,
+      join: t in Trade, on: ts.trade_id == t.id,
+      where: t.market_id == ^market_id
+
+    # Apply date filters inline
+    base_query = case {date_from, date_to} do
+      {nil, nil} -> base_query
+      {from, nil} -> from([ts, t] in base_query, where: t.trade_timestamp >= ^from)
+      {nil, to} -> from([ts, t] in base_query, where: t.trade_timestamp <= ^to)
+      {from, to} -> from([ts, t] in base_query, where: t.trade_timestamp >= ^from and t.trade_timestamp <= ^to)
+    end
+
+    stats = Repo.one(
+      from [ts, t] in base_query,
+        select: %{
+          trade_count: count(ts.id),
+          avg_score: avg(ts.anomaly_score),
+          max_score: max(ts.anomaly_score),
+          critical_trades: count(fragment("CASE WHEN ? >= 0.9 THEN 1 END", ts.anomaly_score)),
+          high_trades: count(fragment("CASE WHEN ? >= 0.7 AND ? < 0.9 THEN 1 END", ts.anomaly_score, ts.anomaly_score))
+        }
+    ) || %{trade_count: 0, avg_score: nil, max_score: nil, critical_trades: 0, high_trades: 0}
+
+    %{
+      trade_count: stats.trade_count,
+      avg_score: if(stats.avg_score, do: Decimal.to_float(stats.avg_score) |> Float.round(3), else: nil),
+      max_score: if(stats.max_score, do: Decimal.to_float(stats.max_score) |> Float.round(3), else: nil),
+      critical_trades: stats.critical_trades,
+      high_trades: stats.high_trades
+    }
+  end
+
+  # ============================================================================
+  # Ring Detection Functions
+  # ============================================================================
+
+  @doc """
+  Check if a wallet has ring connections to confirmed insiders.
+
+  Returns a map with:
+  - `connected`: boolean indicating if connections exist
+  - `insider_count`: number of confirmed insiders sharing markets
+  - `shared_markets`: count of shared market overlap
+  - `insiders`: list of connected insider addresses (truncated)
+
+  A wallet is considered "ring-connected" if it shares 2+ markets with
+  any confirmed insider wallets.
+  """
+  def ring_connection_info(wallet_address) do
+    wallet_address = String.downcase(wallet_address)
+
+    # Get markets this wallet traded
+    wallet_markets = Repo.all(
+      from t in Trade,
+        where: t.wallet_address == ^wallet_address,
+        select: t.market_id,
+        distinct: true
+    )
+
+    if length(wallet_markets) == 0 do
+      %{connected: false, insider_count: 0, shared_markets: 0, insiders: []}
+    else
+      # Get confirmed insider wallet addresses
+      insider_addresses = Repo.all(
+        from ci in ConfirmedInsider,
+          where: ci.wallet_address != ^wallet_address,
+          select: ci.wallet_address,
+          distinct: true
+      )
+
+      if length(insider_addresses) == 0 do
+        %{connected: false, insider_count: 0, shared_markets: 0, insiders: []}
+      else
+        # Find insiders who traded the same markets
+        connections = Enum.map(insider_addresses, fn insider_addr ->
+          insider_markets = Repo.all(
+            from t in Trade,
+              where: t.wallet_address == ^insider_addr,
+              select: t.market_id,
+              distinct: true
+          )
+
+          shared = MapSet.intersection(
+            MapSet.new(wallet_markets),
+            MapSet.new(insider_markets)
+          )
+
+          if MapSet.size(shared) >= 2 do
+            {insider_addr, MapSet.size(shared)}
+          else
+            nil
+          end
+        end)
+        |> Enum.reject(&is_nil/1)
+        |> Enum.sort_by(fn {_, count} -> count end, :desc)
+
+        if length(connections) > 0 do
+          %{
+            connected: true,
+            insider_count: length(connections),
+            shared_markets: connections |> Enum.map(fn {_, c} -> c end) |> Enum.max(),
+            insiders: connections |> Enum.take(5) |> Enum.map(fn {addr, _} -> addr end)
+          }
+        else
+          %{connected: false, insider_count: 0, shared_markets: 0, insiders: []}
+        end
+      end
+    end
+  end
+
+  @doc """
+  Get ring connection info for multiple wallets efficiently.
+
+  Returns a map of wallet_address => ring_info.
+  """
+  def ring_connections_batch(wallet_addresses) when is_list(wallet_addresses) do
+    # This is a batched version for efficiency
+    wallet_addresses
+    |> Enum.map(&String.downcase/1)
+    |> Enum.map(fn addr -> {addr, ring_connection_info(addr)} end)
+    |> Map.new()
+  end
+
+  @doc """
+  Check if a wallet is part of any ring (quick boolean check).
+  """
+  def in_ring?(wallet_address) do
+    case ring_connection_info(wallet_address) do
+      %{connected: true} -> true
+      _ -> false
+    end
+  end
+
+  # Helper to normalize category input
+  defp normalize_category(category) when is_atom(category), do: category
+  defp normalize_category(category) when is_binary(category) do
+    case category do
+      "politics" -> :politics
+      "crypto" -> :crypto
+      "sports" -> :sports
+      "entertainment" -> :entertainment
+      "science" -> :science
+      "business" -> :business
+      "other" -> :other
+      _ -> String.to_existing_atom(category)
+    end
+  rescue
+    _ -> :other
+  end
+
+  # Helper for date filtering with 3-binding queries
+  defp apply_date_filter_3_bindings(query, nil, nil), do: query
+  defp apply_date_filter_3_bindings(query, date_from, nil) do
+    from([ts, t, m] in query, where: t.trade_timestamp >= ^date_from)
+  end
+  defp apply_date_filter_3_bindings(query, nil, date_to) do
+    from([ts, t, m] in query, where: t.trade_timestamp <= ^date_to)
+  end
+  defp apply_date_filter_3_bindings(query, date_from, date_to) do
+    from([ts, t, m] in query, where: t.trade_timestamp >= ^date_from and t.trade_timestamp <= ^date_to)
+  end
+
+  # Helper to calculate average
+  defp average([]), do: nil
+  defp average(list), do: Enum.sum(list) / length(list)
 end

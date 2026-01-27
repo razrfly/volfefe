@@ -1,0 +1,504 @@
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <!-- Admin Navigation -->
+  <.admin_nav current_page={:polymarket} />
+
+  <!-- Header with Back Button -->
+  <div class="mb-8">
+    <div class="flex items-center gap-4 mb-4">
+      <.link navigate={~p"/admin/polymarket"} class="flex items-center gap-2 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors">
+        <span class="text-lg">&larr;</span>
+        <span class="text-sm font-medium">Back to Dashboard</span>
+      </.link>
+    </div>
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <span class="text-4xl"><%= category_icon(@category) %></span>
+        <div>
+          <.heading><%= String.capitalize(@category) %> Category</.heading>
+          <.text class="mt-1">
+            Detailed analysis of <%= @category %> market trading patterns
+          </.text>
+        </div>
+      </div>
+      <!-- Date Range Selector -->
+      <div class="flex items-center gap-2">
+        <span class="text-sm font-medium text-zinc-700 dark:text-zinc-300">Time Range:</span>
+        <div class="flex rounded-lg bg-zinc-100 dark:bg-zinc-800 p-1">
+          <button
+            phx-click="change_date_range"
+            phx-value-range="today"
+            class={"px-3 py-1.5 text-sm font-medium rounded-md transition-colors #{if @date_range == "today", do: "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm", else: "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"}"}
+          >
+            Today
+          </button>
+          <button
+            phx-click="change_date_range"
+            phx-value-range="7d"
+            class={"px-3 py-1.5 text-sm font-medium rounded-md transition-colors #{if @date_range == "7d", do: "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm", else: "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"}"}
+          >
+            7 Days
+          </button>
+          <button
+            phx-click="change_date_range"
+            phx-value-range="30d"
+            class={"px-3 py-1.5 text-sm font-medium rounded-md transition-colors #{if @date_range == "30d", do: "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm", else: "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"}"}
+          >
+            30 Days
+          </button>
+          <button
+            phx-click="change_date_range"
+            phx-value-range="all"
+            class={"px-3 py-1.5 text-sm font-medium rounded-md transition-colors #{if @date_range == "all", do: "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm", else: "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"}"}
+          >
+            All Time
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="space-y-6">
+    <!-- Summary Stats Row -->
+    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+      <.stat_card title="Total Trades" value={format_number(@stats.total_trades)}>
+        <:detail>In selected period</:detail>
+      </.stat_card>
+
+      <.stat_card title="Total Volume" value={format_volume(@stats.total_volume)}>
+        <:detail>USDC traded</:detail>
+      </.stat_card>
+
+      <.stat_card title="Unique Wallets" value={format_number(@stats.unique_wallets)}>
+        <:detail>Active traders</:detail>
+      </.stat_card>
+
+      <.stat_card title="Active Markets" value={format_number(@stats.unique_markets)}>
+        <:detail>With trades</:detail>
+      </.stat_card>
+
+      <.stat_card title="Avg Score" value={format_score(@stats.avg_score)}>
+        <:detail>Anomaly score</:detail>
+      </.stat_card>
+
+      <.stat_card title="Anomaly Rate" value={"#{@stats.anomaly_rate}%"}>
+        <:detail>Score >= 0.5</:detail>
+      </.stat_card>
+    </div>
+
+    <!-- Score Distribution and Trend Chart Row -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <!-- Score Distribution -->
+      <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+        <div class="px-6 py-4 border-b border-zinc-950/10 dark:border-white/10">
+          <.subheading>Score Distribution</.subheading>
+          <.text class="mt-1">Breakdown of trades by anomaly score tier</.text>
+        </div>
+        <div class="p-6">
+          <div class="space-y-4">
+            <!-- Critical -->
+            <div class="flex items-center gap-4">
+              <div class="w-20 text-sm font-medium text-red-600 dark:text-red-400">Critical</div>
+              <div class="flex-1">
+                <div class="h-6 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
+                  <div
+                    class="h-full bg-red-500 rounded-full flex items-center justify-end pr-2"
+                    style={"width: #{if @stats.score_distribution.total > 0, do: max(@stats.score_distribution.critical / @stats.score_distribution.total * 100, 2), else: 0}%"}
+                  >
+                    <span class="text-xs font-bold text-white"><%= @stats.score_distribution.critical %></span>
+                  </div>
+                </div>
+              </div>
+              <div class="w-16 text-right text-sm text-zinc-600 dark:text-zinc-400">
+                <%= if @stats.score_distribution.total > 0, do: Float.round(@stats.score_distribution.critical / @stats.score_distribution.total * 100, 1), else: 0 %>%
+              </div>
+            </div>
+
+            <!-- High -->
+            <div class="flex items-center gap-4">
+              <div class="w-20 text-sm font-medium text-orange-600 dark:text-orange-400">High</div>
+              <div class="flex-1">
+                <div class="h-6 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
+                  <div
+                    class="h-full bg-orange-500 rounded-full flex items-center justify-end pr-2"
+                    style={"width: #{if @stats.score_distribution.total > 0, do: max(@stats.score_distribution.high / @stats.score_distribution.total * 100, 2), else: 0}%"}
+                  >
+                    <span class="text-xs font-bold text-white"><%= @stats.score_distribution.high %></span>
+                  </div>
+                </div>
+              </div>
+              <div class="w-16 text-right text-sm text-zinc-600 dark:text-zinc-400">
+                <%= if @stats.score_distribution.total > 0, do: Float.round(@stats.score_distribution.high / @stats.score_distribution.total * 100, 1), else: 0 %>%
+              </div>
+            </div>
+
+            <!-- Medium -->
+            <div class="flex items-center gap-4">
+              <div class="w-20 text-sm font-medium text-yellow-600 dark:text-yellow-400">Medium</div>
+              <div class="flex-1">
+                <div class="h-6 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
+                  <div
+                    class="h-full bg-yellow-500 rounded-full flex items-center justify-end pr-2"
+                    style={"width: #{if @stats.score_distribution.total > 0, do: max(@stats.score_distribution.medium / @stats.score_distribution.total * 100, 2), else: 0}%"}
+                  >
+                    <span class="text-xs font-bold text-white"><%= @stats.score_distribution.medium %></span>
+                  </div>
+                </div>
+              </div>
+              <div class="w-16 text-right text-sm text-zinc-600 dark:text-zinc-400">
+                <%= if @stats.score_distribution.total > 0, do: Float.round(@stats.score_distribution.medium / @stats.score_distribution.total * 100, 1), else: 0 %>%
+              </div>
+            </div>
+
+            <!-- Low -->
+            <div class="flex items-center gap-4">
+              <div class="w-20 text-sm font-medium text-blue-600 dark:text-blue-400">Low</div>
+              <div class="flex-1">
+                <div class="h-6 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
+                  <div
+                    class="h-full bg-blue-500 rounded-full flex items-center justify-end pr-2"
+                    style={"width: #{if @stats.score_distribution.total > 0, do: max(@stats.score_distribution.low / @stats.score_distribution.total * 100, 2), else: 0}%"}
+                  >
+                    <span class="text-xs font-bold text-white"><%= @stats.score_distribution.low %></span>
+                  </div>
+                </div>
+              </div>
+              <div class="w-16 text-right text-sm text-zinc-600 dark:text-zinc-400">
+                <%= if @stats.score_distribution.total > 0, do: Float.round(@stats.score_distribution.low / @stats.score_distribution.total * 100, 1), else: 0 %>%
+              </div>
+            </div>
+
+            <!-- Normal -->
+            <div class="flex items-center gap-4">
+              <div class="w-20 text-sm font-medium text-green-600 dark:text-green-400">Normal</div>
+              <div class="flex-1">
+                <div class="h-6 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
+                  <div
+                    class="h-full bg-green-500 rounded-full flex items-center justify-end pr-2"
+                    style={"width: #{if @stats.score_distribution.total > 0, do: max(@stats.score_distribution.normal / @stats.score_distribution.total * 100, 2), else: 0}%"}
+                  >
+                    <span class="text-xs font-bold text-white"><%= @stats.score_distribution.normal %></span>
+                  </div>
+                </div>
+              </div>
+              <div class="w-16 text-right text-sm text-zinc-600 dark:text-zinc-400">
+                <%= if @stats.score_distribution.total > 0, do: Float.round(@stats.score_distribution.normal / @stats.score_distribution.total * 100, 1), else: 0 %>%
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 7-Day Trend Chart -->
+      <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+        <div class="px-6 py-4 border-b border-zinc-950/10 dark:border-white/10">
+          <.subheading>7-Day Anomaly Trend</.subheading>
+          <.text class="mt-1">Daily anomaly rates and critical trade counts</.text>
+        </div>
+        <div class="p-6">
+          <%= if length(@trend_data) > 0 do %>
+            <div class="space-y-3">
+              <%= for day <- @trend_data do %>
+                <div class="flex items-center gap-3">
+                  <div class="w-16 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                    <%= Calendar.strftime(day.date, "%m/%d") %>
+                  </div>
+                  <div class="flex-1">
+                    <div class="h-4 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden relative">
+                      <!-- Anomaly rate bar -->
+                      <div
+                        class={"h-full rounded-full transition-all duration-300 #{cond do
+                          day.anomaly_rate >= 20 -> "bg-red-500"
+                          day.anomaly_rate >= 10 -> "bg-orange-500"
+                          day.anomaly_rate >= 5 -> "bg-yellow-500"
+                          true -> "bg-green-500"
+                        end}"}
+                        style={"width: #{min(day.anomaly_rate, 100)}%"}
+                      >
+                      </div>
+                    </div>
+                  </div>
+                  <div class="w-20 text-right">
+                    <span class="text-xs font-medium text-zinc-900 dark:text-white"><%= day.anomaly_rate %>%</span>
+                    <%= if day.critical_trades > 0 do %>
+                      <span class="ml-1 text-xs text-red-600 dark:text-red-400">(<%= day.critical_trades %> crit)</span>
+                    <% end %>
+                  </div>
+                </div>
+              <% end %>
+            </div>
+          <% else %>
+            <.empty_state>
+              No trend data available for this category.
+            </.empty_state>
+          <% end %>
+        </div>
+      </div>
+    </div>
+
+    <!-- Markets Table -->
+    <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+      <div class="px-6 py-4 border-b border-zinc-950/10 dark:border-white/10">
+        <div class="flex items-center justify-between">
+          <div>
+            <.subheading>Active Markets</.subheading>
+            <.text class="mt-1">Markets in this category with anomaly statistics</.text>
+          </div>
+          <.badge color={:zinc}><%= length(@markets) %> markets</.badge>
+        </div>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-zinc-950/5 dark:divide-white/5">
+          <thead>
+            <tr class="bg-zinc-50 dark:bg-zinc-800/50">
+              <th class="px-3 py-3 text-center text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider w-10">
+                <%!-- Watch/Star column --%>
+              </th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                Market
+              </th>
+              <th
+                class="px-6 py-3 text-right text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-200"
+                phx-click="sort_markets"
+                phx-value-field="total_trades"
+              >
+                Trades <%= sort_indicator(@markets_sort, :total_trades, @markets_sort_order) %>
+              </th>
+              <th
+                class="px-6 py-3 text-right text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-200"
+                phx-click="sort_markets"
+                phx-value-field="total_volume"
+              >
+                Volume <%= sort_indicator(@markets_sort, :total_volume, @markets_sort_order) %>
+              </th>
+              <th
+                class="px-6 py-3 text-right text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-200"
+                phx-click="sort_markets"
+                phx-value-field="critical_trades"
+              >
+                Critical <%= sort_indicator(@markets_sort, :critical_trades, @markets_sort_order) %>
+              </th>
+              <th
+                class="px-6 py-3 text-right text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-200"
+                phx-click="sort_markets"
+                phx-value-field="high_trades"
+              >
+                High <%= sort_indicator(@markets_sort, :high_trades, @markets_sort_order) %>
+              </th>
+              <th
+                class="px-6 py-3 text-right text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-200"
+                phx-click="sort_markets"
+                phx-value-field="anomaly_rate"
+              >
+                Anomaly Rate <%= sort_indicator(@markets_sort, :anomaly_rate, @markets_sort_order) %>
+              </th>
+              <th class="px-6 py-3 text-right text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-zinc-950/5 dark:divide-white/5">
+            <%= if length(@markets) == 0 do %>
+              <tr>
+                <td colspan="8" class="px-6 py-8 text-center text-zinc-500 dark:text-zinc-400">
+                  No markets found in this category.
+                </td>
+              </tr>
+            <% else %>
+              <%= for market <- @markets do %>
+                <tr class="hover:bg-zinc-950/2.5 dark:hover:bg-white/2.5">
+                  <td class="px-3 py-4 text-center">
+                    <button
+                      phx-click="toggle_watch"
+                      phx-value-market-id={market.id}
+                      class="text-xl hover:scale-110 transition-transform focus:outline-none"
+                      title={if MapSet.member?(@watched_market_ids, market.id), do: "Unwatch market", else: "Watch market"}
+                    >
+                      <%= if MapSet.member?(@watched_market_ids, market.id) do %>
+                        <span class="text-yellow-500">★</span>
+                      <% else %>
+                        <span class="text-zinc-300 dark:text-zinc-600 hover:text-yellow-400">☆</span>
+                      <% end %>
+                    </button>
+                  </td>
+                  <td class="px-6 py-4">
+                    <div class="flex items-center gap-2">
+                      <%= if market.critical_trades > 0 do %>
+                        <span class="text-red-500">🚨</span>
+                      <% end %>
+                      <div>
+                        <div class="text-sm font-medium text-zinc-900 dark:text-white max-w-md">
+                          <%= truncate(market.question || "Unknown Market", 60) %>
+                        </div>
+                        <div class="text-xs text-zinc-500 dark:text-zinc-400">
+                          <%= if market.is_active, do: "Active", else: "Resolved" %>
+                          <%= if market.resolution_date do %>
+                            · Resolves <%= relative_time(market.resolution_date) %>
+                          <% end %>
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="px-6 py-4 text-right text-sm text-zinc-600 dark:text-zinc-300">
+                    <%= format_number(market.total_trades) %>
+                  </td>
+                  <td class="px-6 py-4 text-right text-sm text-zinc-600 dark:text-zinc-300">
+                    <%= format_volume(market.total_volume) %>
+                  </td>
+                  <td class="px-6 py-4 text-right">
+                    <%= if market.critical_trades > 0 do %>
+                      <.badge color={:red}><%= market.critical_trades %></.badge>
+                    <% else %>
+                      <span class="text-sm text-zinc-400">0</span>
+                    <% end %>
+                  </td>
+                  <td class="px-6 py-4 text-right">
+                    <%= if market.high_trades > 0 do %>
+                      <.badge color={:amber}><%= market.high_trades %></.badge>
+                    <% else %>
+                      <span class="text-sm text-zinc-400">0</span>
+                    <% end %>
+                  </td>
+                  <td class="px-6 py-4 text-right">
+                    <span class={"text-sm font-medium #{cond do
+                      market.anomaly_rate >= 20 -> "text-red-600 dark:text-red-400"
+                      market.anomaly_rate >= 10 -> "text-orange-600 dark:text-orange-400"
+                      market.anomaly_rate >= 5 -> "text-yellow-600 dark:text-yellow-400"
+                      true -> "text-green-600 dark:text-green-400"
+                    end}"}>
+                      <%= market.anomaly_rate %>%
+                    </span>
+                  </td>
+                  <td class="px-6 py-4 text-right">
+                    <.link
+                      navigate={~p"/admin/polymarket/market/#{market.condition_id}"}
+                      class="text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
+                    >
+                      View →
+                    </.link>
+                  </td>
+                </tr>
+              <% end %>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Suspicious Wallets Leaderboard -->
+    <div class="bg-white shadow-sm rounded ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+      <div class="px-6 py-4 border-b border-zinc-950/10 dark:border-white/10">
+        <div class="flex items-center justify-between">
+          <div>
+            <.subheading>Suspicious Wallets</.subheading>
+            <.text class="mt-1">Wallets with highest anomaly scores in this category</.text>
+          </div>
+          <.badge color={:zinc}><%= length(@wallets) %> wallets</.badge>
+        </div>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-zinc-950/5 dark:divide-white/5">
+          <thead>
+            <tr class="bg-zinc-50 dark:bg-zinc-800/50">
+              <th class="px-6 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                Wallet
+              </th>
+              <th class="px-6 py-3 text-right text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                Trades
+              </th>
+              <th class="px-6 py-3 text-right text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                Volume
+              </th>
+              <th class="px-6 py-3 text-right text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                Win Rate
+              </th>
+              <th class="px-6 py-3 text-right text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                Avg Score
+              </th>
+              <th class="px-6 py-3 text-right text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                Max Score
+              </th>
+              <th class="px-6 py-3 text-center text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                Status
+              </th>
+              <th class="px-6 py-3 text-right text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-zinc-950/5 dark:divide-white/5">
+            <%= if length(@wallets) == 0 do %>
+              <tr>
+                <td colspan="8" class="px-6 py-8 text-center text-zinc-500 dark:text-zinc-400">
+                  No suspicious wallets found in this category.
+                </td>
+              </tr>
+            <% else %>
+              <%= for wallet <- @wallets do %>
+                <% ring_info = Map.get(@ring_connections, String.downcase(wallet.wallet_address), %{connected: false}) %>
+                <tr class="hover:bg-zinc-950/2.5 dark:hover:bg-white/2.5">
+                  <td class="px-6 py-4">
+                    <div class="flex items-center gap-2">
+                      <%= if wallet.critical_trades > 0 do %>
+                        <span class="text-red-500">🚨</span>
+                      <% end %>
+                      <%= if ring_info.connected do %>
+                        <span class="text-purple-500" title={"Ring: #{ring_info.insider_count} insider(s), #{ring_info.shared_markets} shared markets"}>🔗</span>
+                      <% end %>
+                      <code class="text-sm font-mono text-zinc-900 dark:text-white">
+                        <%= format_wallet(wallet.wallet_address) %>
+                      </code>
+                      <%= if ring_info.connected do %>
+                        <span class="inline-flex items-center rounded-md bg-purple-50 dark:bg-purple-900/30 px-2 py-0.5 text-xs font-medium text-purple-700 dark:text-purple-300 ring-1 ring-inset ring-purple-700/10 dark:ring-purple-400/30">
+                          Ring
+                        </span>
+                      <% end %>
+                    </div>
+                  </td>
+                  <td class="px-6 py-4 text-right text-sm text-zinc-600 dark:text-zinc-300">
+                    <%= format_number(wallet.total_trades) %>
+                    <span class="text-xs text-zinc-400">(<%= wallet.markets_traded %> mkts)</span>
+                  </td>
+                  <td class="px-6 py-4 text-right text-sm text-zinc-600 dark:text-zinc-300">
+                    <%= format_volume(wallet.total_volume) %>
+                  </td>
+                  <td class="px-6 py-4 text-right">
+                    <span class={"text-sm font-medium #{if wallet.win_rate >= 0.7, do: "text-red-600 dark:text-red-400", else: "text-zinc-600 dark:text-zinc-300"}"}>
+                      <%= Float.round(wallet.win_rate * 100, 1) %>%
+                    </span>
+                  </td>
+                  <td class="px-6 py-4 text-right">
+                    <.badge color={score_tier_color(wallet.avg_score)}>
+                      <%= format_score(wallet.avg_score) %>
+                    </.badge>
+                  </td>
+                  <td class="px-6 py-4 text-right">
+                    <.badge color={score_tier_color(wallet.max_score)}>
+                      <%= format_score(wallet.max_score) %>
+                    </.badge>
+                  </td>
+                  <td class="px-6 py-4 text-center">
+                    <%= if wallet_status_label(wallet.status) do %>
+                      <.badge color={wallet_status_color(wallet.status)}>
+                        <%= wallet_status_label(wallet.status) %>
+                      </.badge>
+                    <% else %>
+                      <span class="text-sm text-zinc-400">-</span>
+                    <% end %>
+                  </td>
+                  <td class="px-6 py-4 text-right">
+                    <.link
+                      navigate={~p"/admin/polymarket/wallet/#{wallet.wallet_address}"}
+                      class="text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
+                    >
+                      Investigate →
+                    </.link>
+                  </td>
+                </tr>
+              <% end %>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
