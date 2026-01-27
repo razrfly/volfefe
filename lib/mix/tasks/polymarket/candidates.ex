@@ -1,8 +1,9 @@
 defmodule Mix.Tasks.Polymarket.Candidates do
   @moduledoc """
-  List Polymarket investigation candidates.
+  List Polymarket investigation candidates with advanced filtering.
 
-  Displays candidates matching the Candidates tab in /admin/polymarket.
+  Enhanced CLI tool for browsing and exporting suspicious trading candidates
+  detected by the anomaly detection system.
 
   ## Usage
 
@@ -16,19 +17,42 @@ defmodule Mix.Tasks.Polymarket.Candidates do
       # Filter by priority
       mix polymarket.candidates --priority critical
 
-      # Custom limit
-      mix polymarket.candidates --limit 100
+      # Filter by wallet address
+      mix polymarket.candidates --wallet 0x511374966ad5f98abf5a200b2d5ea94b46b9f0ba
 
-      # Filter by batch (from promote command)
-      mix polymarket.candidates --batch refcase-nobel-peace-1234567890
+      # Filter by market (condition_id)
+      mix polymarket.candidates --market 0xdfc820cb9f888cfa933c5a7ff961f47da0c11e9a25055dfdf4f282d299830eb4
+
+      # Filter by minimum score
+      mix polymarket.candidates --min-score 0.7
+
+      # Filter by minimum insider probability
+      mix polymarket.candidates --min-probability 0.8
+
+      # Sort by different fields
+      mix polymarket.candidates --sort score
+      mix polymarket.candidates --sort probability
+      mix polymarket.candidates --sort profit
+
+      # Export to CSV
+      mix polymarket.candidates --export csv
+
+      # Combine filters
+      mix polymarket.candidates --priority critical --min-score 0.8 --export csv
 
   ## Options
 
-      --status    Filter by status (undiscovered, investigating, confirmed_insider, cleared, dismissed)
-      --priority  Filter by priority (critical, high, medium, low)
-      --batch     Filter by batch ID (from promote command)
-      --limit     Maximum candidates to show (default: 50)
-      --verbose   Show full candidate details
+      --status          Filter by status (undiscovered, investigating, confirmed_insider, cleared, dismissed)
+      --priority        Filter by priority (critical, high, medium, low)
+      --batch           Filter by batch ID (from promote command)
+      --wallet          Filter by wallet address
+      --market          Filter by market condition_id
+      --min-score       Filter by minimum anomaly score (0.0-1.0)
+      --min-probability Filter by minimum insider probability (0.0-1.0)
+      --sort            Sort results by: rank (default), score, probability, profit
+      --limit           Maximum candidates to show (default: 50)
+      --export          Export format: csv
+      --verbose         Show full candidate details
 
   ## Examples
 
@@ -45,12 +69,21 @@ defmodule Mix.Tasks.Polymarket.Candidates do
 
       #2 [HIGH] Rank #2 - 0x7b2e...a891
          ...
+
+  ## Export Format
+
+  CSV export includes all candidate fields for external analysis:
+
+      $ mix polymarket.candidates --priority critical --export csv > critical_candidates.csv
+
+  Output columns: id, wallet_address, condition_id, discovery_rank, anomaly_score,
+  insider_probability, status, priority, estimated_profit, market_question
   """
 
   use Mix.Task
   alias VolfefeMachine.Polymarket
 
-  @shortdoc "List Polymarket investigation candidates"
+  @shortdoc "List Polymarket investigation candidates with filters"
 
   @impl Mix.Task
   def run(args) do
@@ -61,20 +94,95 @@ defmodule Mix.Tasks.Polymarket.Candidates do
         status: :string,
         priority: :string,
         batch: :string,
+        wallet: :string,
+        market: :string,
+        min_score: :float,
+        min_probability: :float,
+        sort: :string,
         limit: :integer,
+        export: :string,
         verbose: :boolean
       ],
-      aliases: [s: :status, p: :priority, b: :batch, v: :verbose, l: :limit]
+      aliases: [
+        s: :status,
+        p: :priority,
+        b: :batch,
+        w: :wallet,
+        m: :market,
+        v: :verbose,
+        l: :limit,
+        e: :export
+      ]
     )
 
+    list_opts = build_list_opts(opts)
+    candidates = Polymarket.list_investigation_candidates(list_opts)
+
+    case opts[:export] do
+      "csv" -> export_csv(candidates)
+      _ -> print_candidates(candidates, opts[:verbose] || false)
+    end
+  end
+
+  defp build_list_opts(opts) do
     list_opts = [limit: opts[:limit] || 50]
     list_opts = if opts[:status], do: Keyword.put(list_opts, :status, opts[:status]), else: list_opts
     list_opts = if opts[:priority], do: Keyword.put(list_opts, :priority, opts[:priority]), else: list_opts
     list_opts = if opts[:batch], do: Keyword.put(list_opts, :batch_id, opts[:batch]), else: list_opts
+    list_opts = if opts[:wallet], do: Keyword.put(list_opts, :wallet_address, opts[:wallet]), else: list_opts
+    list_opts = if opts[:market], do: Keyword.put(list_opts, :condition_id, opts[:market]), else: list_opts
+    list_opts = if opts[:min_score], do: Keyword.put(list_opts, :min_score, opts[:min_score]), else: list_opts
+    list_opts = if opts[:min_probability], do: Keyword.put(list_opts, :min_probability, opts[:min_probability]), else: list_opts
+    list_opts = if opts[:sort], do: Keyword.put(list_opts, :sort_by, opts[:sort]), else: list_opts
+    list_opts
+  end
 
-    candidates = Polymarket.list_investigation_candidates(list_opts)
+  defp export_csv(candidates) do
+    # CSV header
+    header = "id,wallet_address,condition_id,discovery_rank,anomaly_score,insider_probability,status,priority,estimated_profit,trade_size,trade_outcome,was_correct,hours_before_resolution,market_question,batch_id,discovered_at"
+    Mix.shell().info(header)
 
-    print_candidates(candidates, opts[:verbose] || false)
+    # CSV rows
+    Enum.each(candidates, fn c ->
+      row = [
+        c.id,
+        c.wallet_address,
+        c.condition_id,
+        c.discovery_rank,
+        format_decimal_csv(c.anomaly_score),
+        format_decimal_csv(c.insider_probability),
+        c.status,
+        c.priority,
+        format_decimal_csv(c.estimated_profit),
+        format_decimal_csv(c.trade_size),
+        c.trade_outcome,
+        c.was_correct,
+        format_decimal_csv(c.hours_before_resolution),
+        escape_csv(c.market_question),
+        c.batch_id,
+        format_datetime_csv(c.discovered_at)
+      ]
+      |> Enum.join(",")
+
+      Mix.shell().info(row)
+    end)
+  end
+
+  defp format_decimal_csv(nil), do: ""
+  defp format_decimal_csv(%Decimal{} = d), do: Decimal.to_string(d)
+  defp format_decimal_csv(n), do: "#{n}"
+
+  defp format_datetime_csv(nil), do: ""
+  defp format_datetime_csv(%DateTime{} = dt), do: DateTime.to_iso8601(dt)
+  defp format_datetime_csv(%NaiveDateTime{} = dt), do: NaiveDateTime.to_iso8601(dt)
+
+  defp escape_csv(nil), do: ""
+  defp escape_csv(str) when is_binary(str) do
+    if String.contains?(str, [",", "\"", "\n"]) do
+      "\"#{String.replace(str, "\"", "\"\"")}\""
+    else
+      str
+    end
   end
 
   defp print_candidates([], _verbose) do
@@ -95,6 +203,8 @@ defmodule Mix.Tasks.Polymarket.Candidates do
 
     Mix.shell().info(String.duplicate("─", 65))
     Mix.shell().info("View details: mix polymarket.candidate --id ID")
+    Mix.shell().info("Investigate wallet: mix polymarket.investigate_wallet <address>")
+    Mix.shell().info("Export results: mix polymarket.candidates --export csv")
     Mix.shell().info("")
   end
 
@@ -118,6 +228,8 @@ defmodule Mix.Tasks.Polymarket.Candidates do
     end
 
     if verbose do
+      Mix.shell().info("   Wallet: #{c.wallet_address}")
+      Mix.shell().info("   Condition ID: #{c.condition_id || "N/A"}")
       Mix.shell().info("   Trade Size: #{format_decimal(c.trade_size)}")
       Mix.shell().info("   Hours Before Resolution: #{c.hours_before_resolution || "N/A"}")
       Mix.shell().info("   Trade Outcome: #{c.trade_outcome || "N/A"}")

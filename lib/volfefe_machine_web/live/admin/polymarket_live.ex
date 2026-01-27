@@ -27,12 +27,16 @@ defmodule VolfefeMachineWeb.Admin.PolymarketLive do
 
       # Subscribe to data source failover events
       Phoenix.PubSub.subscribe(VolfefeMachine.PubSub, "data_source:failover")
+
+      # Subscribe to activity feed
+      Phoenix.PubSub.subscribe(VolfefeMachine.PubSub, "dashboard:activity")
     end
 
     {:ok,
      socket
      |> assign(:page_title, "Polymarket Insider Detection")
      |> assign(:active_tab, :overview)
+     |> assign(:date_range, "7d")
      |> load_data()}
   end
 
@@ -56,6 +60,14 @@ defmodule VolfefeMachineWeb.Admin.PolymarketLive do
   @impl true
   def handle_event("switch_tab", %{"tab" => tab}, socket) do
     {:noreply, push_patch(socket, to: ~p"/admin/polymarket?tab=#{tab}")}
+  end
+
+  @impl true
+  def handle_event("change_date_range", %{"range" => range}, socket) do
+    {:noreply,
+     socket
+     |> assign(:date_range, range)
+     |> load_data()}
   end
 
   @impl true
@@ -406,6 +418,21 @@ defmodule VolfefeMachineWeb.Admin.PolymarketLive do
   end
 
   @impl true
+  def handle_info({:activity, event_type, data}, socket) do
+    # Add new activity to the feed
+    activity_item = %{
+      type: to_string(event_type),
+      timestamp: DateTime.utc_now(),
+      data: data
+    }
+
+    current_activity = socket.assigns[:activity_feed] || []
+    updated_feed = [activity_item | current_activity] |> Enum.take(50)
+
+    {:noreply, assign(socket, :activity_feed, updated_feed)}
+  end
+
+  @impl true
   def handle_info({:failover, %{from: from, to: to, reason: reason}}, socket) do
     from_name = if from == :api, do: "API", else: "Subgraph"
     to_name = if to == :subgraph, do: "Subgraph", else: "API"
@@ -439,6 +466,8 @@ defmodule VolfefeMachineWeb.Admin.PolymarketLive do
   end
 
   defp load_data(socket) do
+    date_range = socket.assigns[:date_range] || "7d"
+
     dashboard = Polymarket.monitoring_dashboard()
     investigation = Polymarket.investigation_dashboard()
     pattern_statistics = Polymarket.pattern_stats()
@@ -450,6 +479,9 @@ defmodule VolfefeMachineWeb.Admin.PolymarketLive do
     trained_count = Enum.count(confirmed_insiders, & &1.used_for_training)
     insider_stats = Map.put(base_insider_stats, :trained, trained_count)
     pilot_progress = Validation.pilot_progress()
+
+    # Load date-filtered dashboard stats for Phase 3 MVP
+    dashboard_stats = Polymarket.dashboard_stats(range: date_range)
 
     socket
     |> assign(:dashboard, dashboard)
@@ -465,6 +497,8 @@ defmodule VolfefeMachineWeb.Admin.PolymarketLive do
     |> assign(:patterns, Polymarket.list_insider_patterns(include_stats: true))
     |> assign(:discovery_batches, Polymarket.list_discovery_batches(limit: 20))
     |> assign(:pilot_progress, pilot_progress)
+    |> assign(:dashboard_stats, dashboard_stats)
+    |> assign_new(:activity_feed, fn -> dashboard_stats.recent_activity end)
     |> assign_new(:pilot_validation, fn -> nil end)
     |> assign_new(:pilot_metrics, fn -> nil end)
     |> assign_new(:pilot_batch_results, fn -> nil end)
@@ -521,6 +555,20 @@ defmodule VolfefeMachineWeb.Admin.PolymarketLive do
   def priority_to_color("critical"), do: :red
   def priority_to_color("medium"), do: :amber
   def priority_to_color(_), do: :zinc
+
+  # Score tier helpers for activity feed
+  def score_tier_color(score) when is_nil(score), do: :zinc
+  def score_tier_color(%Decimal{} = score), do: score_tier_color(Decimal.to_float(score))
+  def score_tier_color(score) when score >= 0.9, do: :red
+  def score_tier_color(score) when score >= 0.7, do: :amber
+  def score_tier_color(score) when score >= 0.5, do: :yellow
+  def score_tier_color(score) when score >= 0.3, do: :blue
+  def score_tier_color(_), do: :green
+
+  def format_score(nil), do: "N/A"
+  def format_score(%Decimal{} = d), do: Decimal.round(d, 2) |> Decimal.to_string()
+  def format_score(f) when is_float(f), do: Float.round(f, 2) |> to_string()
+  def format_score(n), do: "#{n}"
 
   def format_probability(nil), do: "N/A"
   def format_probability(%Decimal{} = d), do: "#{Decimal.round(Decimal.mult(d, 100), 1)}%"
