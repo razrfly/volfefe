@@ -18,9 +18,9 @@ defmodule Mix.Tasks.Polymarket.Rescore do
 
   ## Options
 
-      --limit   Maximum trades to rescore (for testing)
+      --limit   Maximum trades to rescore (for testing, not allowed with --force)
       --batch   Batch size for processing (default: 500)
-      --force   Force recalculation of all trades
+      --force   Force recalculation of ALL trades (clears existing scores first)
 
   ## Examples
 
@@ -78,10 +78,16 @@ defmodule Mix.Tasks.Polymarket.Rescore do
     batch_size = opts[:batch] || 500
 
     cond do
+      opts[:force] and limit ->
+        # Prevent dangerous combination: --force clears ALL scores but --limit would only rescore a subset
+        Mix.shell().error("Error: --force and --limit cannot be used together.")
+        Mix.shell().error("       --force clears ALL existing scores, so --limit would leave most trades unscored.")
+        Mix.shell().error("       Use --force alone to rescore everything, or --limit alone for testing.")
+        exit({:shutdown, 1})
       opts[:force] ->
-        # Clear existing scores and rescore all trades
+        # Clear existing scores and rescore all trades (no limit allowed)
         clear_existing_scores()
-        score_unscored_trades(batch_size, limit)
+        score_unscored_trades(batch_size, nil)
       opts[:unscored] ->
         score_unscored_trades(batch_size, limit)
       opts[:all] ->

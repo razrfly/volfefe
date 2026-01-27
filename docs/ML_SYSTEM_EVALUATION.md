@@ -12,11 +12,12 @@ The VolfefeMachine ML-enhanced insider trading detection system has achieved a s
 
 ### Scoring Pipeline
 
-```
+```text
 Trade Data → Feature Extraction (22 features) → Isolation Forest → Ensemble Scoring → Classification
 ```
 
 ### Ensemble Weights
+
 | Component | Weight | Description |
 |-----------|--------|-------------|
 | Rule-Based Score | 35% | Weighted z-scores with Trinity boost |
@@ -153,7 +154,7 @@ Trade Data → Feature Extraction (22 features) → Isolation Forest → Ensembl
 
 ## Conclusion
 
-The system demonstrates **strong detection capability** with a **solid architectural foundation**. The discovery of a 479-wallet insider ring validates the approach. Primary focus should now shift to **threshold tuning** and **investigation tooling** rather than adding complexity.
+The system demonstrates strong detection capability with a solid architectural foundation. The discovery of a 479-wallet insider ring validates the approach. Primary focus should now shift to threshold tuning and investigation tooling rather than adding complexity.
 
 The B+ grade reflects a system that works and finds real signals, but needs refinement to maximize precision and reduce noise in the medium-score tier.
 

@@ -140,6 +140,25 @@ class AnomalyDetector:
     # Trusted directory for model files (relative to priv/ml)
     TRUSTED_MODEL_DIR = Path(__file__).parent / "models"
 
+    @staticmethod
+    def _is_path_within(child: Path, parent: Path) -> bool:
+        """
+        Check if child path is within parent directory.
+        Uses is_relative_to() (Python 3.9+) with fallback for older versions.
+        """
+        child = child.resolve()
+        parent = parent.resolve()
+        try:
+            # Python 3.9+ method - safe against prefix attacks
+            return child.is_relative_to(parent)
+        except AttributeError:
+            # Fallback for Python < 3.9: use os.path.commonpath
+            try:
+                return os.path.commonpath([str(child), str(parent)]) == str(parent)
+            except ValueError:
+                # Different drives on Windows or other path issues
+                return False
+
     @classmethod
     def load(cls, path: str) -> 'AnomalyDetector':
         """Load model from disk with path validation."""
@@ -154,10 +173,10 @@ class AnomalyDetector:
         priv_dir = Path(__file__).parent.parent.resolve()
 
         is_trusted = (
-            # Within explicit models directory
-            str(resolved_path).startswith(str(trusted_dir)) or
+            # Within explicit models directory (using proper containment check)
+            cls._is_path_within(resolved_path, trusted_dir) or
             # Or within priv directory with .joblib extension
-            (str(resolved_path).startswith(str(priv_dir)) and resolved_path.suffix == '.joblib')
+            (cls._is_path_within(resolved_path, priv_dir) and resolved_path.suffix == '.joblib')
         )
 
         if not is_trusted:
