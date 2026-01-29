@@ -104,7 +104,8 @@ class AnomalyDetector:
 
         # Convert to anomaly probability (0 = normal, 1 = very anomalous)
         # Use sigmoid-like transformation on inverted scores
-        anomaly_scores = 1 / (1 + np.exp(raw_scores * 2))
+        # Multiplier of 1.0 (was 2.0) spreads scores across wider range
+        anomaly_scores = 1 / (1 + np.exp(raw_scores * 1.0))
 
         # Calculate confidence based on score distance from threshold
         threshold = self.model.offset_  # Internal threshold

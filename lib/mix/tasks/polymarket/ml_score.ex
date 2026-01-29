@@ -248,13 +248,17 @@ defmodule Mix.Tasks.Polymarket.MlScore do
           ml_score = Enum.at(ml_result.anomaly_scores, idx, 0.0)
           ml_conf = Enum.at(ml_result.confidence, idx, 0.0)
 
-          # Calculate ensemble score
+          # Calculate trinity pattern FIRST (needed for ensemble boost)
+          trinity = check_trinity_pattern(score)
+
+          # Calculate ensemble score with trinity boost
           ensemble_input = %{
             anomaly_score: score.anomaly_score,
             ml_anomaly_score: ml_score,
             ml_confidence: ml_conf,
             highest_pattern_score: score.highest_pattern_score,
-            was_correct: trade.was_correct
+            was_correct: trade.was_correct,
+            trinity_pattern: trinity
           }
 
           {:ok, ensemble} = EnsembleScorer.calculate(ensemble_input)
@@ -264,7 +268,7 @@ defmodule Mix.Tasks.Polymarket.MlScore do
             ml_anomaly_score: Decimal.from_float(ml_score),
             ml_confidence: Decimal.from_float(ml_conf),
             ensemble_score: Decimal.from_float(ensemble),
-            trinity_pattern: check_trinity_pattern(score)
+            trinity_pattern: trinity
           })
         end)
 
