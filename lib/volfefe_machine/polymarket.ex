@@ -1790,8 +1790,8 @@ defmodule VolfefeMachine.Polymarket do
     anomaly_score = TradeScore.calculate_anomaly_score(zscores)
     insider_prob = TradeScore.calculate_insider_probability(anomaly_score, nil, trade.was_correct)
 
-    # Build breakdown
-    breakdown = TradeScore.build_anomaly_breakdown(%{
+    # Build breakdown (retained for debugging but no longer stored)
+    _breakdown = TradeScore.build_anomaly_breakdown(%{
       size: size_z || 0,
       timing: timing_z || 0,
       wallet_age: wallet_age_z || 0,
@@ -1807,6 +1807,23 @@ defmodule VolfefeMachine.Polymarket do
       wallet_age_zscore: wallet_age_z
     })
 
+    # Match against insider patterns
+    score_data = %{
+      size_zscore: size_z,
+      timing_zscore: timing_z,
+      wallet_age_zscore: wallet_age_z,
+      wallet_activity_zscore: activity_z,
+      price_extremity_zscore: price_z,
+      anomaly_score: anomaly_score,
+      insider_probability: insider_prob
+    }
+    pattern_matches = match_patterns(score_data, trade)
+    highest_pattern = if map_size(pattern_matches) > 0 do
+      pattern_matches |> Map.values() |> Enum.max()
+    else
+      nil
+    end
+
     attrs = %{
       trade_id: trade.id,
       transaction_hash: trade.transaction_hash,
@@ -1818,7 +1835,8 @@ defmodule VolfefeMachine.Polymarket do
       position_concentration_zscore: decimal_or_nil(concentration_z),
       anomaly_score: anomaly_score,
       insider_probability: insider_prob,
-      matched_patterns: breakdown,
+      matched_patterns: pattern_matches,
+      highest_pattern_score: decimal_or_nil(highest_pattern),
       trinity_pattern: trinity,
       scored_at: DateTime.utc_now()
     }
