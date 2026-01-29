@@ -15,8 +15,6 @@ defmodule VolfefeMachine.Application do
       {Phoenix.PubSub, name: VolfefeMachine.PubSub},
       # Data source health monitoring for failover decisions
       VolfefeMachine.Polymarket.DataSourceHealth,
-      # Trade monitoring for real-time insider detection
-      {VolfefeMachine.Polymarket.TradeMonitor, monitor_opts()},
       # Start to serve requests, typically the last entry
       VolfefeMachineWeb.Endpoint
     ]
@@ -33,9 +31,5 @@ defmodule VolfefeMachine.Application do
   def config_change(changed, _new, removed) do
     VolfefeMachineWeb.Endpoint.config_change(changed, removed)
     :ok
-  end
-
-  defp monitor_opts do
-    Application.get_env(:volfefe_machine, VolfefeMachine.Polymarket.TradeMonitor, [])
   end
 end
