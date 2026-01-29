@@ -102,14 +102,6 @@ config :live_toast,
   max_toasts: 5,
   kinds: [:info, :error, :success, :warning]
 
-# Configure Trade Monitor for real-time insider detection
-# Disabled by default - enable via mix polymarket.monitor --enable
-config :volfefe_machine, VolfefeMachine.Polymarket.TradeMonitor,
-  poll_interval: 30_000,        # 30 seconds between polls
-  anomaly_threshold: 0.7,       # Min anomaly score to trigger alert
-  probability_threshold: 0.5,   # Min insider probability to trigger alert
-  enabled: false                # Disabled by default, enable via CLI
-
 # Configure AlertingWorker for automated alert creation
 config :volfefe_machine, VolfefeMachine.Workers.Polymarket.AlertingWorker,
   enabled: true,                # Enable automated alerting

@@ -108,8 +108,14 @@ defmodule VolfefeMachine.Workers.Polymarket.AlertingWorker do
   Find high-scoring trades that don't have alerts yet.
   """
   def find_alert_candidates(min_score, limit \\ 100) do
-    # Convert to decimal for comparison
-    min_score_decimal = Decimal.from_float(min_score)
+    # Defensively normalize min_score to Decimal (handles floats, integers, strings)
+    min_score_decimal =
+      cond do
+        is_float(min_score) -> Decimal.from_float(min_score)
+        is_integer(min_score) -> Decimal.new(min_score)
+        is_binary(min_score) -> Decimal.new(min_score)
+        true -> Decimal.new(min_score)
+      end
 
     query = from(ts in TradeScore,
       join: t in Trade, on: t.id == ts.trade_id,
