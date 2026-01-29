@@ -122,7 +122,10 @@ defmodule VolfefeMachine.Workers.Polymarket.MarketSyncWorker do
 
     if length(newly_resolved) == 0 do
       Logger.info("[MarketSync] No newly resolved markets found")
-      results
+
+      # Even if no new resolutions, check for pending predictions to validate
+      # (markets may have resolved since predictions were made)
+      validate_pending_predictions(results)
     else
       Logger.info("[MarketSync] Found #{length(newly_resolved)} newly resolved markets")
 
@@ -138,10 +141,34 @@ defmodule VolfefeMachine.Workers.Polymarket.MarketSyncWorker do
       {:ok, score_stats} = Polymarket.score_all_trades(only_unscored: true)
       Logger.info("[MarketSync] Scored #{score_stats.scored} trades")
 
-      %{results |
+      # Auto-validate any pending predictions for resolved markets
+      results = %{results |
         newly_resolved: length(newly_resolved),
         trades_scored: score_stats.scored
       }
+
+      validate_pending_predictions(results)
+    end
+  end
+
+  # Validate pending predictions against resolved market outcomes
+  defp validate_pending_predictions(results) do
+    validation_result = Polymarket.auto_validate_predictions()
+
+    if validation_result.validated > 0 do
+      correct = Enum.count(validation_result.results, & &1.correct)
+      incorrect = validation_result.validated - correct
+
+      Logger.info("[MarketSync] Validated #{validation_result.validated} predictions: #{correct} correct, #{incorrect} incorrect")
+
+      Map.merge(results, %{
+        predictions_validated: validation_result.validated,
+        predictions_correct: correct,
+        predictions_incorrect: incorrect
+      })
+    else
+      Logger.debug("[MarketSync] No pending predictions to validate")
+      results
     end
   end
 end

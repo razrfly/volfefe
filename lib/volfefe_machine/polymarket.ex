@@ -5907,4 +5907,432 @@ defmodule VolfefeMachine.Polymarket do
   # Helper to calculate average
   defp average([]), do: nil
   defp average(list), do: Enum.sum(list) / length(list)
+
+  # Helper to convert decimal to float safely
+  defp decimal_to_float(nil), do: 0.0
+  defp decimal_to_float(%Decimal{} = d), do: Decimal.to_float(d)
+  defp decimal_to_float(n) when is_float(n), do: n
+  defp decimal_to_float(n) when is_integer(n), do: n * 1.0
+
+  # ============================================
+  # Forward Prediction Functions (Phase 10.5)
+  # ============================================
+
+  alias VolfefeMachine.Polymarket.Prediction
+
+  @doc """
+  Create a new forward prediction for an active market.
+
+  ## Parameters
+    - attrs: Map with prediction data
+
+  ## Returns
+    - {:ok, prediction} on success
+    - {:error, changeset} on failure
+  """
+  def create_prediction(attrs) do
+    %Prediction{}
+    |> Prediction.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  @doc """
+  Get a prediction by ID.
+  """
+  def get_prediction(id), do: Repo.get(Prediction, id)
+
+  @doc """
+  Get a prediction by prediction_id string.
+  """
+  def get_prediction_by_prediction_id(prediction_id) do
+    Repo.get_by(Prediction, prediction_id: prediction_id)
+  end
+
+  @doc """
+  Check if a prediction already exists for a market within a time window.
+
+  ## Parameters
+    - condition_id: Market condition ID
+    - hours: Hours to look back (default 24)
+
+  ## Returns
+    - true if recent prediction exists
+    - false otherwise
+  """
+  def prediction_exists?(condition_id, hours \\ 24) do
+    cutoff = DateTime.add(DateTime.utc_now(), -hours * 3600, :second)
+
+    from(p in Prediction,
+      where: p.condition_id == ^condition_id,
+      where: p.predicted_at >= ^cutoff
+    )
+    |> Repo.exists?()
+  end
+
+  @doc """
+  List all pending (unvalidated) predictions.
+  """
+  def list_pending_predictions do
+    from(p in Prediction,
+      where: is_nil(p.validated_at),
+      order_by: [asc: p.predicted_at]
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  List predictions with optional filters.
+
+  ## Options
+    - :validated - true/false to filter by validation status
+    - :tier - filter by prediction tier
+    - :limit - max results
+    - :order - :asc or :desc for predicted_at
+  """
+  def list_predictions(opts \\ []) do
+    query = from(p in Prediction)
+
+    query = case Keyword.get(opts, :validated) do
+      true -> from(p in query, where: not is_nil(p.validated_at))
+      false -> from(p in query, where: is_nil(p.validated_at))
+      nil -> query
+    end
+
+    query = case Keyword.get(opts, :tier) do
+      nil -> query
+      tier -> from(p in query, where: p.prediction_tier == ^tier)
+    end
+
+    query = case Keyword.get(opts, :order, :desc) do
+      :asc -> from(p in query, order_by: [asc: p.predicted_at])
+      :desc -> from(p in query, order_by: [desc: p.predicted_at])
+    end
+
+    query = case Keyword.get(opts, :limit) do
+      nil -> query
+      limit -> from(p in query, limit: ^limit)
+    end
+
+    Repo.all(query)
+  end
+
+  @doc """
+  Validate a prediction after market resolution.
+
+  ## Parameters
+    - prediction: The prediction struct
+    - actual_outcome: The actual market outcome
+
+  ## Returns
+    - {:ok, updated_prediction} on success
+    - {:error, changeset} on failure
+  """
+  def validate_prediction(%Prediction{} = prediction, actual_outcome) do
+    now = DateTime.utc_now()
+
+    # Calculate days before resolution
+    days_before = if prediction.market_end_date do
+      DateTime.diff(prediction.market_end_date, prediction.predicted_at, :second) / 86400
+    else
+      nil
+    end
+
+    # Determine if prediction was correct
+    is_correct = prediction.predicted_outcome == actual_outcome
+
+    attrs = %{
+      actual_outcome: actual_outcome,
+      validated_at: now,
+      prediction_correct: is_correct,
+      days_before_resolution: days_before
+    }
+
+    prediction
+    |> Prediction.validation_changeset(attrs)
+    |> Repo.update()
+  end
+
+  @doc """
+  Get forward prediction accuracy statistics.
+
+  ## Returns
+  Map with:
+    - total_predictions: Total count
+    - validated: Number validated
+    - pending: Number pending
+    - correct: Number correct
+    - incorrect: Number incorrect
+    - accuracy: Overall accuracy percentage
+    - accuracy_by_tier: Breakdown by prediction tier
+    - avg_lead_time: Average days before resolution
+  """
+  def prediction_stats do
+    all_predictions = Repo.all(Prediction)
+
+    validated = Enum.filter(all_predictions, & &1.validated_at)
+    pending = Enum.filter(all_predictions, &is_nil(&1.validated_at))
+    correct = Enum.filter(validated, & &1.prediction_correct)
+    incorrect = Enum.filter(validated, &(&1.prediction_correct == false))
+
+    # Accuracy by tier
+    accuracy_by_tier = validated
+    |> Enum.group_by(& &1.prediction_tier)
+    |> Enum.map(fn {tier, preds} ->
+      tier_correct = Enum.count(preds, & &1.prediction_correct)
+      total = length(preds)
+      accuracy = if total > 0, do: Float.round(tier_correct / total * 100, 1), else: 0.0
+      {tier, %{correct: tier_correct, total: total, accuracy: accuracy}}
+    end)
+    |> Enum.into(%{})
+
+    # Average lead time
+    lead_times = validated
+    |> Enum.map(& &1.days_before_resolution)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.map(&decimal_to_float/1)
+
+    avg_lead_time = if length(lead_times) > 0 do
+      Float.round(Enum.sum(lead_times) / length(lead_times), 1)
+    else
+      nil
+    end
+
+    overall_accuracy = if length(validated) > 0 do
+      Float.round(length(correct) / length(validated) * 100, 1)
+    else
+      0.0
+    end
+
+    %{
+      total_predictions: length(all_predictions),
+      validated: length(validated),
+      pending: length(pending),
+      correct: length(correct),
+      incorrect: length(incorrect),
+      accuracy: overall_accuracy,
+      accuracy_by_tier: accuracy_by_tier,
+      avg_lead_time: avg_lead_time
+    }
+  end
+
+  @doc """
+  Find suspicious active markets with volume breakdown by outcome.
+
+  Similar to find_suspicious_active_markets but includes
+  suspicious volume split by Yes/No for prediction purposes.
+
+  ## Parameters
+    - min_score: Minimum ensemble score (default 0.5)
+    - opts: Additional options (category, ending_within, limit)
+
+  ## Returns
+  List of maps with market data and volume breakdown.
+  """
+  def find_markets_for_prediction(min_score \\ 0.5, opts \\ []) do
+    min_score_decimal = Decimal.from_float(min_score)
+    category = Keyword.get(opts, :category)
+    ending_within = Keyword.get(opts, :ending_within)
+    limit = Keyword.get(opts, :limit, 50)
+    now = DateTime.utc_now()
+
+    # Base query: unresolved markets with suspicious trades that haven't ended yet
+    base_query = from(m in Market,
+      join: t in Trade, on: t.market_id == m.id,
+      join: ts in TradeScore, on: ts.trade_id == t.id,
+      where: is_nil(m.resolved_outcome),
+      where: m.is_active == true,
+      where: ts.ensemble_score >= ^min_score_decimal,
+      # Only include markets that haven't ended yet (or have no end date)
+      where: is_nil(m.end_date) or m.end_date > ^now,
+      group_by: m.id,
+      select: %{
+        market: m,
+        max_ensemble: max(ts.ensemble_score),
+        avg_ensemble: avg(ts.ensemble_score),
+        suspicious_trade_count: count(ts.id),
+        suspicious_volume: sum(t.usdc_size),
+        unique_wallets: count(t.wallet_address, :distinct)
+      }
+    )
+
+    # Apply category filter
+    base_query = if category do
+      category_atom = String.to_existing_atom(category)
+      from([m, t, ts] in base_query, where: m.category == ^category_atom)
+    else
+      base_query
+    end
+
+    # Apply ending_within filter
+    base_query = if ending_within do
+      cutoff = DateTime.add(DateTime.utc_now(), ending_within * 24 * 60 * 60, :second)
+      from([m, t, ts] in base_query,
+        where: not is_nil(m.end_date) and m.end_date <= ^cutoff
+      )
+    else
+      base_query
+    end
+
+    markets = Repo.all(base_query)
+
+    # Enrich each market with volume breakdown and watchability
+    markets
+    |> Enum.map(fn market_data ->
+      volume_breakdown = get_suspicious_volume_breakdown(market_data.market.id, min_score)
+      top_wallet = get_top_suspicious_wallet(market_data.market.id, min_score)
+      watchability = calculate_watchability_score(market_data)
+
+      Map.merge(market_data, %{
+        yes_volume: volume_breakdown.yes_volume,
+        no_volume: volume_breakdown.no_volume,
+        top_wallet: top_wallet,
+        watchability: watchability.score,
+        tier: watchability.tier,
+        urgency: watchability.urgency,
+        volume_signal: watchability.volume_signal
+      })
+    end)
+    |> Enum.sort_by(& &1.watchability, :desc)
+    |> Enum.take(limit)
+  end
+
+  # Get suspicious trade volume breakdown by outcome
+  defp get_suspicious_volume_breakdown(market_id, min_score) do
+    min_score_decimal = Decimal.from_float(min_score)
+
+    result = from(t in Trade,
+      join: ts in TradeScore, on: ts.trade_id == t.id,
+      where: t.market_id == ^market_id,
+      where: ts.ensemble_score >= ^min_score_decimal,
+      group_by: t.outcome,
+      select: {t.outcome, sum(t.usdc_size)}
+    )
+    |> Repo.all()
+    |> Enum.into(%{})
+
+    %{
+      yes_volume: Map.get(result, "Yes", Decimal.new(0)),
+      no_volume: Map.get(result, "No", Decimal.new(0))
+    }
+  end
+
+  # Get top suspicious wallet for a market
+  defp get_top_suspicious_wallet(market_id, min_score) do
+    min_score_decimal = Decimal.from_float(min_score)
+
+    from(t in Trade,
+      join: ts in TradeScore, on: ts.trade_id == t.id,
+      where: t.market_id == ^market_id,
+      where: ts.ensemble_score >= ^min_score_decimal,
+      group_by: t.wallet_address,
+      order_by: [desc: max(ts.ensemble_score)],
+      limit: 1,
+      select: %{
+        wallet_address: t.wallet_address,
+        trade_count: count(t.id),
+        max_score: max(ts.ensemble_score),
+        avg_score: avg(ts.ensemble_score)
+      }
+    )
+    |> Repo.one()
+  end
+
+  # Calculate watchability score for prediction ranking
+  defp calculate_watchability_score(market_data) do
+    now = DateTime.utc_now()
+
+    max_ensemble = decimal_to_float(market_data.max_ensemble)
+    suspicious_volume = decimal_to_float(market_data.suspicious_volume)
+    end_date = market_data.market.end_date
+
+    # Anomaly signal (0-1)
+    anomaly_signal = max_ensemble
+
+    # Volume signal (0-1): log-normalized
+    volume_signal = cond do
+      suspicious_volume <= 0 -> 0.0
+      suspicious_volume < 1000 -> 0.2
+      suspicious_volume < 10_000 -> 0.3 + (0.2 * :math.log10(suspicious_volume / 1000))
+      suspicious_volume < 100_000 -> 0.5 + (0.2 * :math.log10(suspicious_volume / 10_000))
+      suspicious_volume < 1_000_000 -> 0.7 + (0.2 * :math.log10(suspicious_volume / 100_000))
+      true -> 0.95
+    end
+
+    # Urgency signal (0-1)
+    urgency_signal = if end_date do
+      days_until = DateTime.diff(end_date, now, :second) / 86400
+      cond do
+        days_until <= 0 -> 1.0
+        days_until <= 1 -> 0.95
+        days_until <= 3 -> 0.85
+        days_until <= 7 -> 0.7
+        days_until <= 14 -> 0.5
+        days_until <= 30 -> 0.3
+        true -> 0.1
+      end
+    else
+      0.3
+    end
+
+    # Composite watchability
+    watchability = (anomaly_signal * 0.5) + (volume_signal * 0.3) + (urgency_signal * 0.2)
+
+    tier = cond do
+      watchability >= 0.8 -> "critical"
+      watchability >= 0.6 -> "high"
+      watchability >= 0.4 -> "medium"
+      true -> "low"
+    end
+
+    %{
+      score: Float.round(watchability, 4),
+      tier: tier,
+      anomaly_signal: Float.round(anomaly_signal, 3),
+      volume_signal: Float.round(volume_signal, 3),
+      urgency: Float.round(urgency_signal, 3)
+    }
+  end
+
+  @doc """
+  Auto-validate predictions for newly resolved markets.
+
+  Called by MarketSyncWorker after detecting resolutions.
+
+  ## Returns
+  Map with :validated count and :results list
+  """
+  def auto_validate_predictions do
+    # Find pending predictions
+    pending = list_pending_predictions()
+
+    results = Enum.map(pending, fn prediction ->
+      # Check if market has resolved
+      market = Repo.get(Market, prediction.market_id)
+
+      if market && market.resolved_outcome do
+        case validate_prediction(prediction, market.resolved_outcome) do
+          {:ok, updated} ->
+            {:validated, %{
+              prediction_id: updated.prediction_id,
+              market_question: updated.market_question,
+              predicted: updated.predicted_outcome,
+              actual: updated.actual_outcome,
+              correct: updated.prediction_correct
+            }}
+          {:error, _} ->
+            {:error, prediction.prediction_id}
+        end
+      else
+        {:pending, prediction.prediction_id}
+      end
+    end)
+
+    validated = Enum.count(results, fn {status, _} -> status == :validated end)
+
+    %{
+      validated: validated,
+      results: Enum.filter(results, fn {status, _} -> status == :validated end)
+               |> Enum.map(fn {_, data} -> data end)
+    }
+  end
 end

@@ -104,7 +104,8 @@ class AnomalyDetector:
 
         # Convert to anomaly probability (0 = normal, 1 = very anomalous)
         # Use sigmoid-like transformation on inverted scores
-        # Multiplier of 1.0 (was 2.0) spreads scores across wider range
+        # Multiplier of 1.0 (was 2.0) makes sigmoid less steep, compressing
+        # anomaly_scores toward 0.5 - intentional calibration for less extreme outputs
         anomaly_scores = 1 / (1 + np.exp(raw_scores * 1.0))
 
         # Calculate confidence based on score distance from threshold
