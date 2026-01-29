@@ -81,12 +81,18 @@ config :volfefe_machine, Oban,
      crontab: [
        # Trade ingestion every 2 minutes - accelerated Phase 2 ingestion
        {"*/2 * * * *", VolfefeMachine.Workers.Polymarket.TradeIngestionWorker},
+       # Trade scoring every 5 minutes - backup for any missed scoring
+       {"*/5 * * * *", VolfefeMachine.Workers.Polymarket.TradeScoringWorker},
+       # Alerting every 10 minutes - backup for alert creation/notifications
+       {"*/10 * * * *", VolfefeMachine.Workers.Polymarket.AlertingWorker},
        # Market sync hourly with resolution checking
        {"0 * * * *", VolfefeMachine.Workers.Polymarket.MarketSyncWorker, args: %{check_resolutions: true}},
        # Diversity check every 30 minutes - coverage health monitoring
        {"*/30 * * * *", VolfefeMachine.Workers.Polymarket.DiversityCheckWorker},
        # Market enrichment every hour (at :15) - Phase 2A metadata enrichment
-       {"15 * * * *", VolfefeMachine.Workers.Polymarket.MarketEnrichmentWorker}
+       {"15 * * * *", VolfefeMachine.Workers.Polymarket.MarketEnrichmentWorker},
+       # Prediction recording every 6 hours - Phase 10.5 forward prediction validation
+       {"0 */6 * * *", VolfefeMachine.Workers.Polymarket.PredictionWorker}
      ]}
   ]
 
@@ -103,6 +109,12 @@ config :volfefe_machine, VolfefeMachine.Polymarket.TradeMonitor,
   anomaly_threshold: 0.7,       # Min anomaly score to trigger alert
   probability_threshold: 0.5,   # Min insider probability to trigger alert
   enabled: false                # Disabled by default, enable via CLI
+
+# Configure AlertingWorker for automated alert creation
+config :volfefe_machine, VolfefeMachine.Workers.Polymarket.AlertingWorker,
+  enabled: true,                # Enable automated alerting
+  min_ensemble_score: 0.7,      # Only alert on High+ scores (>0.7)
+  notify: true                  # Send notifications when alerts created
 
 # Configure Notifier for external alert notifications
 # Webhook URLs are set in runtime.exs from environment variables

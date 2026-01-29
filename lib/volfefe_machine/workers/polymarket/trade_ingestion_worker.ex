@@ -51,6 +51,11 @@ defmodule VolfefeMachine.Workers.Polymarket.TradeIngestionWorker do
       {:ok, stats} ->
         Logger.info("[TradeIngestion] Complete: inserted=#{stats.inserted}, updated=#{stats.updated}, errors=#{stats.errors}, unmapped=#{stats.unmapped}")
 
+        # Trigger scoring if new trades were inserted
+        if stats.inserted > 0 do
+          enqueue_scoring_worker()
+        end
+
         # Return stats for job meta
         {:ok, %{
           inserted: stats.inserted,
@@ -74,6 +79,17 @@ defmodule VolfefeMachine.Workers.Polymarket.TradeIngestionWorker do
           Logger.error("[TradeIngestion] Failed: #{inspect(reason)}")
           {:error, reason}
         end
+    end
+  end
+
+  defp enqueue_scoring_worker do
+    case %{}
+         |> VolfefeMachine.Workers.Polymarket.TradeScoringWorker.new()
+         |> Oban.insert() do
+      {:ok, _job} ->
+        Logger.info("[TradeIngestion] Enqueued TradeScoringWorker")
+      {:error, reason} ->
+        Logger.warning("[TradeIngestion] Failed to enqueue TradeScoringWorker: #{inspect(reason)}")
     end
   end
 end

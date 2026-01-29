@@ -1,5 +1,16 @@
 defmodule VolfefeMachine.Polymarket.TradeMonitor do
   @moduledoc """
+  **DEPRECATED**: This module is deprecated and will be removed.
+
+  Use Oban workers instead:
+  - `VolfefeMachine.Workers.Polymarket.TradeIngestionWorker` - Trade ingestion
+  - `VolfefeMachine.Workers.Polymarket.TradeScoringWorker` - Trade scoring
+  - `VolfefeMachine.Workers.Polymarket.AlertingWorker` - Alert creation/notification
+
+  See Issue #194 for removal timeline.
+
+  ---
+
   GenServer for real-time trade monitoring and alert generation.
 
   Polls the Polymarket API for new trades, scores them against baselines,

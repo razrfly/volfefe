@@ -131,6 +131,29 @@ defmodule VolfefeMachineWeb.Admin.PolymarketLive do
   end
 
   @impl true
+  def handle_event("promote_alert", %{"id" => id}, socket) do
+    case Polymarket.get_alert(String.to_integer(id)) do
+      nil ->
+        {:noreply, put_toast(socket, :error, "Alert not found")}
+
+      alert ->
+        case Polymarket.promote_alert_to_candidate(alert) do
+          {:ok, candidate} ->
+            {:noreply,
+             socket
+             |> put_toast(:success, "Alert promoted to candidate: #{String.slice(candidate.wallet_address, 0..9)}...")
+             |> load_data()}
+
+          {:error, :candidate_exists} ->
+            {:noreply, put_toast(socket, :info, "Candidate already exists for this wallet")}
+
+          {:error, _changeset} ->
+            {:noreply, put_toast(socket, :error, "Failed to promote alert")}
+        end
+    end
+  end
+
+  @impl true
   def handle_event("start_candidate_investigation", %{"id" => id}, socket) do
     case Polymarket.get_investigation_candidate(String.to_integer(id)) do
       nil ->
