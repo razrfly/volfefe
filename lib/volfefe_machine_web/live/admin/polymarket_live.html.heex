@@ -569,7 +569,7 @@
                       <.action_link phx-click="investigate_alert" phx-value-id={alert.id}>Investigate</.action_link>
                     <% end %>
                     <%= if alert.status in ["new", "acknowledged", "investigating"] do %>
-                      <.action_link phx-click="promote_alert" phx-value-id={alert.id} class="text-emerald-600 hover:text-emerald-500">Promote</.action_link>
+                      <.action_link id={"promote-alert-#{alert.id}"} phx-click="promote_alert" phx-value-id={alert.id} class={["text-emerald-600", "hover:text-emerald-500"]}>Promote</.action_link>
                     <% end %>
                     <%= if alert.status in ["new", "acknowledged"] do %>
                       <.action_link phx-click="dismiss_alert" phx-value-id={alert.id}>Dismiss</.action_link>

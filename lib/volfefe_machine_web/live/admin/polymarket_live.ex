@@ -16,7 +16,6 @@ defmodule VolfefeMachineWeb.Admin.PolymarketLive do
   alias VolfefeMachine.Polymarket.FormatHelpers
   alias VolfefeMachine.Polymarket.DiversityMonitor
   alias VolfefeMachine.Polymarket.DataSourceHealth
-  alias VolfefeMachine.Polymarket.TradeMonitor
   alias VolfefeMachine.Polymarket.Validation
 
   @impl true
@@ -320,46 +319,25 @@ defmodule VolfefeMachineWeb.Admin.PolymarketLive do
     end
   end
 
+  # Note: Real-time monitoring is now handled by Oban workers:
+  # - TradeIngestionWorker (every 2 min)
+  # - TradeScoringWorker (every 5 min)
+  # - AlertingWorker (every 10 min)
+  # These event handlers are kept for backwards compatibility but now show info messages.
+
   @impl true
   def handle_event("enable_monitor", _params, socket) do
-    try do
-      TradeMonitor.enable()
-      {:noreply,
-       socket
-       |> put_toast(:success, "Trade monitor enabled")
-       |> load_data()}
-    catch
-      :exit, _ ->
-        {:noreply, put_toast(socket, :error, "Trade monitor not running")}
-    end
+    {:noreply, put_toast(socket, :info, "Monitoring is automatic via Oban workers")}
   end
 
   @impl true
   def handle_event("disable_monitor", _params, socket) do
-    try do
-      TradeMonitor.disable()
-      {:noreply,
-       socket
-       |> put_toast(:success, "Trade monitor disabled")
-       |> load_data()}
-    catch
-      :exit, _ ->
-        {:noreply, put_toast(socket, :error, "Trade monitor not running")}
-    end
+    {:noreply, put_toast(socket, :info, "Monitoring is automatic via Oban workers")}
   end
 
   @impl true
   def handle_event("poll_now", _params, socket) do
-    try do
-      TradeMonitor.poll_now()
-      {:noreply,
-       socket
-       |> put_toast(:success, "Triggered manual poll")
-       |> load_data()}
-    catch
-      :exit, _ ->
-        {:noreply, put_toast(socket, :error, "Trade monitor not running")}
-    end
+    {:noreply, put_toast(socket, :info, "Use 'mix polymarket.ingest' for manual ingestion")}
   end
 
   @impl true

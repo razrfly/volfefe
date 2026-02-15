@@ -38,7 +38,7 @@ defmodule VolfefeMachine.Polymarket do
   alias VolfefeMachine.Polymarket.{
     Client, Market, Trade, Wallet, PatternBaseline, TradeScore,
     ConfirmedInsider, InsiderPattern, InvestigationCandidate, DiscoveryBatch,
-    Alert, TradeMonitor, WatchedMarket, InvestigationNote
+    Alert, WatchedMarket, InvestigationNote
   }
 
   # ============================================
@@ -4661,11 +4661,8 @@ defmodule VolfefeMachine.Polymarket do
         high_alerts: length(high_alerts),
         pending_investigations: Map.get(investigation_statistics.by_status, "undiscovered", 0)
       },
-      monitor_status: try do
-        TradeMonitor.status()
-      catch
-        :exit, _ -> %{enabled: false, error: "Monitor not running"}
-      end
+      # Monitoring is handled by Oban workers (TradeIngestionWorker, TradeScoringWorker, AlertingWorker)
+      monitor_status: %{enabled: true, via: "oban_workers"}
     }
   end
 

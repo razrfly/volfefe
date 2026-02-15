@@ -768,7 +768,8 @@ defmodule VolfefeMachineWeb.CatalystComponents do
       <.action_link navigate={~p"/items/\#{item.id}"}>View</.action_link>
       <.action_link phx-click="delete" phx-value-id={item.id}>Delete</.action_link>
   """
-  attr :class, :string, default: nil
+  attr :class, :any, default: nil
+  attr :id, :string, default: nil
   attr :rest, :global, include: ~w(href navigate patch method phx-click phx-value-id)
 
   slot :inner_block, required: true
@@ -776,6 +777,7 @@ defmodule VolfefeMachineWeb.CatalystComponents do
   def action_link(assigns) do
     ~H"""
     <.link
+      id={@id}
       class={[
         "text-sm font-medium text-zinc-700 hover:text-zinc-950 dark:text-zinc-300 dark:hover:text-white",
         @class

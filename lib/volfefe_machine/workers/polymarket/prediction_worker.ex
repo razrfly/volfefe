@@ -163,8 +163,12 @@ defmodule VolfefeMachine.Workers.Polymarket.PredictionWorker do
   # ============================================
 
   defp truncate(nil, _), do: ""
-  defp truncate(str, max) when byte_size(str) > max do
-    String.slice(str, 0, max - 3) <> "..."
+  defp truncate(str, max) when is_binary(str) do
+    if String.length(str) > max do
+      String.slice(str, 0, max - 3) <> "..."
+    else
+      str
+    end
   end
   defp truncate(str, _), do: str
 

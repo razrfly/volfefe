@@ -19,11 +19,11 @@ This runbook provides operational guidance for running and maintaining the Polym
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                         REAL-TIME MONITORING                             │
+│                         REAL-TIME MONITORING (Oban Workers)              │
 ├─────────────────────────────────────────────────────────────────────────┤
-│  TradeMonitor (GenServer) → Score → Pattern Match → Alert Generation    │
-│  Poll Interval: 30 seconds                                              │
-│  Thresholds: anomaly >= 0.7 OR insider_probability >= 0.5               │
+│  TradeIngestionWorker (2min) → TradeScoringWorker (5min) → AlertingWorker│
+│  Thresholds: ensemble_score >= 0.7 for High+ alerts                      │
+│  Automation: Cron-based, persistent, survives restarts                   │
 └─────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
@@ -340,12 +340,11 @@ export POLYMARKET_API_KEY="..."
 Location: `config/config.exs` and `config/runtime.exs`
 
 ```elixir
-# Trade Monitor settings
-config :volfefe_machine, VolfefeMachine.Polymarket.TradeMonitor,
-  poll_interval: 30_000,        # 30 seconds
-  anomaly_threshold: 0.7,       # Min anomaly score to alert
-  probability_threshold: 0.5,   # Min insider probability
-  enabled: true                 # Enable/disable monitoring
+# Alerting Worker settings (real-time monitoring via Oban)
+config :volfefe_machine, VolfefeMachine.Workers.Polymarket.AlertingWorker,
+  enabled: true,                # Enable automated alerting
+  min_ensemble_score: 0.7,      # Only alert on High+ scores (>0.7)
+  notify: true                  # Send notifications when alerts created
 
 # Notifier settings
 config :volfefe_machine, VolfefeMachine.Polymarket.Notifier,
