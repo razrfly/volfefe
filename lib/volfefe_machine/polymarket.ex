@@ -4662,7 +4662,13 @@ defmodule VolfefeMachine.Polymarket do
         pending_investigations: Map.get(investigation_statistics.by_status, "undiscovered", 0)
       },
       # Monitoring is handled by Oban workers (TradeIngestionWorker, TradeScoringWorker, AlertingWorker)
-      monitor_status: %{enabled: true, via: "oban_workers"}
+      monitor_status: %{
+        enabled:
+          :volfefe_machine
+          |> Application.get_env(VolfefeMachine.Workers.Polymarket.AlertingWorker, [])
+          |> Keyword.get(:enabled, true),
+        via: "oban_workers"
+      }
     }
   end
 

@@ -111,10 +111,16 @@ defmodule VolfefeMachine.Workers.Polymarket.AlertingWorker do
     # Defensively normalize min_score to Decimal (handles floats, integers, strings)
     min_score_decimal =
       cond do
+        is_nil(min_score) -> Decimal.new("0")
+        is_struct(min_score, Decimal) -> min_score
         is_float(min_score) -> Decimal.from_float(min_score)
         is_integer(min_score) -> Decimal.new(min_score)
-        is_binary(min_score) -> Decimal.new(min_score)
-        true -> Decimal.new(min_score)
+        is_binary(min_score) ->
+          case Decimal.parse(min_score) do
+            {%Decimal{} = dec, _rest} -> dec
+            :error -> Decimal.new("0")
+          end
+        true -> Decimal.new("0")
       end
 
     query = from(ts in TradeScore,
