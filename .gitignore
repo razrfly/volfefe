@@ -42,9 +42,8 @@ npm-debug.log
 
 # Playwright MCP screenshots
 .playwright-mcp/
-research/polymarket/test_wallet.json
+
 # Research files with secrets
-research/polymarket/test_wallet.json
 research/**/test_wallet.json
 **/test_wallet.json
 
