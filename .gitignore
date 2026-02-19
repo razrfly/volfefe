@@ -48,6 +48,15 @@ research/polymarket/test_wallet.json
 research/**/test_wallet.json
 **/test_wallet.json
 
+# Python virtual environment
+/venv/
+
+# Node.js lock file (assets managed by Mix esbuild/tailwind)
+assets/package-lock.json
+
+# Database dumps
+*.dump
+
 # macOS
 .DS_Store
 **/.DS_Store
